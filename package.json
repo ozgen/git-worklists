@@ -30,13 +30,35 @@
           "id": "gitWorklists.changelists",
           "name": "Changelists",
           "icon": "media/activity-icon.png"
+        },
+        {
+          "id": "gitWorklists.commitPanel",
+          "name": "Commit",
+          "type": "webview",
+          "icon": "media/activity-icon.png"
         }
       ]
     },
     "commands": [
       {
         "command": "gitWorklists.refresh",
-        "title": "Refresh Worklists"
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitWorklists.selectFile",
+        "title": "Stage File",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitWorklists.unselectFile",
+        "title": "Unstage File",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "gitWorklists.toggleGroupSelection",
+        "title": "Toggle Group Staging",
+        "icon": "$(checklist)"
       }
     ],
     "menus": {
@@ -44,7 +66,24 @@
         {
           "command": "gitWorklists.refresh",
           "when": "view == gitWorklists.changelists",
-          "group": "navigation"
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gitWorklists.toggleGroupSelection",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group",
+          "group": "inline"
+        },
+        {
+          "command": "gitWorklists.selectFile",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "group": "inline"
+        },
+        {
+          "command": "gitWorklists.unselectFile",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "group": "inline"
         }
       ]
     }

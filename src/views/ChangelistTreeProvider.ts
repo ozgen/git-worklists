@@ -12,17 +12,28 @@ abstract class Node extends vscode.TreeItem {
   abstract readonly kind: "group" | "file";
 }
 
+type GroupStageState = "all" | "none" | "mixed";
+
 class GroupNode extends Node {
   readonly kind = "group" as const;
 
   constructor(
     public readonly list: PersistedChangelist,
     public readonly title: string,
-    public readonly icon: vscode.ThemeIcon,
+    public readonly stageState: GroupStageState,
   ) {
     super(title, vscode.TreeItemCollapsibleState.Expanded);
     this.contextValue = "gitWorklists.group";
-    this.iconPath = icon;
+
+    // checkbox-like icon
+    this.iconPath = new vscode.ThemeIcon(groupIcon(stageState));
+
+    // Clicking group toggles staging for all files in group
+    this.command = {
+      command: "gitWorklists.toggleGroupSelection",
+      title: "Toggle Group Staging",
+      arguments: [this],
+    };
   }
 }
 
@@ -32,13 +43,18 @@ class FileNode extends Node {
   constructor(
     public readonly repoRoot: vscode.Uri,
     public readonly repoRelativePath: string,
+    public readonly isStaged: boolean,
   ) {
     super(repoRelativePath, vscode.TreeItemCollapsibleState.None);
     this.contextValue = "gitWorklists.file";
-    this.iconPath = vscode.ThemeIcon.File;
 
     const abs = vscode.Uri.joinPath(repoRoot, repoRelativePath);
     this.resourceUri = abs;
+
+    // checkbox-like icon
+    this.iconPath = new vscode.ThemeIcon(
+      isStaged ? "check" : "square",
+    );
 
     // show folder on the right (like Source Control)
     const parts = repoRelativePath.split("/");
@@ -46,10 +62,11 @@ class FileNode extends Node {
       this.description = parts.slice(0, -1).join("/");
     }
 
+    // Clicking the file toggles staged state (NOT open)
     this.command = {
-      command: "vscode.open",
-      title: "Open",
-      arguments: [abs],
+      command: isStaged ? "gitWorklists.unstagePath" : "gitWorklists.stagePath",
+      title: isStaged ? "Unstage" : "Stage",
+      arguments: [abs], // use Uri so command can compute repo-relative path safely
     };
   }
 }
@@ -60,11 +77,19 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
 
   private repoRootFsPath?: string;
 
+  // staged paths are injected from extension.ts during refresh
+  private stagedPaths = new Set<string>();
+
   constructor(private readonly store: WorkspaceStateStore) {}
 
   setRepoRoot(repoRootFsPath: string) {
     this.repoRootFsPath = repoRootFsPath;
     this.refresh();
+  }
+
+  setStagedPaths(staged: Set<string>) {
+    // normalize once so lookups match your persisted paths
+    this.stagedPaths = new Set(Array.from(staged).map(normalizeRepoRelPath));
   }
 
   refresh() {
@@ -99,28 +124,63 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
         files: [],
       } as PersistedChangelist);
 
-    // Root level: match the screenshot-style groups
+    // Root level groups
     if (!element) {
       const changesTitle = `Changes (${def.files.length})`;
       const unvTitle = `Unversioned Files (${unversioned.files.length})`;
 
+      const defState = groupStageState(this.stagedPaths, def.files);
+      const unvState = groupStageState(this.stagedPaths, unversioned.files);
+
       return [
-        new GroupNode(def, changesTitle, new vscode.ThemeIcon("diff")),
-        new GroupNode(
-          unversioned,
-          unvTitle,
-          new vscode.ThemeIcon("circle-slash"),
-        ),
+        new GroupNode(def, changesTitle, defState),
+        new GroupNode(unversioned, unvTitle, unvState),
       ];
     }
 
-    // Children: list files
+    // Group -> file children
     if (element instanceof GroupNode) {
       const repoRoot = vscode.Uri.file(this.repoRootFsPath);
       const files = [...element.list.files].sort((a, b) => a.localeCompare(b));
-      return files.map((p) => new FileNode(repoRoot, p));
+
+      return files.map((p) => {
+        const norm = normalizeRepoRelPath(p);
+        const staged = this.stagedPaths.has(norm);
+        return new FileNode(repoRoot, p, staged);
+      });
     }
 
     return [];
+  }
+}
+
+function normalizeRepoRelPath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+function groupStageState(
+  staged: Set<string>,
+  files: string[],
+): GroupStageState {
+  if (files.length === 0) return "none";
+
+  let count = 0;
+  for (const f of files) {
+    if (staged.has(normalizeRepoRelPath(f))) count++;
+  }
+
+  if (count === 0) return "none";
+  if (count === files.length) return "all";
+  return "mixed";
+}
+
+function groupIcon(state: GroupStageState): string {
+  switch (state) {
+    case "all":
+      return "check";
+    case "none":
+      return "square";
+    case "mixed":
+      return "remove";
   }
 }
