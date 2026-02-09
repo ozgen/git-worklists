@@ -52,9 +52,7 @@ class FileNode extends Node {
     this.resourceUri = abs;
 
     // checkbox-like icon
-    this.iconPath = new vscode.ThemeIcon(
-      isStaged ? "check" : "square",
-    );
+    this.iconPath = new vscode.ThemeIcon(isStaged ? "check" : "square");
 
     // show folder on the right (like Source Control)
     const parts = repoRelativePath.split("/");
@@ -101,10 +99,14 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
   }
 
   async getChildren(element?: Node): Promise<Node[]> {
-    if (!this.repoRootFsPath) return [];
+    if (!this.repoRootFsPath) {
+      return [];
+    }
 
     const state = await this.store.load(this.repoRootFsPath);
-    if (!state) return [];
+    if (!state) {
+      return [];
+    }
 
     const lists = state.lists as PersistedChangelist[];
 
@@ -162,15 +164,23 @@ function groupStageState(
   staged: Set<string>,
   files: string[],
 ): GroupStageState {
-  if (files.length === 0) return "none";
+  if (files.length === 0) {
+    return "none";
+  }
 
   let count = 0;
   for (const f of files) {
-    if (staged.has(normalizeRepoRelPath(f))) count++;
+    if (staged.has(normalizeRepoRelPath(f))) {
+      count++;
+    }
   }
 
-  if (count === 0) return "none";
-  if (count === files.length) return "all";
+  if (count === 0) {
+    return "none";
+  }
+  if (count === files.length) {
+    return "all";
+  }
   return "mixed";
 }
 

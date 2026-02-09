@@ -26,10 +26,10 @@ export class WorklistDecorationProvider
   async provideFileDecoration(
     uri: vscode.Uri,
   ): Promise<vscode.FileDecoration | undefined> {
-    if (!this.repoRootFsPath) return;
+    if (!this.repoRootFsPath){ return;}
 
     const state = await this.store.load(this.repoRootFsPath);
-    if (!state) return;
+    if (!state) {return;}
 
     const rel = vscode.workspace.asRelativePath(uri, false);
 

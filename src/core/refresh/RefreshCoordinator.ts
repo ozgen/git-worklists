@@ -9,14 +9,16 @@ export class RefreshCoordinator implements vscode.Disposable {
 
   constructor(
     private readonly refreshFn: RefreshFn,
-    private readonly debounceMs: number = 200
+    private readonly debounceMs: number = 200,
   ) {}
 
   /** Debounced trigger (use for file watchers/events). */
   trigger(): void {
     this.pending = true;
 
-    if (this.timer) clearTimeout(this.timer);
+    if (this.timer) {
+      clearTimeout(this.timer);
+    }
     this.timer = setTimeout(() => {
       this.timer = undefined;
       void this.flush();
@@ -30,9 +32,12 @@ export class RefreshCoordinator implements vscode.Disposable {
   }
 
   private async flush(): Promise<void> {
-    if (this.running) return;
-    if (!this.pending) return;
-
+    if (this.running) {
+      return;
+    }
+    if (!this.pending) {
+      return;
+    }
     this.running = true;
     try {
       while (this.pending) {
@@ -45,6 +50,8 @@ export class RefreshCoordinator implements vscode.Disposable {
   }
 
   dispose(): void {
-    if (this.timer) clearTimeout(this.timer);
+    if (this.timer) {
+      clearTimeout(this.timer);
+    }
   }
 }

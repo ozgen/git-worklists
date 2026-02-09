@@ -44,7 +44,7 @@ export class GitCliClient implements GitClient {
       const x = part[0] ?? " ";
       const y = part[1] ?? " ";
       const rest = part.slice(3); // skip "XY "
-      if (!rest) continue;
+      if (!rest){ continue;}
 
       // if rename "old -> new", we store the new path
       const path = rest.includes(" -> ")

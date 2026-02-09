@@ -60,7 +60,7 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
   }
 
   private postState() {
-    if (!this.view) return;
+    if (!this.view) {return;}
     this.view.webview.postMessage({ type: "state", state: this.state });
   }
 

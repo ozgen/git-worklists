@@ -45,7 +45,7 @@ export class AutoRefreshController implements vscode.Disposable {
   }
 
   dispose(): void {
-    for (const d of this.disposables) d.dispose();
+    for (const d of this.disposables){ d.dispose();}
     this.disposables = [];
   }
 }

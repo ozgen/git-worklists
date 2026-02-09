@@ -60,8 +60,9 @@ async function runGit(repoRoot, args) {
         child.stderr.on("data", (d) => (stderr += d.toString()));
         child.on("error", reject);
         child.on("close", (code) => {
-            if (code === 0)
+            if (code === 0) {
                 return resolve();
+            }
             const msg = (stderr + "\n" + stdout).trim();
             reject(new Error(`git ${args.join(" ")} failed (code ${code}):\n${msg || "(no output)"}`));
         });
@@ -79,8 +80,9 @@ async function runGitCapture(repoRoot, args) {
         child.stderr.on("data", (d) => (stderr += d.toString()));
         child.on("error", reject);
         child.on("close", (code) => {
-            if (code === 0)
+            if (code === 0) {
                 return resolve(stdout);
+            }
             reject(new Error(`git ${args.join(" ")} failed (code ${code}):\n${stderr || stdout}`));
         });
     });
@@ -96,11 +98,13 @@ async function getStatusV2(repoRoot) {
             const x = rec[2]; // index status: '.' means nothing staged for this entry
             const lastSpace = rec.lastIndexOf(" ");
             const path = lastSpace >= 0 ? rec.slice(lastSpace + 1) : "";
-            if (path && x !== ".")
+            if (path && x !== ".") {
                 staged.add(path);
+            }
             // rename records have an extra NUL token (orig path); skip it
-            if (rec.startsWith("2 "))
+            if (rec.startsWith("2 ")) {
                 i++;
+            }
         }
     }
     return { staged };
@@ -108,16 +112,19 @@ async function getStatusV2(repoRoot) {
 function toRepoRelPath(repoRoot, uri) {
     const root = repoRoot.replace(/\\/g, "/").replace(/\/+$/, "");
     const full = uri.fsPath.replace(/\\/g, "/");
-    if (full === root)
+    if (full === root) {
         return "";
-    if (!full.startsWith(root + "/"))
+    }
+    if (!full.startsWith(root + "/")) {
         return "";
+    }
     return full.slice(root.length + 1);
 }
 async function activate(context) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder)
+    if (!workspaceFolder) {
         return;
+    }
     const git = new GitCliClient_1.GitCliClient();
     const store = new WorkspaceStateStore_1.WorkspaceStateStore(context.workspaceState);
     let repoRoot;
@@ -145,18 +152,21 @@ async function activate(context) {
     // Commit Webview View
     const commitView = new CommitViewProvider_1.CommitViewProvider(context.extensionUri, async ({ message, amend, push }) => {
         const msg = message.trim();
-        if (!msg)
+        if (!msg) {
             throw new Error("Commit message is empty.");
+        }
         const s = await getStatusV2(repoRoot);
         if (s.staged.size === 0) {
             throw new Error("No staged files. Stage files first.");
         }
         const commitArgs = ["commit", "-m", msg];
-        if (amend)
+        if (amend) {
             commitArgs.push("--amend");
+        }
         await runGit(repoRoot, commitArgs);
-        if (!push)
+        if (!push) {
             return;
+        }
         try {
             if (amend) {
                 await runGit(repoRoot, ["push", "--force-with-lease"]);
@@ -206,14 +216,16 @@ async function activate(context) {
     // ----------------------------
     async function stagePaths(paths) {
         const normalized = paths.map(normalizeRepoRelPath).filter(Boolean);
-        if (normalized.length === 0)
+        if (normalized.length === 0) {
             return;
+        }
         await runGit(repoRoot, ["add", "--", ...normalized]);
     }
     async function unstagePaths(paths) {
         const normalized = paths.map(normalizeRepoRelPath).filter(Boolean);
-        if (normalized.length === 0)
+        if (normalized.length === 0) {
             return;
+        }
         await runGit(repoRoot, ["restore", "--staged", "--", ...normalized]);
     }
     treeView.onDidChangeCheckboxState(async (e) => {
@@ -259,11 +271,13 @@ async function activate(context) {
                 : arg instanceof vscode.Uri
                     ? arg
                     : undefined;
-            if (!uri)
+            if (!uri) {
                 return;
+            }
             const rel = toRepoRelPath(repoRoot, uri);
-            if (!rel)
+            if (!rel) {
                 return;
+            }
             await stagePaths([rel]);
             await coordinator.requestNow();
         }
@@ -278,11 +292,13 @@ async function activate(context) {
                 : arg instanceof vscode.Uri
                     ? arg
                     : undefined;
-            if (!uri)
+            if (!uri) {
                 return;
+            }
             const rel = toRepoRelPath(repoRoot, uri);
-            if (!rel)
+            if (!rel) {
                 return;
+            }
             await unstagePaths([rel]);
             await coordinator.requestNow();
         }
@@ -295,15 +311,18 @@ async function activate(context) {
             const files = Array.isArray(groupNode?.list?.files)
                 ? groupNode.list.files
                 : [];
-            if (files.length === 0)
+            if (files.length === 0) {
                 return;
+            }
             const normalized = files.map(normalizeRepoRelPath);
             const s = await getStatusV2(repoRoot);
             const allStaged = normalized.every((p) => s.staged.has(p));
-            if (!allStaged)
+            if (!allStaged) {
                 await stagePaths(normalized);
-            else
+            }
+            else {
                 await unstagePaths(normalized);
+            }
             await coordinator.requestNow();
         }
         catch (e) {
@@ -321,14 +340,16 @@ async function activate(context) {
     }));
     context.subscriptions.push(vscode.commands.registerCommand("gitWorklists.stagePath", async (uri) => {
         const rel = toRepoRelPath(repoRoot, uri);
-        if (!rel)
+        if (!rel) {
             return;
+        }
         await runGit(repoRoot, ["add", "--", normalizeRepoRelPath(rel)]);
         await coordinator.requestNow();
     }), vscode.commands.registerCommand("gitWorklists.unstagePath", async (uri) => {
         const rel = toRepoRelPath(repoRoot, uri);
-        if (!rel)
+        if (!rel) {
             return;
+        }
         await runGit(repoRoot, [
             "restore",
             "--staged",

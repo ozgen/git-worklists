@@ -27,7 +27,7 @@ async function runGit(repoRoot: string, args: string[]): Promise<void> {
 
     child.on("error", reject);
     child.on("close", (code) => {
-      if (code === 0) return resolve();
+      if (code === 0) {return resolve();}
       const msg = (stderr + "\n" + stdout).trim();
       reject(
         new Error(
@@ -55,7 +55,7 @@ async function runGitCapture(
 
     child.on("error", reject);
     child.on("close", (code) => {
-      if (code === 0) return resolve(stdout);
+      if (code === 0) {return resolve(stdout);}
       reject(
         new Error(
           `git ${args.join(" ")} failed (code ${code}):\n${stderr || stdout}`,
@@ -80,10 +80,10 @@ async function getStatusV2(repoRoot: string): Promise<StatusV2> {
       const x = rec[2]; // index status: '.' means nothing staged for this entry
       const lastSpace = rec.lastIndexOf(" ");
       const path = lastSpace >= 0 ? rec.slice(lastSpace + 1) : "";
-      if (path && x !== ".") staged.add(path);
+      if (path && x !== "."){ staged.add(path);}
 
       // rename records have an extra NUL token (orig path); skip it
-      if (rec.startsWith("2 ")) i++;
+      if (rec.startsWith("2 ")){ i++;}
     }
   }
 
@@ -93,14 +93,14 @@ async function getStatusV2(repoRoot: string): Promise<StatusV2> {
 function toRepoRelPath(repoRoot: string, uri: vscode.Uri): string {
   const root = repoRoot.replace(/\\/g, "/").replace(/\/+$/, "");
   const full = uri.fsPath.replace(/\\/g, "/");
-  if (full === root) return "";
-  if (!full.startsWith(root + "/")) return "";
+  if (full === root) {return "";}
+  if (!full.startsWith(root + "/")) {return "";}
   return full.slice(root.length + 1);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  if (!workspaceFolder) return;
+  if (!workspaceFolder) {return;}
 
   const git = new GitCliClient();
   const store = new WorkspaceStateStore(context.workspaceState);
@@ -138,7 +138,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.extensionUri,
     async ({ message, amend, push }) => {
       const msg = message.trim();
-      if (!msg) throw new Error("Commit message is empty.");
+      if (!msg){ throw new Error("Commit message is empty.");}
 
       const s = await getStatusV2(repoRoot);
       if (s.staged.size === 0) {
@@ -146,11 +146,11 @@ export async function activate(context: vscode.ExtensionContext) {
       }
 
       const commitArgs = ["commit", "-m", msg];
-      if (amend) commitArgs.push("--amend");
+      if (amend){ commitArgs.push("--amend");}
 
       await runGit(repoRoot, commitArgs);
 
-      if (!push) return;
+      if (!push){ return;}
 
       try {
         if (amend) {
@@ -222,13 +222,13 @@ export async function activate(context: vscode.ExtensionContext) {
   // ----------------------------
   async function stagePaths(paths: string[]) {
     const normalized = paths.map(normalizeRepoRelPath).filter(Boolean);
-    if (normalized.length === 0) return;
+    if (normalized.length === 0){ return;}
     await runGit(repoRoot, ["add", "--", ...normalized]);
   }
 
   async function unstagePaths(paths: string[]) {
     const normalized = paths.map(normalizeRepoRelPath).filter(Boolean);
-    if (normalized.length === 0) return;
+    if (normalized.length === 0){ return;}
     await runGit(repoRoot, ["restore", "--staged", "--", ...normalized]);
   }
 
@@ -282,10 +282,10 @@ export async function activate(context: vscode.ExtensionContext) {
               : arg instanceof vscode.Uri
                 ? arg
                 : undefined;
-          if (!uri) return;
-
+          if (!uri){ return;
+}
           const rel = toRepoRelPath(repoRoot, uri);
-          if (!rel) return;
+          if (!rel){ return;}
 
           await stagePaths([rel]);
           await coordinator.requestNow();
@@ -308,10 +308,10 @@ export async function activate(context: vscode.ExtensionContext) {
               : arg instanceof vscode.Uri
                 ? arg
                 : undefined;
-          if (!uri) return;
+          if (!uri){ return;}
 
           const rel = toRepoRelPath(repoRoot, uri);
-          if (!rel) return;
+          if (!rel) {return;}
 
           await unstagePaths([rel]);
           await coordinator.requestNow();
@@ -331,15 +331,15 @@ export async function activate(context: vscode.ExtensionContext) {
           const files: string[] = Array.isArray(groupNode?.list?.files)
             ? groupNode.list.files
             : [];
-          if (files.length === 0) return;
+          if (files.length === 0){ return;}
 
           const normalized = files.map(normalizeRepoRelPath);
 
           const s = await getStatusV2(repoRoot);
           const allStaged = normalized.every((p) => s.staged.has(p));
 
-          if (!allStaged) await stagePaths(normalized);
-          else await unstagePaths(normalized);
+          if (!allStaged){ await stagePaths(normalized);}
+          else{ await unstagePaths(normalized);}
 
           await coordinator.requestNow();
         } catch (e) {
@@ -368,7 +368,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "gitWorklists.stagePath",
       async (uri: vscode.Uri) => {
         const rel = toRepoRelPath(repoRoot, uri);
-        if (!rel) return;
+        if (!rel) {return;}
         await runGit(repoRoot, ["add", "--", normalizeRepoRelPath(rel)]);
         await coordinator.requestNow();
       },
@@ -378,7 +378,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "gitWorklists.unstagePath",
       async (uri: vscode.Uri) => {
         const rel = toRepoRelPath(repoRoot, uri);
-        if (!rel) return;
+        if (!rel) {return;}
         await runGit(repoRoot, [
           "restore",
           "--staged",
