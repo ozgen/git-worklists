@@ -1,12 +1,27 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { GitCliClient } from "./adapters/git/GitCliClient";
+import { WorkspaceStateStore } from "./adapters/storage/WorkspaceStateStore";
+import { InitializeWorkspace } from "./usecases/InitializeWorkspace";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-	console.log("git-worklists extension activated");
+export async function activate(context: vscode.ExtensionContext) {
+  console.log("git-worklists extension activated");
+
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    console.log("No workspace folder open; skipping init");
+    return;
   }
-  
-// This method is called when your extension is deactivated
+
+  const git = new GitCliClient();
+  const store = new WorkspaceStateStore(context.workspaceState);
+  const init = new InitializeWorkspace(git, store);
+
+  try {
+    await init.run(workspaceFolder.uri.fsPath);
+    console.log("Initialized git-worklists state");
+  } catch (err) {
+    console.error("Failed to initialize git-worklists:", err);
+  }
+}
+
 export function deactivate() {}
