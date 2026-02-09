@@ -8,6 +8,5 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log("git-worklists extension activated");
   }
   
-
 // This method is called when your extension is deactivated
 export function deactivate() {}
