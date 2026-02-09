@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Git Worklists">
+  <!-- Use currentColor so VS Code can tint it for light/dark themes -->
+  <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- outer circle (similar to your sample) -->
+    <circle cx="12" cy="12" r="9" />
+
+    <!-- git-branch -->
+    <path d="M9 7v8" />
+    <circle cx="9" cy="7" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none" />
+    <path d="M9 11c3 0 4-2 6-2" />
+    <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none" />
+
+    <!-- tiny "worklist" ticks on the right -->
+    <path d="M14.5 13.2h3.2" />
+    <path d="M14.5 15.8h3.2" />
+  </g>
+</svg>

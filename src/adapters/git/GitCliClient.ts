@@ -56,4 +56,17 @@ export class GitCliClient implements GitClient {
 
     return entries;
   }
+
+  async add(repoRootFsPath: string, repoRelativePath: string): Promise<void> {
+    await execGit(["add", "--", repoRelativePath], repoRootFsPath);
+  }
+
+  async getGitDir(repoRootFsPath: string): Promise<string> {
+    const out = await execGit(["rev-parse", "--git-dir"], repoRootFsPath);
+    const p = out.trim();
+    return require("path").isAbsolute(p)
+      ? p
+      : require("path").join(repoRootFsPath, p);
+  }
+  
 }

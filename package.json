@@ -3,21 +3,51 @@
   "displayName": "Git Worklists",
   "description": "",
   "version": "0.0.1",
+  "icon": "media/icon.png",
   "engines": {
-    "vscode": "^1.109.0"
+    "vscode": "^1.108.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "*"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitWorklists",
+          "title": "Git Worklists",
+          "icon": "media/activity-icon.png"
+        }
+      ]
+    },
+    "views": {
+      "gitWorklists": [
+        {
+          "id": "gitWorklists.changelists",
+          "name": "Changelists",
+          "icon": "media/activity-icon.png"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "git-worklists.helloWorld",
-        "title": "Hello World"
+        "command": "gitWorklists.refresh",
+        "title": "Refresh Worklists"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "gitWorklists.refresh",
+          "when": "view == gitWorklists.changelists",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

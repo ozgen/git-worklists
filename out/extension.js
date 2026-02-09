@@ -39,23 +39,57 @@ const vscode = __importStar(require("vscode"));
 const GitCliClient_1 = require("./adapters/git/GitCliClient");
 const WorkspaceStateStore_1 = require("./adapters/storage/WorkspaceStateStore");
 const InitializeWorkspace_1 = require("./usecases/InitializeWorkspace");
+const ChangelistTreeProvider_1 = require("./views/ChangelistTreeProvider");
+const WorklistDecorationProvider_1 = require("./views/WorklistDecorationProvider");
+const RefreshCoordinator_1 = require("./core/refresh/RefreshCoordinator");
+const AutoRefreshController_1 = require("./core/refresh/AutoRefreshController");
 async function activate(context) {
-    console.log("git-worklists extension activated");
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-        console.log("No workspace folder open; skipping init");
+    if (!workspaceFolder)
         return;
-    }
     const git = new GitCliClient_1.GitCliClient();
     const store = new WorkspaceStateStore_1.WorkspaceStateStore(context.workspaceState);
-    const init = new InitializeWorkspace_1.InitializeWorkspace(git, store);
+    let repoRoot;
     try {
+        repoRoot = await git.getRepoRoot(workspaceFolder.uri.fsPath);
+    }
+    catch (e) {
+        console.error("Git Worklists: not a git repo?", e);
+        return;
+    }
+    const gitDir = await git.getGitDir(repoRoot);
+    const treeProvider = new ChangelistTreeProvider_1.ChangelistTreeProvider(store);
+    treeProvider.setRepoRoot(repoRoot);
+    context.subscriptions.push(vscode.window.createTreeView("gitWorklists.changelists", {
+        treeDataProvider: treeProvider,
+    }));
+    const deco = new WorklistDecorationProvider_1.WorklistDecorationProvider(store);
+    deco.setRepoRoot(repoRoot);
+    context.subscriptions.push(vscode.window.registerFileDecorationProvider(deco));
+    const init = new InitializeWorkspace_1.InitializeWorkspace(git, store);
+    const doRefresh = async () => {
         await init.run(workspaceFolder.uri.fsPath);
-        console.log("Initialized git-worklists state");
-    }
-    catch (err) {
-        console.error("Failed to initialize git-worklists:", err);
-    }
+        treeProvider.refresh();
+        deco.refreshAll();
+    };
+    const coordinator = new RefreshCoordinator_1.RefreshCoordinator(doRefresh, 200);
+    context.subscriptions.push(coordinator);
+    // Initial refresh
+    await coordinator.requestNow();
+    // Auto refresh signals
+    const auto = new AutoRefreshController_1.AutoRefreshController(repoRoot, gitDir, () => coordinator.trigger());
+    auto.start();
+    context.subscriptions.push(auto);
+    // Manual refresh fallback
+    context.subscriptions.push(vscode.commands.registerCommand("gitWorklists.refresh", async () => {
+        try {
+            await coordinator.requestNow();
+        }
+        catch (e) {
+            vscode.window.showErrorMessage("Git Worklists: refresh failed (see console)");
+            console.error(e);
+        }
+    }));
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

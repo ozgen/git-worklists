@@ -13,4 +13,8 @@ export interface GitClient {
 
   /** returns status entries from `git status --porcelain=v1 -z` */
   getStatusPorcelainZ(repoRootFsPath: string): Promise<GitStatusEntry[]>;
+
+  add(repoRootFsPath: string, repoRelativePath: string): Promise<void>;
+
+  getGitDir(repoRootFsPath: string): Promise<string>;
 }
