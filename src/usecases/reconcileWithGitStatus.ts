@@ -5,6 +5,30 @@ import {
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 
+function norm(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+function ensureSystemLists(state: PersistedState): PersistedState {
+  const hasUnv = state.lists.some((l) => l.id === SystemChangelist.Unversioned);
+  const hasDef = state.lists.some((l) => l.id === SystemChangelist.Default);
+
+  const lists = [...state.lists];
+
+  if (!hasDef) {
+    lists.unshift({ id: SystemChangelist.Default, name: "Changes", files: [] });
+  }
+  if (!hasUnv) {
+    lists.unshift({
+      id: SystemChangelist.Unversioned,
+      name: "Unversioned",
+      files: [],
+    });
+  }
+
+  return { ...state, lists };
+}
+
 export class ReconcileWithGitStatus {
   constructor(
     private readonly git: GitClient,
@@ -17,89 +41,80 @@ export class ReconcileWithGitStatus {
       return;
     }
 
+    const fixed = ensureSystemLists(state);
+
     const status = await this.git.getStatusPorcelainZ(repoRoot);
 
     const untracked = new Set<string>();
     const changed = new Set<string>();
 
     for (const e of status) {
+      const p = norm(e.path);
       if (e.x === "?" && e.y === "?") {
-        untracked.add(e.path);
+        untracked.add(p);
       } else {
-        changed.add(e.path);
+        changed.add(p);
       }
     }
 
-    // Build file -> listId (existing assignment)
+    const inStatus = new Set<string>([...untracked, ...changed]);
+
+    // map file -> current owner list (first match wins)
     const fileOwner = new Map<string, string>();
-    for (const list of state.lists) {
-      for (const f of list.files) {
+    for (const list of fixed.lists) {
+      for (const f of list.files.map(norm)) {
         if (!fileOwner.has(f)) {
           fileOwner.set(f, list.id);
         }
       }
     }
 
-    const inStatus = new Set<string>([...untracked, ...changed]);
-
-    // Remove files that are no longer in status.
-    // IMPORTANT: Unversioned must contain ONLY untracked files.
-    const nextLists = state.lists.map((l) => {
-      let files = l.files.filter((f) => inStatus.has(f));
-
-      if (l.id === SystemChangelist.Unversioned) {
-        files = files.filter((f) => untracked.has(f));
-      }
-
-      return { ...l, files };
-    });
+    // prune: remove everything that is no longer in git status (from ALL lists)
+    const nextLists = fixed.lists.map((l) => ({
+      ...l,
+      files: l.files.map(norm).filter((f) => inStatus.has(f)),
+    }));
 
     const byId = new Map(nextLists.map((l) => [l.id, l] as const));
     const mustGet = (id: string) => {
-      const list = byId.get(id);
-      if (!list) {
+      const l = byId.get(id);
+      if (!l) {
         throw new Error(`Missing list: ${id}`);
       }
-      return list;
+      return l;
     };
 
-    // Untracked always goes to Unversioned (and nowhere else)
-    for (const f of untracked) {
+    // helper: remove file from all lists
+    const removeEverywhere = (p: string) => {
       for (const l of nextLists) {
-        if (l.id !== SystemChangelist.Unversioned) {
-          l.files = l.files.filter((x) => x !== f);
-        }
+        l.files = l.files.filter((x) => x !== p);
       }
+    };
+
+    // enforce: untracked always goes to Unversioned
+    for (const f of untracked) {
+      removeEverywhere(f);
       const u = mustGet(SystemChangelist.Unversioned);
-      if (!u.files.includes(f)) {
-        u.files.push(f);
-      }
+      u.files.push(f);
     }
 
-    // Tracked changes: keep existing assignment EXCEPT "Unversioned".
-    // If the old owner was Unversioned, treat as unassigned -> Default.
+    // tracked changes: keep owner if it's not Unversioned, else Default
     for (const f of changed) {
       const owner = fileOwner.get(f);
-
       if (owner && owner !== SystemChangelist.Unversioned) {
         const l = mustGet(owner);
-        if (!l.files.includes(f)) {
-          l.files.push(f);
-        }
+        l.files.push(f);
       } else {
         const d = mustGet(SystemChangelist.Default);
-        if (!d.files.includes(f)) {
-          d.files.push(f);
-        }
+        d.files.push(f);
       }
     }
 
-    // Stable output for UI
+    // de-dup + stable order
     for (const l of nextLists) {
-      l.files = [...new Set(l.files)].sort();
+      l.files = Array.from(new Set(l.files.map(norm))).sort();
     }
 
-    const next: PersistedState = { ...state, lists: nextLists };
-    await this.store.save(repoRoot, next);
+    await this.store.save(repoRoot, { ...fixed, lists: nextLists });
   }
 }

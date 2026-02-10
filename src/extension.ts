@@ -6,6 +6,9 @@ import { WorkspaceStateStore } from "./adapters/storage/workspaceStateStore";
 
 import { LoadOrInitState } from "./usecases/loadOrInitState";
 import { ReconcileWithGitStatus } from "./usecases/reconcileWithGitStatus";
+import { CreateChangelist } from "./usecases/createChangelist";
+import { MoveFilesToChangelist } from "./usecases/moveFilesToChangelist";
+import { DeleteChangelist } from "./usecases/deleteChangelist";
 
 import { ChangelistTreeProvider } from "./views/changelistTreeProvider";
 import { WorklistDecorationProvider } from "./views/worklistDecorationProvider";
@@ -139,6 +142,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const git = new GitCliClient();
   const store = new WorkspaceStateStore(context.workspaceState);
+  const createChangelist = new CreateChangelist(store);
+  const moveFiles = new MoveFilesToChangelist(store);
+  const deleteChangelist = new DeleteChangelist(store);
 
   let repoRoot: string;
   try {
@@ -459,6 +465,129 @@ export async function activate(context: vscode.ExtensionContext) {
           normalizeRepoRelPath(rel),
         ]);
         await coordinator.requestNow();
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.createChangelist",
+      async () => {
+        const name = await vscode.window.showInputBox({
+          prompt: "Changelist name",
+          placeHolder: "e.g. Hotfix, Refactor, WIP",
+        });
+        if (!name) {
+          return;
+        }
+
+        try {
+          await createChangelist.run(repoRoot, name);
+          await coordinator.requestNow(); // refresh tree + decorations
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+
+  async function pickTargetList(): Promise<
+    { id: string; name: string } | undefined
+  > {
+    const state = await store.load(repoRoot);
+    const lists = state?.version === 1 ? state.lists : [];
+
+    const items = lists.map((l) => ({ label: l.name, id: l.id }));
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: "Move to changelist",
+    });
+    return picked ? { id: picked.id, name: picked.label } : undefined;
+  }
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.moveFileToChangelist",
+      async (node: any) => {
+        const p =
+          typeof node?.repoRelativePath === "string"
+            ? normalizeRepoRelPath(node.repoRelativePath)
+            : "";
+        if (!p) {
+          return;
+        }
+
+        const target = await pickTargetList();
+        if (!target) {
+          return;
+        }
+
+        try {
+          await moveFiles.run(repoRoot, [p], target.id);
+          await coordinator.requestNow();
+        } catch (e: any) {
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.moveGroupToChangelist",
+      async (node: any) => {
+        const files: string[] = Array.isArray(node?.list?.files)
+          ? node.list.files
+          : [];
+        if (files.length === 0) {
+          return;
+        }
+
+        const target = await pickTargetList();
+        if (!target) {
+          return;
+        }
+
+        try {
+          await moveFiles.run(
+            repoRoot,
+            files.map(normalizeRepoRelPath),
+            target.id,
+          );
+          await coordinator.requestNow();
+        } catch (e: any) {
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.deleteChangelist",
+      async (node: any) => {
+        const listId = typeof node?.list?.id === "string" ? node.list.id : "";
+        const listName =
+          typeof node?.list?.name === "string" ? node.list.name : "";
+        if (!listId) {
+          return;
+        }
+
+        const ok = await vscode.window.showWarningMessage(
+          `Delete changelist "${listName}"? Files will be moved to Changes.`,
+          { modal: true },
+          "Delete",
+        );
+        if (ok !== "Delete") {
+          return;
+        }
+
+        try {
+          await deleteChangelist.run(repoRoot, listId);
+          await coordinator.requestNow();
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
       },
     ),
   );

@@ -46,6 +46,26 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "gitWorklists.createChangelist",
+        "title": "Create Changelist…",
+        "icon": "$(add)"
+      },
+      {
+        "command": "gitWorklists.moveFileToChangelist",
+        "title": "Move to Changelist…",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "gitWorklists.moveGroupToChangelist",
+        "title": "Move All Files to Changelist…",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "gitWorklists.deleteChangelist",
+        "title": "Delete Changelist…",
+        "icon": "$(trash)"
+      },
+      {
         "command": "gitWorklists.selectFile",
         "title": "Stage File",
         "icon": "$(check)"
@@ -64,6 +84,11 @@
     "menus": {
       "view/title": [
         {
+          "command": "gitWorklists.createChangelist",
+          "when": "view == gitWorklists.changelists",
+          "group": "navigation@0"
+        },
+        {
           "command": "gitWorklists.refresh",
           "when": "view == gitWorklists.changelists",
           "group": "navigation@1"
@@ -71,19 +96,34 @@
       ],
       "view/item/context": [
         {
+          "command": "gitWorklists.moveFileToChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "group": "navigation@0"
+        },
+        {
+          "command": "gitWorklists.moveGroupToChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group",
+          "group": "navigation@0"
+        },
+        {
+          "command": "gitWorklists.deleteChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group.custom",
+          "group": "navigation@9"
+        },
+        {
           "command": "gitWorklists.toggleGroupSelection",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
           "command": "gitWorklists.selectFile",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
-          "group": "inline"
+          "group": "inline@1"
         },
         {
           "command": "gitWorklists.unselectFile",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
-          "group": "inline"
+          "group": "inline@2"
         }
       ]
     }

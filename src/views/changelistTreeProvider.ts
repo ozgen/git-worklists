@@ -19,16 +19,19 @@ class GroupNode extends Node {
 
   constructor(
     public readonly list: PersistedChangelist,
-    public readonly title: string,
     public readonly stageState: GroupStageState,
   ) {
+    const title = groupTitle(list);
     super(title, vscode.TreeItemCollapsibleState.Expanded);
-    this.contextValue = "gitWorklists.group";
 
-    // checkbox-like icon
+    this.contextValue =
+      list.id === SystemChangelist.Default ||
+      list.id === SystemChangelist.Unversioned
+        ? "gitWorklists.group.system"
+        : "gitWorklists.group.custom";
     this.iconPath = new vscode.ThemeIcon(groupIcon(stageState));
 
-    // Clicking group toggles staging for all files in group
+    // Click toggles staging for all files in group
     this.command = {
       command: "gitWorklists.toggleGroupSelection",
       title: "Toggle Group Staging",
@@ -41,17 +44,17 @@ class FileNode extends Node {
   readonly kind = "file" as const;
 
   constructor(
-    public readonly repoRoot: vscode.Uri,
+    repoRoot: vscode.Uri,
     public readonly repoRelativePath: string,
     public readonly isStaged: boolean,
   ) {
     super(repoRelativePath, vscode.TreeItemCollapsibleState.None);
+
     this.contextValue = "gitWorklists.file";
 
     const abs = vscode.Uri.joinPath(repoRoot, repoRelativePath);
     this.resourceUri = abs;
 
-    // checkbox-like icon
     this.iconPath = new vscode.ThemeIcon(isStaged ? "check" : "square");
 
     // show folder on the right (like Source Control)
@@ -60,11 +63,11 @@ class FileNode extends Node {
       this.description = parts.slice(0, -1).join("/");
     }
 
-    // Clicking the file toggles staged state (NOT open)
+    // Click toggles staged state (NOT open)
     this.command = {
       command: isStaged ? "gitWorklists.unstagePath" : "gitWorklists.stagePath",
       title: isStaged ? "Unstage" : "Stage",
-      arguments: [abs], // use Uri so command can compute repo-relative path safely
+      arguments: [abs],
     };
   }
 }
@@ -74,9 +77,7 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private repoRootFsPath?: string;
-
-  // staged paths are injected from extension.ts during refresh
-  private stagedPaths = new Set<string>();
+  private stagedPaths = new Set<string>(); // repo-relative, normalized
 
   constructor(private readonly store: WorkspaceStateStore) {}
 
@@ -86,7 +87,6 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
   }
 
   setStagedPaths(staged: Set<string>) {
-    // normalize once so lookups match your persisted paths
     this.stagedPaths = new Set(Array.from(staged).map(normalizeRepoRelPath));
   }
 
@@ -104,40 +104,51 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
     }
 
     const state = await this.store.load(this.repoRootFsPath);
-    if (!state) {
+    if (!state || state.version !== 1) {
       return [];
     }
 
     const lists = state.lists as PersistedChangelist[];
 
-    const unversioned =
-      lists.find((l) => l.id === SystemChangelist.Unversioned) ??
-      ({
-        id: SystemChangelist.Unversioned,
-        name: "Unversioned",
-        files: [],
-      } as PersistedChangelist);
-
-    const def =
-      lists.find((l) => l.id === SystemChangelist.Default) ??
-      ({
-        id: SystemChangelist.Default,
-        name: "Default",
-        files: [],
-      } as PersistedChangelist);
-
-    // Root level groups
+    // Root level: show system lists first, then all custom lists
     if (!element) {
-      const changesTitle = `Changes (${def.files.length})`;
-      const unvTitle = `Unversioned Files (${unversioned.files.length})`;
+      const systemIds = new Set<string>([
+        SystemChangelist.Default,
+        SystemChangelist.Unversioned,
+      ]);
 
-      const defState = groupStageState(this.stagedPaths, def.files);
-      const unvState = groupStageState(this.stagedPaths, unversioned.files);
+      const byId = new Map(lists.map((l) => [l.id, l] as const));
 
-      return [
-        new GroupNode(def, changesTitle, defState),
-        new GroupNode(unversioned, unvTitle, unvState),
-      ];
+      const result: GroupNode[] = [];
+
+      // System lists first (stable order)
+      const def = byId.get(SystemChangelist.Default);
+      if (def) {
+        result.push(
+          new GroupNode(def, groupStageState(this.stagedPaths, def.files)),
+        );
+      }
+
+      const unv = byId.get(SystemChangelist.Unversioned);
+      if (unv) {
+        result.push(
+          new GroupNode(unv, groupStageState(this.stagedPaths, unv.files)),
+        );
+      }
+
+      // Then custom lists
+      const custom = lists
+        .filter((l) => !systemIds.has(l.id))
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      for (const l of custom) {
+        result.push(
+          new GroupNode(l, groupStageState(this.stagedPaths, l.files)),
+        );
+      }
+
+      return result;
     }
 
     // Group -> file children
@@ -148,7 +159,7 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
       return files.map((p) => {
         const norm = normalizeRepoRelPath(p);
         const staged = this.stagedPaths.has(norm);
-        return new FileNode(repoRoot, p, staged);
+        return new FileNode(repoRoot, norm, staged);
       });
     }
 
@@ -182,6 +193,16 @@ function groupStageState(
     return "all";
   }
   return "mixed";
+}
+
+function groupTitle(list: PersistedChangelist): string {
+  if (list.id === SystemChangelist.Default) {
+    return `Changes (${list.files.length})`;
+  }
+  if (list.id === SystemChangelist.Unversioned) {
+    return `Unversioned Files (${list.files.length})`;
+  }
+  return `${list.name} (${list.files.length})`;
 }
 
 function groupIcon(state: GroupStageState): string {
