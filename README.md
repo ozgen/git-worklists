@@ -114,7 +114,6 @@ This extension does **not** add any VS Code settings yet.
 
 ## Known Limitations
 
-* Inline PR comments must be added from **workspace files**, not diff editors
 * No partial staging (hunks / lines)
 * No multi-repository support
 * Merge conflicts must be resolved manually
