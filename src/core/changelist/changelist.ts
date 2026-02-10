@@ -6,22 +6,26 @@ export class Changelist {
     readonly name: string,
     initialFiles: Iterable<string> = [],
   ) {
-    for (const f of initialFiles) this.files.add(f);
+    for (const f of initialFiles) {this.files.add(normalizeRepoRelPath(f));}
   }
 
   addFile(repoRelativePath: string) {
-    this.files.add(repoRelativePath);
+    this.files.add(normalizeRepoRelPath(repoRelativePath));
   }
 
   removeFile(repoRelativePath: string) {
-    this.files.delete(repoRelativePath);
+    this.files.delete(normalizeRepoRelPath(repoRelativePath));
   }
 
   hasFile(repoRelativePath: string): boolean {
-    return this.files.has(repoRelativePath);
+    return this.files.has(normalizeRepoRelPath(repoRelativePath));
   }
 
   listFiles(): string[] {
     return [...this.files].sort();
   }
+}
+
+function normalizeRepoRelPath(p: string): string {
+  return p.replace(/\\/g, "/");
 }

@@ -1,7 +1,7 @@
 import { Changelist } from "./changelist";
 
 export interface ChangelistRepository {
-  getAll(): Promise<Changelist[]>;
-  save(list: Changelist): Promise<void>;
-  delete(id: string): Promise<void>;
+  getAll(repoRootFsPath: string): Promise<Changelist[]>;
+  save(repoRootFsPath: string, list: Changelist): Promise<void>;
+  delete(repoRootFsPath: string, id: string): Promise<void>;
 }

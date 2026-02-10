@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 
 export class AutoRefreshController implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -10,19 +11,36 @@ export class AutoRefreshController implements vscode.Disposable {
   ) {}
 
   start(): void {
-    // Watch git index + HEAD (most meaningful signals)
     this.watchGitFile("index");
     this.watchGitFile("HEAD");
 
-    // Optional: watch refs (covers some flows, can be noisy)
-    // this.watchGitGlob("refs/**");
+    const isInRepo = (uri: vscode.Uri) => {
+      const fsPath = uri.fsPath;
+      const rel = path.relative(this.repoRoot, fsPath);
+      return !!rel && !rel.startsWith("..") && !path.isAbsolute(rel);
+    };
 
-    // Workspace changes that often impact status views
     this.disposables.push(
-      vscode.workspace.onDidCreateFiles(() => this.onSignal()),
-      vscode.workspace.onDidDeleteFiles(() => this.onSignal()),
-      vscode.workspace.onDidRenameFiles(() => this.onSignal()),
-      vscode.workspace.onDidSaveTextDocument(() => this.onSignal()),
+      vscode.workspace.onDidCreateFiles((e) => {
+        if (e.files.some(isInRepo)) {
+          this.onSignal();
+        }
+      }),
+      vscode.workspace.onDidDeleteFiles((e) => {
+        if (e.files.some(isInRepo)) {
+          this.onSignal();
+        }
+      }),
+      vscode.workspace.onDidRenameFiles((e) => {
+        if (e.files.some((f) => isInRepo(f.newUri) || isInRepo(f.oldUri))) {
+          this.onSignal();
+        }
+      }),
+      vscode.workspace.onDidSaveTextDocument((d) => {
+        if (isInRepo(d.uri)) {
+          this.onSignal();
+        }
+      }),
     );
   }
 
@@ -35,17 +53,10 @@ export class AutoRefreshController implements vscode.Disposable {
     this.disposables.push(w);
   }
 
-  private watchGitGlob(glob: string) {
-    const pattern = new vscode.RelativePattern(this.gitDir, glob);
-    const w = vscode.workspace.createFileSystemWatcher(pattern);
-    w.onDidChange(() => this.onSignal());
-    w.onDidCreate(() => this.onSignal());
-    w.onDidDelete(() => this.onSignal());
-    this.disposables.push(w);
-  }
-
   dispose(): void {
-    for (const d of this.disposables){ d.dispose();}
+    for (const d of this.disposables) {
+      d.dispose();
+    }
     this.disposables = [];
   }
 }
