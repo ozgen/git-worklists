@@ -37,23 +37,34 @@ export class GitCliClient implements GitClient {
     );
 
     const entries: GitStatusEntry[] = [];
-    const parts = out.split("\0").filter(Boolean);
+    const parts = out.split("\0");
+    let i = 0;
 
-    for (const part of parts) {
-      // Format: XY<space>path  OR  XY<space>old -> new  (for renames)
-      const x = part[0] ?? " ";
-      const y = part[1] ?? " ";
-      const rest = part.slice(3); // skip "XY "
-      if (!rest) {
-        continue;
+    while (i < parts.length) {
+      const header = parts[i++];
+      if (!header) {continue;}
+
+      // Format:
+      //  - Normal: "XY <path>"
+      //  - Rename/Copy: "XY <oldPath>" then next NUL token is "<newPath>"
+      const x = header[0] ?? " ";
+      const y = header[1] ?? " ";
+
+      // After "XY " (3 chars)
+      const path1 = header.slice(3);
+      if (!path1) {continue;}
+
+      let finalPath = path1;
+
+      // For renames/copies, porcelain -z provides two paths: old then new
+      if (x === "R" || x === "C") {
+        const path2 = parts[i++] ?? "";
+        if (path2) {
+          finalPath = path2;
+        }
       }
 
-      // if rename "old -> new", we store the new path
-      const path = rest.includes(" -> ")
-        ? rest.split(" -> ").pop()!.trim()
-        : rest.trim();
-
-      entries.push({ path, x, y });
+      entries.push({ path: finalPath.trim(), x, y });
     }
 
     return entries;
