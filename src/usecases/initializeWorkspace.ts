@@ -6,6 +6,9 @@ import {
   PersistedState,
 } from "../adapters/storage/workspaceStateStore";
 
+/**
+ * LEGACY InitializeWorkspace, it is not used anymore...
+ */
 export class InitializeWorkspace {
   constructor(
     private readonly git: GitClient,
