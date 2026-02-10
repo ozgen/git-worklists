@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { WorkspaceStateStore } from "../adapters/storage/WorkspaceStateStore";
-import { SystemChangelist } from "../core/changelist/SystemChangelist";
+import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../core/changelist/systemChangelist";
 
 type PersistedChangelist = {
   id: string;

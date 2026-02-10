@@ -1,4 +1,4 @@
-import { Changelist } from "./Changelist";
+import { Changelist } from "./changelist";
 
 export interface ChangelistRepository {
   getAll(): Promise<Changelist[]>;

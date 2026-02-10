@@ -1,5 +1,5 @@
 import * as cp from "child_process";
-import { GitClient, GitStatusEntry } from "./GitClient";
+import { GitClient, GitStatusEntry } from "./gitClient";
 
 function execGit(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -44,7 +44,9 @@ export class GitCliClient implements GitClient {
       const x = part[0] ?? " ";
       const y = part[1] ?? " ";
       const rest = part.slice(3); // skip "XY "
-      if (!rest){ continue;}
+      if (!rest) {
+        continue;
+      }
 
       // if rename "old -> new", we store the new path
       const path = rest.includes(" -> ")
@@ -68,5 +70,4 @@ export class GitCliClient implements GitClient {
       ? p
       : require("path").join(repoRootFsPath, p);
   }
-  
 }

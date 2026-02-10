@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { WorkspaceStateStore } from "../adapters/storage/WorkspaceStateStore";
-import { SystemChangelist } from "../core/changelist/SystemChangelist";
+import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../core/changelist/systemChangelist";
 
 export class WorklistDecorationProvider
   implements vscode.FileDecorationProvider
@@ -26,10 +26,14 @@ export class WorklistDecorationProvider
   async provideFileDecoration(
     uri: vscode.Uri,
   ): Promise<vscode.FileDecoration | undefined> {
-    if (!this.repoRootFsPath){ return;}
+    if (!this.repoRootFsPath) {
+      return;
+    }
 
     const state = await this.store.load(this.repoRootFsPath);
-    if (!state) {return;}
+    if (!state) {
+      return;
+    }
 
     const rel = vscode.workspace.asRelativePath(uri, false);
 
@@ -40,7 +44,7 @@ export class WorklistDecorationProvider
       return new vscode.FileDecoration(
         "U",
         "Unversioned",
-        // TODO:  may change this theme-aware color (not hardcoded red/green) 
+        // TODO:  may change this theme-aware color (not hardcoded red/green)
         new vscode.ThemeColor("gitDecoration.untrackedResourceForeground"),
       );
     }

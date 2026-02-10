@@ -1,10 +1,10 @@
-import { Changelist } from "../core/changelist/Changelist";
-import { SystemChangelist } from "../core/changelist/SystemChangelist";
-import { GitClient } from "../adapters/git/GitClient";
+import { Changelist } from "../core/changelist/changelist";
+import { SystemChangelist } from "../core/changelist/systemChangelist";
+import { GitClient } from "../adapters/git/gitClient";
 import {
   WorkspaceStateStore,
   PersistedState,
-} from "../adapters/storage/WorkspaceStateStore";
+} from "../adapters/storage/workspaceStateStore";
 
 export class InitializeWorkspace {
   constructor(
