@@ -144,7 +144,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const store = new WorkspaceStateStore(context.workspaceState);
   const createChangelist = new CreateChangelist(store);
   const moveFiles = new MoveFilesToChangelist(store);
-  const deleteChangelist = new DeleteChangelist(store);
+  const deleteChangelist = new DeleteChangelist(git, store);
 
   let repoRoot: string;
   try {
