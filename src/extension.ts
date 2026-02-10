@@ -3,19 +3,30 @@ import { spawn } from "node:child_process";
 
 import { GitCliClient } from "./adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "./adapters/storage/workspaceStateStore";
+import { GhCliPrProvider } from "./adapters/pr/github/ghCliPrProvider";
 
 import { LoadOrInitState } from "./usecases/loadOrInitState";
 import { ReconcileWithGitStatus } from "./usecases/reconcileWithGitStatus";
 import { CreateChangelist } from "./usecases/createChangelist";
 import { MoveFilesToChangelist } from "./usecases/moveFilesToChangelist";
 import { DeleteChangelist } from "./usecases/deleteChangelist";
+import { ListOpenPullRequests } from "./usecases/pr/listOpenPullRequests";
+import { LoadPullRequestDetails } from "./usecases/pr/loadPullRequestDetails";
+import { AddPullRequestComment } from "./usecases/pr/addPullRequestComment";
+import { SubmitPullRequestReview } from "./usecases/pr/submitPullRequestReview";
+import { AddPullRequestInlineComment } from "./usecases/pr/addPullRequestInlineComment";
 
 import { ChangelistTreeProvider } from "./views/changelistTreeProvider";
 import { WorklistDecorationProvider } from "./views/worklistDecorationProvider";
 import { CommitViewProvider } from "./views/commitViewProvider";
+import { PrTreeProvider } from "./views/pr/prTreeProvider";
+import { PrDetailsTreeProvider } from "./views/pr/prDetailsTreeProvider";
+
+import { GitRefContentProvider } from "./views/pr/gitRefContentProvider";
 
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
 import { AutoRefreshController } from "./core/refresh/autoRefreshController";
+import { PrSelection } from "./core/pr/session/prSelection";
 
 function normalizeRepoRelPath(p: string): string {
   return p.replace(/\\/g, "/");
@@ -132,6 +143,20 @@ function toRepoRelPath(repoRoot: string, uri: vscode.Uri): string {
     return "";
   }
   return full.slice(root.length + 1);
+}
+
+function getRepoRelPathForEditor(repoRoot: string, uri: vscode.Uri): string {
+  if (uri.scheme === "file") {
+    return toRepoRelPath(repoRoot, uri);
+  }
+
+  // Your diff uses GitRefContentProvider.scheme
+  if (uri.scheme === GitRefContentProvider.scheme) {
+    // path looks like "/pom.xml" -> "pom.xml"
+    return uri.path.replace(/^\/+/, "");
+  }
+
+  return "";
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -590,6 +615,244 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       },
     ),
+  );
+
+  // ----------------------------
+  // PR (GitHub via gh)
+  // ----------------------------
+  const prProvider = new GhCliPrProvider();
+  const listPRs = new ListOpenPullRequests(prProvider);
+  const loadPR = new LoadPullRequestDetails(prProvider);
+  const addPrComment = new AddPullRequestComment(prProvider);
+  const submitPrReview = new SubmitPullRequestReview(prProvider);
+  const addInline = new AddPullRequestInlineComment(prProvider);
+  const prSelection = new PrSelection();
+
+  const prTree = new PrTreeProvider();
+  const prDetailsTree = new PrDetailsTreeProvider();
+  const prTreeView = vscode.window.createTreeView("gitWorklists.pullRequests", {
+    treeDataProvider: prTree,
+  });
+
+  context.subscriptions.push(
+    prTreeView,
+    vscode.window.createTreeView("gitWorklists.prDetails", {
+      treeDataProvider: prDetailsTree,
+    }),
+  );
+
+  prTreeView.onDidChangeVisibility(async (e) => {
+    if (e.visible) {
+      await refreshPRs();
+    }
+  });
+
+  let selectedPrDetails: any | undefined;
+
+  async function refreshPRs() {
+    try {
+      prTree.setPullRequests(await listPRs.run(repoRoot));
+    } catch (e: any) {
+      prTree.setPullRequests([]);
+      vscode.window.showErrorMessage(String(e?.message ?? e));
+    }
+  }
+
+  // GitHub-only: fetch PR head ref locally (no checkout)
+  async function fetchPrRef(prNumber: number): Promise<string> {
+    const refName = `refs/git-worklists/pr/${prNumber}`;
+    await runGit(repoRoot, [
+      "fetch",
+      "origin",
+      `pull/${prNumber}/head:${refName}`,
+    ]);
+    return refName;
+  }
+
+  // Select PR -> load details -> show in PR Details view
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitWorklists.pr.refresh", refreshPRs),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.select",
+      async (prNumber: number) => {
+        try {
+          prSelection.set(prNumber);
+          const details = await loadPR.run(repoRoot, prNumber);
+          selectedPrDetails = details;
+          prDetailsTree.setDetails(details);
+        } catch (e: any) {
+          selectedPrDetails = undefined;
+          prDetailsTree.setDetails(undefined);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.openFileDiff",
+      async (filePath: string) => {
+        if (!selectedPrDetails) {
+          vscode.window.showErrorMessage("Select a PR first.");
+          return;
+        }
+
+        const prNumber = Number(selectedPrDetails.number);
+        const baseRefName = String(selectedPrDetails.baseRefName ?? "main");
+        const baseRef = `origin/${baseRefName}`;
+
+        const prRef = await fetchPrRef(prNumber);
+
+        const left = vscode.Uri.parse(
+          `${GitRefContentProvider.scheme}:/${filePath}?ref=${encodeURIComponent(baseRef)}`,
+        );
+        const right = vscode.Uri.parse(
+          `${GitRefContentProvider.scheme}:/${filePath}?ref=${encodeURIComponent(prRef)}`,
+        );
+
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          left,
+          right,
+          `PR #${prNumber}: ${filePath}`,
+        );
+      },
+    ),
+
+    vscode.commands.registerCommand("gitWorklists.pr.comment", async () => {
+      if (!selectedPrDetails) {
+        return vscode.window.showErrorMessage("Select a PR first.");
+      }
+      const prNumber = Number(selectedPrDetails.number);
+
+      const body = await vscode.window.showInputBox({ prompt: "PR comment" });
+      if (!body) {
+        return;
+      }
+
+      await addPrComment.run(repoRoot, prNumber, body);
+      const details = await loadPR.run(repoRoot, prNumber);
+      selectedPrDetails = details;
+      prDetailsTree.setDetails(details);
+    }),
+
+    vscode.commands.registerCommand("gitWorklists.pr.approve", async () => {
+      if (!selectedPrDetails) {
+        return vscode.window.showErrorMessage("Select a PR first.");
+      }
+      const prNumber = Number(selectedPrDetails.number);
+
+      const body = await vscode.window.showInputBox({
+        prompt: "Approval message (optional)",
+      });
+      await submitPrReview.run(repoRoot, prNumber, "approve", body);
+
+      void vscode.window.showInformationMessage(`Approved PR #${prNumber}.`);
+
+      const details = await loadPR.run(repoRoot, prNumber);
+      selectedPrDetails = details;
+      prDetailsTree.setDetails(details);
+    }),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.requestChanges",
+      async () => {
+        if (!selectedPrDetails) {
+          return vscode.window.showErrorMessage("Select a PR first.");
+        }
+        const prNumber = Number(selectedPrDetails.number);
+
+        const body = await vscode.window.showInputBox({
+          prompt: "Request changes message",
+        });
+        if (!body) {
+          return;
+        }
+
+        await submitPrReview.run(repoRoot, prNumber, "requestChanges", body);
+
+        void vscode.window.showInformationMessage(
+          `Requested changes on PR #${prNumber}.`,
+        );
+
+        const details = await loadPR.run(repoRoot, prNumber);
+        selectedPrDetails = details;
+        prDetailsTree.setDetails(details);
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.openInBrowser",
+      async () => {
+        if (!selectedPrDetails) {
+          return vscode.window.showErrorMessage("Select a PR first.");
+        }
+        await vscode.env.openExternal(
+          vscode.Uri.parse(String(selectedPrDetails.url)),
+        );
+      },
+    ),
+  );
+
+  // register the virtual document provider (needed for vscode.diff)
+  const refProvider = new GitRefContentProvider(repoRoot);
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      GitRefContentProvider.scheme,
+      refProvider,
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitWorklists.pr.commentLine", async () => {
+      try {
+        const prNumber = prSelection.get();
+        if (!prNumber) {
+          throw new Error(
+            "No PR selected. Select a PR first in the Pull Requests view.",
+          );
+        }
+
+        const ed = vscode.window.activeTextEditor;
+        if (!ed) {
+          return;
+        }
+
+        const relPath = getRepoRelPathForEditor(repoRoot, ed.document.uri);
+        if (!relPath) {
+          throw new Error("File is not inside the current repo.");
+        }
+
+        const line = ed.selection.active.line + 1;
+
+        const body = await vscode.window.showInputBox({
+          prompt: `Inline comment for ${relPath}:${line}`,
+          placeHolder: "Write a short comment…",
+        });
+        if (!body) {
+          return;
+        }
+
+        await addInline.run(repoRoot, prNumber, relPath, line, body);
+
+        // Refresh details so you can see the new comment quickly
+        const details = await loadPR.run(repoRoot, prNumber);
+        selectedPrDetails = details;
+        prDetailsTree.setDetails(details);
+
+        vscode.window.showInformationMessage(
+          `Inline comment added to PR #${prNumber}: ${relPath}:${line}`,
+        );
+      } catch (e: any) {
+        const msg = String(e?.message ?? e);
+        vscode.window.showErrorMessage(
+          msg.includes("Validation Failed") ||
+            msg.toLowerCase().includes("diff")
+            ? "Cannot add inline comment: the selected line is not part of this PR’s diff. Add a normal PR comment instead."
+            : msg,
+        );
+      }
+    }),
   );
 }
 
