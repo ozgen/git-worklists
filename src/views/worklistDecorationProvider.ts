@@ -29,7 +29,7 @@ export class WorklistDecorationProvider implements vscode.FileDecorationProvider
     if (!rel) {return;}
 
     // Build lookup: path -> list (first match wins)
-    // Priority: Unversioned > Default > Custom (or change to your preference)
+    // Priority: Unversioned > Default > Custom 
     const unv = state.lists.find((l) => l.id === SystemChangelist.Unversioned);
     if (unv?.files.includes(rel)) {
       return new vscode.FileDecoration(

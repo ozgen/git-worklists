@@ -150,7 +150,6 @@ function getRepoRelPathForEditor(repoRoot: string, uri: vscode.Uri): string {
     return toRepoRelPath(repoRoot, uri);
   }
 
-  // Your diff uses GitRefContentProvider.scheme
   if (uri.scheme === GitRefContentProvider.scheme) {
     // path looks like "/pom.xml" -> "pom.xml"
     return uri.path.replace(/^\/+/, "");
@@ -835,7 +834,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
         await addInline.run(repoRoot, prNumber, relPath, line, body);
 
-        // Refresh details so you can see the new comment quickly
         const details = await loadPR.run(repoRoot, prNumber);
         selectedPrDetails = details;
         prDetailsTree.setDetails(details);
