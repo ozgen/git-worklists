@@ -254,6 +254,23 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      const pushConfirmed = await vscode.window.showWarningMessage(
+        amend
+          ? "Push amended commit (force-with-lease)?"
+          : "Push commits to remote?",
+        {
+          modal: true,
+          detail: amend
+            ? "This will run: git push --force-with-lease"
+            : "This will run: git push",
+        },
+        "Push",
+      );
+
+      if (pushConfirmed !== "Push") {
+        return;
+      }
+
       if (amend) {
         await runGit(repoRoot, ["push", "--force-with-lease"]);
       } else {
@@ -354,6 +371,22 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     }
   });
+
+  // ----------------------------
+  // Confirmation Action helper
+  // ----------------------------
+
+  async function confirmAction(
+    title: string,
+    detail: string,
+  ): Promise<boolean> {
+    const ok = await vscode.window.showWarningMessage(
+      title,
+      { modal: true, detail },
+      "Yes",
+    );
+    return ok === "Yes";
+  }
 
   // ----------------------------
   // Commands (context menus)
@@ -741,9 +774,18 @@ export async function activate(context: vscode.ExtensionContext) {
       }
       const prNumber = Number(selectedPrDetails.number);
 
+      const confirmed = await confirmAction(
+        `Approve PR #${prNumber}?`,
+        "This will submit an approval review to GitHub.",
+      );
+      if (!confirmed) {
+        return;
+      }
+
       const body = await vscode.window.showInputBox({
         prompt: "Approval message (optional)",
       });
+
       await submitPrReview.run(repoRoot, prNumber, "approve", body);
 
       void vscode.window.showInformationMessage(`Approved PR #${prNumber}.`);
@@ -760,6 +802,14 @@ export async function activate(context: vscode.ExtensionContext) {
           return vscode.window.showErrorMessage("Select a PR first.");
         }
         const prNumber = Number(selectedPrDetails.number);
+
+        const confirmed = await confirmAction(
+          `Request changes on PR #${prNumber}?`,
+          "This will submit a 'changes requested' review to GitHub.",
+        );
+        if (!confirmed) {
+          return;
+        }
 
         const body = await vscode.window.showInputBox({
           prompt: "Request changes message",
