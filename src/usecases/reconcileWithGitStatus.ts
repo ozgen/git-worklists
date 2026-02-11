@@ -91,8 +91,21 @@ export class ReconcileWithGitStatus {
       }
     };
 
-    // enforce: untracked always goes to Unversioned
+    // enforce: untracked goes to Unversioned UNLESS user already assigned it to a custom list
     for (const f of untracked) {
+      const owner = fileOwner.get(f);
+
+      const isCustomOwner =
+        owner &&
+        owner !== SystemChangelist.Unversioned &&
+        owner !== SystemChangelist.Default;
+
+      if (isCustomOwner) {
+        // keep in its custom list
+        continue;
+      }
+
+      // otherwise force to Unversioned
       removeEverywhere(f);
       const u = mustGet(SystemChangelist.Unversioned);
       u.files.push(f);
