@@ -197,6 +197,6 @@ The goal is **clarity, explicit control, and zero hidden magic**.
 
 ---
 
-**Git Worklists — focused Git workflows without surprises. 🚀**
+**Git Worklists - focused Git workflows without surprises. 🚀**
 
 ---
