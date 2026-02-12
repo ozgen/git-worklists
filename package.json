@@ -36,18 +36,6 @@
           "name": "Commit",
           "type": "webview",
           "icon": "media/activity-icon.png"
-        },
-        {
-          "id": "gitWorklists.pullRequests",
-          "name": "Pull Requests",
-          "icon": "media/activity-icon.png",
-          "visibility": "collapsed"
-        },
-        {
-          "id": "gitWorklists.prDetails",
-          "name": "PR Details",
-          "icon": "media/activity-icon.png",
-          "visibility": "collapsed"
         }
       ]
     },
@@ -91,65 +79,6 @@
         "command": "gitWorklists.toggleGroupSelection",
         "title": "Toggle Group Staging",
         "icon": "$(checklist)"
-      },
-      {
-        "command": "gitWorklists.pr.refresh",
-        "title": "Git Worklists: Refresh Pull Requests",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "gitWorklists.pr.comment",
-        "title": "Git Worklists: Comment on PR",
-        "icon": "$(comment)"
-      },
-      {
-        "command": "gitWorklists.pr.approve",
-        "title": "Git Worklists: Approve PR",
-        "icon": "$(pass)"
-      },
-      {
-        "command": "gitWorklists.pr.requestChanges",
-        "title": "Git Worklists: Request Changes",
-        "icon": "$(error)"
-      },
-      {
-        "command": "gitWorklists.pr.openInBrowser",
-        "title": "Git Worklists: Open PR in Browser",
-        "icon": "$(link-external)"
-      },
-      {
-        "command": "gitWorklists.pr.openFileDiff",
-        "title": "Git Worklists: Open PR File Diff",
-        "icon": "$(diff)"
-      },
-      {
-        "command": "gitWorklists.pr.comment",
-        "title": "Git Worklists: Comment on PR",
-        "icon": "$(comment)"
-      },
-      {
-        "command": "gitWorklists.pr.commentLine",
-        "title": "Git Worklists: Comment on PR Line"
-      },
-      {
-        "command": "gitWorklists.pr.resolveThread",
-        "title": "Resolve",
-        "icon": "$(check)"
-      },
-      {
-        "command": "gitWorklists.pr.unresolveThread",
-        "title": "Unresolve",
-        "icon": "$(close)"
-      },
-      {
-        "command": "gitWorklists.pr.postReplyToActiveThread",
-        "title": "Comment",
-        "icon": "$(comment)"
-      },
-      {
-        "command": "gitWorklists.pr.replyToThread",
-        "title": "Reply",
-        "icon": "$(comment)"
       }
     ],
     "menus": {
@@ -163,11 +92,6 @@
           "command": "gitWorklists.refresh",
           "when": "view == gitWorklists.changelists",
           "group": "navigation@1"
-        },
-        {
-          "command": "gitWorklists.pr.comment",
-          "when": "view == gitWorklists.prDetails",
-          "group": "navigation@0"
         }
       ],
       "view/item/context": [
@@ -200,41 +124,6 @@
           "command": "gitWorklists.unselectFile",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
           "group": "inline@2"
-        },
-        {
-          "command": "gitWorklists.pr.approve",
-          "when": "view == gitWorklists.pullRequests && viewItem == gitWorklists.prItem"
-        },
-        {
-          "command": "gitWorklists.pr.requestChanges",
-          "when": "view == gitWorklists.pullRequests && viewItem == gitWorklists.prItem"
-        },
-        {
-          "command": "gitWorklists.pr.openInBrowser",
-          "when": "view == gitWorklists.pullRequests && viewItem == gitWorklists.prItem"
-        }
-      ],
-      "editor/context": [
-        {
-          "command": "gitWorklists.pr.commentLine",
-          "when": "editorTextFocus"
-        }
-      ],
-      "comments/commentThread/title": [
-        {
-          "command": "gitWorklists.pr.replyToThread",
-          "when": "commentThread == gitWorklists.prThread",
-          "group": "inline@0"
-        },
-        {
-          "command": "gitWorklists.pr.resolveThread",
-          "when": "commentThread == gitWorklists.prThread",
-          "group": "navigation@1"
-        },
-        {
-          "command": "gitWorklists.pr.unresolveThread",
-          "when": "commentThread == gitWorklists.prThread",
-          "group": "navigation@1"
         }
       ]
     }

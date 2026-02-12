@@ -1,8 +1,8 @@
 # Git Worklists
 
-**Git Worklists** is a Visual Studio Code extension that provides a lightweight, Git-focused workflow for organizing changes, staging files, committing them, and reviewing pull requests — all through a custom UI.
+**Git Worklists** is a Visual Studio Code extension that provides a lightweight, Git-focused workflow for organizing changes, staging files, and committing all through a custom UI.
 
-It is designed for developers who want **explicit control over staging, committing, and PR reviews**, without relying on VS Code’s built-in Source Control or PR extensions.
+It is designed for developers who want **explicit control over staging and commits**, without relying on VS Code’s built-in Source Control view.
 
 ---
 
@@ -17,13 +17,13 @@ A structured way to organize and stage changes.
 * Displays **Changes** and **Unversioned** files clearly
 * Create, move, and delete **custom changelists**
 * File-level and group-level **checkboxes** for staging / unstaging
-* Visual file decorations
+* Visual file decorations (badges)
 * Click files to open instantly
 * Automatic reconciliation with Git status
 * Files move automatically between:
 
-  * **Unversioned**  when newly created
-  * **Changes**  when tracked / modified
+  * **Unversioned** when newly created
+  * **Changes** when tracked / modified
 * Safe behavior when staging / unstaging newly created files
 
 ---
@@ -37,46 +37,6 @@ A focused commit experience separate from VS Code SCM.
 * **Commit** and **Commit & Push**
 * Live staged file counter
 * Clear error feedback
-* Confirmation for force-with-lease when amending
-
----
-
-## Pull Request Reviews (GitHub)
-
-Native Pull Request review support powered by the GitHub CLI (`gh`).
-
----
-
-### Pull Requests View
-
-* Lists open pull requests
-* Draft PRs clearly indicated
-* Lazy loaded
-* Clean navigation experience
-
----
-
-### PR Details View
-
-* View metadata and description
-* Browse changed files
-* View comments and reviews
-* Open diffs directly in VS Code
-* Open PR in browser
-
----
-
-### Inline Review Support
-
-* Add **inline comments** directly from diff view
-* Supports:
-
-  * Commenting on added (`+`) lines
-  * Commenting on context lines inside diff hunks
-* Reply to threads
-* Resolve / unresolve threads
-* Clear validation when a line is not commentable
-* Accurate diff position handling (GitHub compatible)
 
 ---
 
@@ -91,8 +51,6 @@ Supported operations:
 * `git commit`
 * `git commit --amend`
 * `git push`
-* `git fetch` (for PR diffs)
-* `git diff` (for accurate inline comment positioning)
 
 ---
 
@@ -101,10 +59,6 @@ Supported operations:
 * Git installed and available in PATH
 * Workspace opened inside a Git repository
 * VS Code **v1.108.0** or newer
-* For Pull Request features:
-
-  * GitHub CLI (`gh`) installed
-  * `gh auth login` completed
 
 ---
 
@@ -124,17 +78,6 @@ Supported operations:
 
 ---
 
-## Pull Request Reviews
-
-1. Open **Pull Requests** in Git Worklists
-2. Select a PR to load details
-3. Open a file to view its diff
-4. Right-click a line in the diff to add an inline comment
-5. Approve or request changes directly from VS Code
-6. Reply to or resolve review threads
-
----
-
 # Extension Settings
 
 This extension does not contribute any VS Code settings yet.
@@ -146,8 +89,7 @@ This extension does not contribute any VS Code settings yet.
 * No partial staging (no hunk / line staging)
 * No multi-repository support
 * Merge conflicts must be resolved manually
-* GitHub only (no GitLab support yet)
-* Large or binary diffs cannot receive inline comments (GitHub limitation)
+* GitHub / GitLab PR features are not included
 
 ---
 
@@ -155,10 +97,9 @@ This extension does not contribute any VS Code settings yet.
 
 Planned improvements:
 
-* Reviewer assignment support
-* PR review summary improvements
-* GitLab support
+* Git stash management (create / apply / pop / drop)
 * Multi-repository support
+* Partial staging (hunk-based)
 * Improved visual polish
 * Extended test coverage
 * Additional workflow optimizations
@@ -173,25 +114,18 @@ Planned improvements:
 * Changelists view
 * Custom commit panel
 * Git staging, commit, amend, push
-* GitHub Pull Request review support
-* Approve / request changes from VS Code
-* Inline PR comments with diff-aware positioning
-* Thread replies and resolution
-* PR details and file diff navigation
-* Improved error handling and validation
 
 ---
 
 # Development Philosophy
 
-Git Worklists intentionally avoids VS Code’s built-in SCM and PR providers.
+Git Worklists intentionally avoids VS Code’s built-in SCM provider.
 
 Instead, it builds a focused, predictable workflow using:
 
 * Tree Views
-* Webview Commit Panel
+* Commit UI
 * Git CLI
-* GitHub CLI (`gh`)
 
 The goal is **clarity, explicit control, and zero hidden magic**.
 
