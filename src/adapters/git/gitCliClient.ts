@@ -1,5 +1,6 @@
 import * as cp from "child_process";
-import { GitClient, GitStatusEntry } from "./gitClient";
+import * as path from "path";
+import { GitClient, GitStatusEntry, GitStashEntry } from "./gitClient";
 
 function execGit(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,44 @@ function execGit(args: string[], cwd: string): Promise<string> {
   });
 }
 
+function parseStashLine(line: string): GitStashEntry | null {
+  
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const m = trimmed.match(/^(stash@\{\d+\}):\s*(.*)$/);
+  if (!m) {
+    // If format ever differs, keep raw
+    return { ref: "stash@{?}", message: trimmed, raw: trimmed };
+  }
+
+  const ref = m[1];
+  const msg = m[2] ?? "";
+
+  // Best-effort GW tagging:
+  // We will tag stash messages as: "GW:<changelistId> <user message>"
+  // That will appear somewhere in the message string.
+  let isGitWorklists = false;
+  let changelistId: string | undefined;
+
+  // Look for "GW:<id>" token anywhere in the message
+  const gw = msg.match(/\bGW:([^\s]+)/);
+  if (gw) {
+    isGitWorklists = true;
+    changelistId = gw[1];
+  }
+
+  return {
+    ref,
+    message: msg,
+    raw: trimmed,
+    isGitWorklists,
+    changelistId,
+  };
+}
+
 export class GitCliClient implements GitClient {
   async getRepoRoot(workspaceFsPath: string): Promise<string> {
     const out = await execGit(
@@ -30,7 +69,6 @@ export class GitCliClient implements GitClient {
   }
 
   async getStatusPorcelainZ(repoRootFsPath: string): Promise<GitStatusEntry[]> {
-    // -z = NUL separated, safest for weird file names
     const out = await execGit(
       ["status", "--porcelain=v1", "-z"],
       repoRootFsPath,
@@ -42,21 +80,22 @@ export class GitCliClient implements GitClient {
 
     while (i < parts.length) {
       const header = parts[i++];
-      if (!header) {continue;}
+      if (!header) {
+        continue;
+      }
 
-      // Format:
-      //  - Normal: "XY <path>"
-      //  - Rename/Copy: "XY <oldPath>" then next NUL token is "<newPath>"
       const x = header[0] ?? " ";
       const y = header[1] ?? " ";
 
       // After "XY " (3 chars)
       const path1 = header.slice(3);
-      if (!path1) {continue;}
+      if (!path1) {
+        continue;
+      }
 
       let finalPath = path1;
 
-      // For renames/copies, porcelain -z provides two paths: old then new
+      // Rename/copy: old path then new path
       if (x === "R" || x === "C") {
         const path2 = parts[i++] ?? "";
         if (path2) {
@@ -77,8 +116,50 @@ export class GitCliClient implements GitClient {
   async getGitDir(repoRootFsPath: string): Promise<string> {
     const out = await execGit(["rev-parse", "--git-dir"], repoRootFsPath);
     const p = out.trim();
-    return require("path").isAbsolute(p)
-      ? p
-      : require("path").join(repoRootFsPath, p);
+    return path.isAbsolute(p) ? p : path.join(repoRootFsPath, p);
+  }
+
+
+  async stashList(repoRootFsPath: string): Promise<GitStashEntry[]> {
+    const out = await execGit(["stash", "list"], repoRootFsPath);
+    const lines = out.split("\n");
+    const entries: GitStashEntry[] = [];
+    for (const line of lines) {
+      const e = parseStashLine(line);
+      if (e) {
+        entries.push(e);
+      }
+    }
+    return entries;
+  }
+
+  async stashPushPaths(
+    repoRootFsPath: string,
+    message: string,
+    repoRelativePaths: string[],
+  ): Promise<void> {
+    if (repoRelativePaths.length === 0) {
+      throw new Error("No files provided to stash.");
+    }
+
+    // `--` separates options from pathspecs safely
+    // Stash only selected files:
+    // git stash push -m "..." -- path1 path2 ...
+    await execGit(
+      ["stash", "push", "-m", message, "--", ...repoRelativePaths],
+      repoRootFsPath,
+    );
+  }
+
+  async stashApply(repoRootFsPath: string, ref: string): Promise<void> {
+    await execGit(["stash", "apply", ref], repoRootFsPath);
+  }
+
+  async stashPop(repoRootFsPath: string, ref: string): Promise<void> {
+    await execGit(["stash", "pop", ref], repoRootFsPath);
+  }
+
+  async stashDrop(repoRootFsPath: string, ref: string): Promise<void> {
+    await execGit(["stash", "drop", ref], repoRootFsPath);
   }
 }

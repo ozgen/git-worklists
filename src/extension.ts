@@ -1,9 +1,6 @@
 import * as vscode from "vscode";
 
-import {
-  normalizeRepoRelPath,
-  toRepoRelPath,
-} from "./utils/paths";
+import { normalizeRepoRelPath, toRepoRelPath } from "./utils/paths";
 import { runGit, runGitCapture } from "./utils/process";
 
 import { GitCliClient } from "./adapters/git/gitCliClient";
@@ -15,16 +12,15 @@ import { LoadOrInitState } from "./usecases/loadOrInitState";
 import { MoveFilesToChangelist } from "./usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "./usecases/reconcileWithGitStatus";
 
-
 import { ChangelistTreeProvider } from "./views/changelistTreeProvider";
 import { CommitViewProvider } from "./views/commitViewProvider";
 import { WorklistDecorationProvider } from "./views/worklistDecorationProvider";
 
-
+import { StashesTreeProvider } from "./views/stash/stashesTreeProvider";
 
 import { AutoRefreshController } from "./core/refresh/autoRefreshController";
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
-
+import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
 
 async function headHasParent(repoRoot: string): Promise<boolean> {
   try {
@@ -96,6 +92,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerFileDecorationProvider(deco),
   );
+  const stashesProvider = new StashesTreeProvider(repoRoot, git);
 
   // ----------------------------
   // Use cases
@@ -538,6 +535,7 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     ),
   );
+  
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "gitWorklists.deleteChangelist",
@@ -568,6 +566,145 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     ),
   );
+
+  // ----------------------------------
+  // Commands (context menus) for Stash
+  // ----------------------------------
+
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider(
+      "gitWorklists.stashes",
+      stashesProvider,
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitWorklists.stash.refresh", () => {
+      stashesProvider.refresh();
+    }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.stash.createFromChangelist",
+      async (node: any) => {
+        try {
+          const changelistId =
+            typeof node?.list?.id === "string" ? node.list.id : "";
+          const label =
+            typeof node?.list?.name === "string"
+              ? node.list.name
+              : "changelist";
+
+          if (!changelistId) {
+            vscode.window.showErrorMessage(
+              "Git Worklists: could not determine changelist id from selection.",
+            );
+            return;
+          }
+
+          const message = await vscode.window.showInputBox({
+            prompt: "Stash message (optional)",
+            placeHolder: "WIP",
+          });
+
+          const uc = new CreateStashForChangelist(git, store);
+
+          const res = await uc.run({
+            repoRootFsPath: repoRoot,
+            changelistId,
+            message,
+          });
+
+          const extra = res.skippedUntrackedCount
+            ? ` (skipped ${res.skippedUntrackedCount} untracked)`
+            : "";
+
+          vscode.window.showInformationMessage(
+            `Stashed ${res.stashedCount} file(s) from ${label}${extra}.`,
+          );
+
+          coordinator.trigger();
+          stashesProvider.refresh();
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.stash.apply",
+      async (node: any) => {
+        const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        if (!ref) {
+          return;
+        }
+
+        try {
+          await git.stashApply(repoRoot, ref);
+          coordinator.trigger();
+          stashesProvider.refresh();
+          vscode.window.showInformationMessage(`Applied ${ref}.`);
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.stash.pop",
+      async (node: any) => {
+        const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        if (!ref) {
+          return;
+        }
+
+        try {
+          await git.stashPop(repoRoot, ref);
+          coordinator.trigger();
+          stashesProvider.refresh();
+          vscode.window.showInformationMessage(`Popped ${ref}.`);
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.stash.drop",
+      async (node: any) => {
+        const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        if (!ref) {
+          return;
+        }
+
+        const ok = await vscode.window.showWarningMessage(
+          `Delete ${ref}?`,
+          { modal: true, detail: "This will run: git stash drop" },
+          "Delete",
+        );
+        if (ok !== "Delete") {
+          return;
+        }
+
+        try {
+          await git.stashDrop(repoRoot, ref);
+          coordinator.trigger();
+          stashesProvider.refresh();
+          vscode.window.showInformationMessage(`Deleted ${ref}.`);
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+
 }
 
 export function deactivate() {}

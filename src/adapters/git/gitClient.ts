@@ -7,6 +7,19 @@ export type GitStatusEntry = {
   y: string;
 };
 
+export type GitStashEntry = {
+  /** e.g. "stash@{0}" */
+  ref: string;
+  /** full label after the ref */
+  message: string;
+  /** original line from `git stash list` */
+  raw: string;
+
+  /** best-effort parsing */
+  isGitWorklists?: boolean;
+  changelistId?: string;
+};
+
 export interface GitClient {
   /** returns repo root absolute path */
   getRepoRoot(workspaceFsPath: string): Promise<string>;
@@ -17,4 +30,28 @@ export interface GitClient {
   add(repoRootFsPath: string, repoRelativePath: string): Promise<void>;
 
   getGitDir(repoRootFsPath: string): Promise<string>;
+
+  // ---- Stash (new) ----
+
+  /** `git stash list` */
+  stashList(repoRootFsPath: string): Promise<GitStashEntry[]>;
+
+  /**
+   * Stash only the provided repo-relative paths.
+   * Uses: `git stash push -m <message> -- <paths...>`
+   */
+  stashPushPaths(
+    repoRootFsPath: string,
+    message: string,
+    repoRelativePaths: string[],
+  ): Promise<void>;
+
+  /** `git stash apply <ref>` */
+  stashApply(repoRootFsPath: string, ref: string): Promise<void>;
+
+  /** `git stash pop <ref>` */
+  stashPop(repoRootFsPath: string, ref: string): Promise<void>;
+
+  /** `git stash drop <ref>` */
+  stashDrop(repoRootFsPath: string, ref: string): Promise<void>;
 }

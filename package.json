@@ -36,6 +36,11 @@
           "name": "Commit",
           "type": "webview",
           "icon": "media/activity-icon.png"
+        },
+        {
+          "id": "gitWorklists.stashes",
+          "name": "Stashes",
+          "icon": "media/activity-icon.png"
         }
       ]
     },
@@ -79,6 +84,31 @@
         "command": "gitWorklists.toggleGroupSelection",
         "title": "Toggle Group Staging",
         "icon": "$(checklist)"
+      },
+      {
+        "command": "gitWorklists.stash.refresh",
+        "title": "Refresh Stashes",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitWorklists.stash.createFromChangelist",
+        "title": "Stash changes…",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "gitWorklists.stash.apply",
+        "title": "Apply Stash",
+        "icon": "$(output)"
+      },
+      {
+        "command": "gitWorklists.stash.pop",
+        "title": "Pop Stash",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "gitWorklists.stash.drop",
+        "title": "Delete Stash",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -92,6 +122,11 @@
           "command": "gitWorklists.refresh",
           "when": "view == gitWorklists.changelists",
           "group": "navigation@1"
+        },
+        {
+          "command": "gitWorklists.stash.refresh",
+          "when": "view == gitWorklists.stashes",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -102,7 +137,7 @@
         },
         {
           "command": "gitWorklists.moveGroupToChangelist",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.group.custom || viewItem == gitWorklists.group.system)",
           "group": "navigation@0"
         },
         {
@@ -124,6 +159,31 @@
           "command": "gitWorklists.unselectFile",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
           "group": "inline@2"
+        },
+        {
+          "command": "gitWorklists.stash.createFromChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group.custom",
+          "group": "inline@3"
+        },
+        {
+          "command": "gitWorklists.stash.createFromChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group.system",
+          "group": "inline@3"
+        },
+        {
+          "command": "gitWorklists.stash.apply",
+          "when": "view == gitWorklists.stashes && viewItem == gitWorklists.stashItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitWorklists.stash.pop",
+          "when": "view == gitWorklists.stashes && viewItem == gitWorklists.stashItem",
+          "group": "inline@2"
+        },
+        {
+          "command": "gitWorklists.stash.drop",
+          "when": "view == gitWorklists.stashes && viewItem == gitWorklists.stashItem",
+          "group": "inline@9"
         }
       ]
     }
