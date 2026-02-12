@@ -3,6 +3,7 @@ import { PrProviderPort } from "../../../core/pr/ports/prProviderPort";
 import { PullRequest } from "../../../core/pr/model/pullRequest";
 import { PullRequestDetails } from "../../../core/pr/model/pullRequestDetails";
 import { ReviewAction } from "../../../core/pr/model/reviewAction";
+import { PrInlineComment } from "../../../core/pr/model/prInlineComment";
 
 function execGhJson(args: string[], cwd: string): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -77,6 +78,107 @@ async function getPrHeadSha(
     throw new Error("Cannot determine PR head SHA.");
   }
   return sha;
+}
+
+function runGhCapture(cwd: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = cp.spawn("gh", args, {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (d) => (out += d.toString()));
+    child.stderr.on("data", (d) => (err += d.toString()));
+
+    child.on("error", reject);
+    child.on("close", (code: number) => {
+      if (code === 0) {
+        return resolve(out);
+      }
+      reject(
+        new Error(
+          `gh ${args.join(" ")} failed (code ${code}):\n${(err + "\n" + out).trim()}`,
+        ),
+      );
+    });
+  });
+}
+
+async function getRepoNameWithOwner(repoRoot: string): Promise<string> {
+  // uses GH CLI’s repo context
+  const out = await runGhCapture(repoRoot, [
+    "repo",
+    "view",
+    "--json",
+    "nameWithOwner",
+    "--jq",
+    ".nameWithOwner",
+  ]);
+  return out.trim();
+}
+
+async function getPrNodeId(
+  repoRoot: string,
+  prNumber: number,
+): Promise<string> {
+  // gh returns PR node id as "id" (GraphQL node id)
+  const x = await execGhJson(
+    ["pr", "view", String(prNumber), "--json", "id"],
+    repoRoot,
+  );
+  const id = String(x?.id ?? "").trim();
+  if (!id) {
+    throw new Error("Cannot determine PR node id.");
+  }
+  return id;
+}
+
+type ReviewThreadInfo = {
+  threadId: string;
+  isResolved: boolean;
+  commentDatabaseIds: number[];
+};
+
+async function listReviewThreads(
+  repoRoot: string,
+  prNumber: number,
+): Promise<ReviewThreadInfo[]> {
+  const prId = await getPrNodeId(repoRoot, prNumber);
+
+  const raw = await runGhCapture(repoRoot, [
+    "api",
+    "graphql",
+    "-f",
+    `query=query($pr:ID!) {
+      node(id:$pr) {
+        ... on PullRequest {
+          reviewThreads(first:100) {
+            nodes {
+              id
+              isResolved
+              comments(first:100) { nodes { databaseId } }
+            }
+          }
+        }
+      }
+    }`,
+    "-f",
+    `pr=${prId}`,
+  ]);
+
+  const json = JSON.parse(raw);
+  const nodes = json?.data?.node?.reviewThreads?.nodes ?? [];
+  const arr = Array.isArray(nodes) ? nodes : [];
+
+  return arr.map((t: any) => ({
+    threadId: String(t?.id ?? ""),
+    isResolved: Boolean(t?.isResolved),
+    commentDatabaseIds: (t?.comments?.nodes ?? [])
+      .map((c: any) => Number(c?.databaseId))
+      .filter((n: any) => Number.isFinite(n) && n > 0),
+  }));
 }
 
 export class GhCliPrProvider implements PrProviderPort {
@@ -208,6 +310,7 @@ export class GhCliPrProvider implements PrProviderPort {
     path: string,
     line: number,
     body: string,
+    side: "LEFT" | "RIGHT",
   ): Promise<void> {
     const p = String(path ?? "").trim();
     const msg = String(body ?? "").trim();
@@ -225,14 +328,16 @@ export class GhCliPrProvider implements PrProviderPort {
     const repo = await getRepoSlug(repoRoot);
     const sha = await getPrHeadSha(repoRoot, prNumber);
 
-    // GitHub API: PR review comment (inline)
-    // Uses `line` + `side=RIGHT` (new file side)
     await execGh(
       [
         "api",
         "-X",
         "POST",
         `repos/${repo}/pulls/${prNumber}/comments`,
+        "-H",
+        "Accept: application/vnd.github+json",
+        "-H",
+        "X-GitHub-Api-Version: 2022-11-28",
         "-f",
         `body=${msg}`,
         "-f",
@@ -240,11 +345,133 @@ export class GhCliPrProvider implements PrProviderPort {
         "-f",
         `path=${p}`,
         "-f",
-        "side=RIGHT",
+        `side=${side}`,
         "-F",
         `line=${line}`,
       ],
       repoRoot,
     );
+  }
+
+  async listInlineReviewComments(
+    repoRoot: string,
+    prNumber: number,
+  ): Promise<PrInlineComment[]> {
+    const nameWithOwner = await getRepoNameWithOwner(repoRoot);
+
+    const raw = await runGhCapture(repoRoot, [
+      "api",
+      `repos/${nameWithOwner}/pulls/${prNumber}/comments`,
+    ]);
+
+    const arr = JSON.parse(raw) as any[];
+    const base: PrInlineComment[] = (Array.isArray(arr) ? arr : [])
+      .map((c) => {
+        const side = (c.side === "LEFT" ? "LEFT" : "RIGHT") as "LEFT" | "RIGHT";
+        const line =
+          typeof c.line === "number"
+            ? c.line
+            : typeof c.original_line === "number"
+              ? c.original_line
+              : 1;
+
+        return {
+          id: Number(c.id),
+          inReplyTo:
+            typeof c.in_reply_to === "number" ? c.in_reply_to : undefined,
+          path: String(c.path ?? ""),
+          body: String(c.body ?? ""),
+          user: String(c.user?.login ?? "unknown"),
+          createdAt:
+            typeof c.created_at === "string" ? c.created_at : undefined,
+          side,
+          line,
+          isOutdated: Boolean(c.position === null),
+        } satisfies PrInlineComment;
+      })
+      .filter((x) => x.path);
+
+    // merge thread info (threadId + isResolved)
+    const threads = await listReviewThreads(repoRoot, prNumber);
+
+    const byCommentId = new Map<
+      number,
+      { threadId: string; isResolved: boolean }
+    >();
+    for (const t of threads) {
+      for (const cid of t.commentDatabaseIds) {
+        byCommentId.set(cid, {
+          threadId: t.threadId,
+          isResolved: t.isResolved,
+        });
+      }
+    }
+
+    for (const c of base) {
+      const hit = byCommentId.get(c.id);
+      if (hit) {
+        c.threadId = hit.threadId;
+        c.isResolved = hit.isResolved;
+      }
+    }
+
+    return base;
+  }
+
+  async replyToInlineComment(
+    repoRoot: string,
+    prNumber: number,
+    commentId: number,
+    body: string,
+  ): Promise<void> {
+    const msg = String(body ?? "").trim();
+    if (!msg) {
+      throw new Error("Reply is empty.");
+    }
+    if (!Number.isFinite(commentId) || commentId <= 0) {
+      throw new Error("Invalid comment id.");
+    }
+
+    const repo = await getRepoSlug(repoRoot);
+
+    await execGh(
+      [
+        "api",
+        "-X",
+        "POST",
+        `repos/${repo}/pulls/${prNumber}/comments/${commentId}/replies`,
+        "-f",
+        `body=${msg}`,
+      ],
+      repoRoot,
+    );
+  }
+
+  async setReviewThreadResolved(
+    repoRoot: string,
+    threadId: string,
+    resolved: boolean,
+  ): Promise<void> {
+    const id = String(threadId ?? "").trim();
+    if (!id) {
+      throw new Error("Missing threadId.");
+    }
+
+    const mutationName = resolved
+      ? "resolveReviewThread"
+      : "unresolveReviewThread";
+
+    await runGhCapture(repoRoot, [
+      "api",
+      "graphql",
+      "-f",
+      `query=mutation($id:ID!){
+        ${mutationName}(input:{threadId:$id}) {
+          thread { id isResolved }
+        }
+      }`,
+      "-f",
+      `id=${id}`,
+    ]);
   }
 }

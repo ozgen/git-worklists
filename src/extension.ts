@@ -1,5 +1,14 @@
 import * as vscode from "vscode";
-import { spawn } from "node:child_process";
+
+import { runGit, runGitCapture } from "./utils/process";
+import { runGhCapture } from "./utils/process";
+import {
+  normalizeRepoRelPath,
+  toRepoRelPath,
+  getRepoRelPathForEditor,
+} from "./utils/paths";
+import { getRepoNameWithOwner } from "./utils/github";
+import { computeLineToDiffPosition } from "./utils/diffHunks";
 
 import { GitCliClient } from "./adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "./adapters/storage/workspaceStateStore";
@@ -15,80 +24,21 @@ import { LoadPullRequestDetails } from "./usecases/pr/loadPullRequestDetails";
 import { AddPullRequestComment } from "./usecases/pr/addPullRequestComment";
 import { SubmitPullRequestReview } from "./usecases/pr/submitPullRequestReview";
 import { AddPullRequestInlineComment } from "./usecases/pr/addPullRequestInlineComment";
+import { LoadPullRequestInlineComments } from "./usecases/pr/loadPullRequestInlineComments";
 
 import { ChangelistTreeProvider } from "./views/changelistTreeProvider";
 import { WorklistDecorationProvider } from "./views/worklistDecorationProvider";
 import { CommitViewProvider } from "./views/commitViewProvider";
 import { PrTreeProvider } from "./views/pr/prTreeProvider";
 import { PrDetailsTreeProvider } from "./views/pr/prDetailsTreeProvider";
+import { PrInlineCommentsController } from "./views/pr/prInlineCommentsController";
 
 import { GitRefContentProvider } from "./views/pr/gitRefContentProvider";
 
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
 import { AutoRefreshController } from "./core/refresh/autoRefreshController";
 import { PrSelection } from "./core/pr/session/prSelection";
-
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
-}
-
-async function runGit(repoRoot: string, args: string[]): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("git", args, {
-      cwd: repoRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (d) => (stdout += d.toString()));
-    child.stderr.on("data", (d) => (stderr += d.toString()));
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        return resolve();
-      }
-
-      const msg = (stderr + "\n" + stdout).trim();
-      reject(
-        new Error(
-          `git ${args.join(" ")} failed (code ${code}):\n${msg || "(no output)"}`,
-        ),
-      );
-    });
-  });
-}
-
-async function runGitCapture(
-  repoRoot: string,
-  args: string[],
-): Promise<string> {
-  return await new Promise<string>((resolve, reject) => {
-    const child = spawn("git", args, {
-      cwd: repoRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (d) => (stdout += d.toString()));
-    child.stderr.on("data", (d) => (stderr += d.toString()));
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        return resolve(stdout);
-      }
-
-      reject(
-        new Error(
-          `git ${args.join(" ")} failed (code ${code}):\n${stderr || stdout}`,
-        ),
-      );
-    });
-  });
-}
+import { AddPullRequestInlineReply } from "./usecases/pr/addPullRequestInlineReply";
 
 /** Source of truth for "staged" (no porcelain parsing). */
 async function getStagedPaths(repoRoot: string): Promise<Set<string>> {
@@ -131,31 +81,6 @@ async function isHeadEmptyVsParent(repoRoot: string): Promise<boolean> {
 async function getHeadMessage(repoRoot: string): Promise<string> {
   const msg = await runGitCapture(repoRoot, ["log", "-1", "--pretty=%B"]);
   return msg.trim();
-}
-
-function toRepoRelPath(repoRoot: string, uri: vscode.Uri): string {
-  const root = repoRoot.replace(/\\/g, "/").replace(/\/+$/, "");
-  const full = uri.fsPath.replace(/\\/g, "/");
-  if (full === root) {
-    return "";
-  }
-  if (!full.startsWith(root + "/")) {
-    return "";
-  }
-  return full.slice(root.length + 1);
-}
-
-function getRepoRelPathForEditor(repoRoot: string, uri: vscode.Uri): string {
-  if (uri.scheme === "file") {
-    return toRepoRelPath(repoRoot, uri);
-  }
-
-  if (uri.scheme === GitRefContentProvider.scheme) {
-    // path looks like "/pom.xml" -> "pom.xml"
-    return uri.path.replace(/^\/+/, "");
-  }
-
-  return "";
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -320,6 +245,16 @@ export async function activate(context: vscode.ExtensionContext) {
   // ----------------------------
   // Staging helpers (checkboxes + commands)
   // ----------------------------
+  async function getStagedPaths(repoRoot: string): Promise<Set<string>> {
+    const out = await runGitCapture(repoRoot, [
+      "diff",
+      "--cached",
+      "--name-only",
+      "-z",
+    ]);
+    return new Set(out.split("\0").filter(Boolean));
+  }
+
   async function stagePaths(paths: string[]) {
     const normalized = paths.map(normalizeRepoRelPath).filter(Boolean);
     if (normalized.length === 0) {
@@ -333,7 +268,17 @@ export async function activate(context: vscode.ExtensionContext) {
     if (normalized.length === 0) {
       return;
     }
-    await runGit(repoRoot, ["restore", "--staged", "--", ...normalized]);
+
+    // Only attempt to unstage paths that are actually staged.
+    const staged = await getStagedPaths(repoRoot);
+    const toUnstage = normalized.filter((p) => staged.has(p));
+
+    // If nothing is staged, treat it as a no-op (no error).
+    if (toUnstage.length === 0) {
+      return;
+    }
+
+    await runGit(repoRoot, ["restore", "--staged", "--", ...toUnstage]);
   }
 
   treeView.onDidChangeCheckboxState(async (e) => {
@@ -658,10 +603,34 @@ export async function activate(context: vscode.ExtensionContext) {
   const addPrComment = new AddPullRequestComment(prProvider);
   const submitPrReview = new SubmitPullRequestReview(prProvider);
   const addInline = new AddPullRequestInlineComment(prProvider);
+  const loadInlineComments = new LoadPullRequestInlineComments(prProvider);
+  const replyInline = new AddPullRequestInlineReply(prProvider);
   const prSelection = new PrSelection();
 
   const prTree = new PrTreeProvider();
   const prDetailsTree = new PrDetailsTreeProvider();
+
+  let hunkLinesByFile:
+    | Map<
+        string,
+        {
+          leftLineToPos: Map<number, number>;
+          rightLineToPos: Map<number, number>;
+        }
+      >
+    | undefined;
+
+  let currentDiffContext:
+    | {
+        prNumber: number;
+        filePath: string;
+        left: vscode.Uri;
+        right: vscode.Uri;
+        baseRef: string;
+        prRef: string;
+      }
+    | undefined;
+
   const prTreeView = vscode.window.createTreeView("gitWorklists.pullRequests", {
     treeDataProvider: prTree,
   });
@@ -678,6 +647,9 @@ export async function activate(context: vscode.ExtensionContext) {
       await refreshPRs();
     }
   });
+
+  const inlineCommentsUi = new PrInlineCommentsController();
+  context.subscriptions.push(inlineCommentsUi);
 
   let selectedPrDetails: any | undefined;
 
@@ -742,12 +714,78 @@ export async function activate(context: vscode.ExtensionContext) {
           `${GitRefContentProvider.scheme}:/${filePath}?ref=${encodeURIComponent(prRef)}`,
         );
 
+        currentDiffContext = {
+          prNumber,
+          filePath,
+          left,
+          right,
+          baseRef, // e.g. origin/main
+          prRef, // e.g. refs/git-worklists/pr/123
+        };
+
+        // inside gitWorklists.pr.openFileDiff
+        try {
+          const nameWithOwner = await getRepoNameWithOwner(repoRoot);
+
+          const raw = await runGhCapture(repoRoot, [
+            "api",
+            "--paginate",
+            "-H",
+            "Accept: application/vnd.github+json",
+            "-H",
+            "X-GitHub-Api-Version: 2022-11-28",
+            `repos/${nameWithOwner}/pulls/${prNumber}/files`,
+          ]);
+
+          const files = JSON.parse(raw) as any[];
+          const map = new Map<
+            string,
+            {
+              leftLineToPos: Map<number, number>;
+              rightLineToPos: Map<number, number>;
+            }
+          >();
+
+          for (const f of Array.isArray(files) ? files : []) {
+            const p = normalizeRepoRelPath(String(f?.filename ?? ""));
+            const patch = String(f?.patch ?? "");
+            if (!p || !patch) {
+              continue;
+            } // binary/too large => no patch => no inline comments
+
+            map.set(p, computeLineToDiffPosition(patch));
+          }
+
+          hunkLinesByFile = map;
+        } catch (e) {
+          console.error("Failed to load PR patches:", e);
+          hunkLinesByFile = undefined;
+        }
+
         await vscode.commands.executeCommand(
           "vscode.diff",
           left,
           right,
           `PR #${prNumber}: ${filePath}`,
         );
+
+        // Load + render inline comments for this file in the diff editor
+        try {
+          const comments = await loadInlineComments.run(repoRoot, prNumber);
+          inlineCommentsUi.renderForDiff(
+            left,
+            right,
+            filePath,
+            comments,
+            prNumber,
+          );
+        } catch (e: any) {
+          console.error(e);
+          // don’t block diff if comments fail
+          vscode.window.showWarningMessage(
+            "Could not load inline PR comments (see console).",
+          );
+        }
       },
     ),
 
@@ -862,27 +900,74 @@ export async function activate(context: vscode.ExtensionContext) {
           );
         }
 
+        const ctx = currentDiffContext;
+        if (!ctx || ctx.prNumber !== prNumber) {
+          throw new Error(
+            "Open a PR file diff first, then select a line to comment.",
+          );
+        }
+
         const ed = vscode.window.activeTextEditor;
         if (!ed) {
           return;
         }
 
-        const relPath = getRepoRelPathForEditor(repoRoot, ed.document.uri);
+        const uri = ed.document.uri;
+        if (uri.scheme !== GitRefContentProvider.scheme) {
+          throw new Error(
+            "Focus the PR diff editor before adding an inline comment.",
+          );
+        }
+
+        const uriStr = uri.toString();
+        const leftStr = ctx.left.toString();
+        const rightStr = ctx.right.toString();
+
+        let side: "LEFT" | "RIGHT";
+        if (uriStr === leftStr) {
+          side = "LEFT";
+        } else if (uriStr === rightStr) {
+          side = "RIGHT";
+        } else {
+          throw new Error(
+            "Focus the PR diff tab for this file before commenting.",
+          );
+        }
+
+        const relPath = getRepoRelPathForEditor(repoRoot, uri);
         if (!relPath) {
-          throw new Error("File is not inside the current repo.");
+          throw new Error("Cannot determine file path for this diff document.");
         }
 
         const line = ed.selection.active.line + 1;
 
+        const perFile = hunkLinesByFile?.get(relPath);
+        if (!perFile) {
+          throw new Error(
+            "Inline comments are not available for this file (GitHub patch missing: binary or too large). Use a normal PR comment.",
+          );
+        }
+
+        const position =
+          side === "LEFT"
+            ? perFile.leftLineToPos.get(line)
+            : perFile.rightLineToPos.get(line);
+
+        if (!position) {
+          throw new Error(
+            "Only lines inside the PR diff hunks are commentable. Pick a line near the changed block in the diff.",
+          );
+        }
+
         const body = await vscode.window.showInputBox({
-          prompt: `Inline comment for ${relPath}:${line}`,
+          prompt: `Inline comment (${side}) for ${relPath}:${line}`,
           placeHolder: "Write a short comment…",
         });
         if (!body) {
           return;
         }
 
-        await addInline.run(repoRoot, prNumber, relPath, line, body);
+        await addInline.run(repoRoot, prNumber, relPath, line, body, side);
 
         const details = await loadPR.run(repoRoot, prNumber);
         selectedPrDetails = details;
@@ -893,14 +978,162 @@ export async function activate(context: vscode.ExtensionContext) {
         );
       } catch (e: any) {
         const msg = String(e?.message ?? e);
-        vscode.window.showErrorMessage(
-          msg.includes("Validation Failed") ||
-            msg.toLowerCase().includes("diff")
-            ? "Cannot add inline comment: the selected line is not part of this PR’s diff. Add a normal PR comment instead."
-            : msg,
-        );
+        vscode.window.showErrorMessage(msg);
       }
     }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.resolveThread",
+      async (arg: any) => {
+        const thread: vscode.CommentThread | undefined = arg?.thread ?? arg;
+        if (!thread) {
+          return;
+        }
+
+        const meta = inlineCommentsUi.getMeta(thread);
+        if (!meta?.threadId) {
+          vscode.window.showErrorMessage(
+            "Cannot resolve: missing GitHub threadId.",
+          );
+          return;
+        }
+
+        await prProvider.setReviewThreadResolved(repoRoot, meta.threadId, true);
+
+        const updated = await loadInlineComments.run(repoRoot, meta.prNumber);
+        inlineCommentsUi.renderForDiff(
+          meta.leftUri,
+          meta.rightUri,
+          meta.path,
+          updated,
+          meta.prNumber,
+        );
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.unresolveThread",
+      async (arg: any) => {
+        const thread: vscode.CommentThread | undefined = arg?.thread ?? arg;
+        if (!thread) {
+          return;
+        }
+
+        const meta = inlineCommentsUi.getMeta(thread);
+        if (!meta?.threadId) {
+          vscode.window.showErrorMessage(
+            "Cannot unresolve: missing GitHub threadId.",
+          );
+          return;
+        }
+
+        await prProvider.setReviewThreadResolved(
+          repoRoot,
+          meta.threadId,
+          false,
+        );
+
+        const updated = await loadInlineComments.run(repoRoot, meta.prNumber);
+        inlineCommentsUi.renderForDiff(
+          meta.leftUri,
+          meta.rightUri,
+          meta.path,
+          updated,
+          meta.prNumber,
+        );
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.replyToThread",
+      async (arg: any) => {
+        const thread: vscode.CommentThread | undefined = arg?.thread ?? arg;
+        if (!thread) {
+          return;
+        }
+
+        const meta = inlineCommentsUi.getMeta(thread);
+        if (!meta) {
+          vscode.window.showErrorMessage("Missing thread metadata.");
+          return;
+        }
+
+        inlineCommentsUi.setActiveThread(thread);
+
+        const text = await vscode.window.showInputBox({
+          prompt: `Reply to ${meta.path}:${meta.line}`,
+          placeHolder: "Write a reply…",
+        });
+        const body = String(text ?? "").trim();
+        if (!body) {
+          return;
+        }
+
+        await replyInline.run(
+          repoRoot,
+          meta.prNumber,
+          meta.rootCommentId,
+          body,
+        );
+
+        const updated = await loadInlineComments.run(repoRoot, meta.prNumber);
+        inlineCommentsUi.renderForDiff(
+          meta.leftUri,
+          meta.rightUri,
+          meta.path,
+          updated,
+          meta.prNumber,
+        );
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.pr.postReplyToActiveThread",
+      async (text: string) => {
+        const body = String(text ?? "").trim();
+        if (!body) {
+          return;
+        }
+
+        const thread = inlineCommentsUi.getActiveThread();
+        if (!thread) {
+          vscode.window.showErrorMessage(
+            "No thread selected. Click Reply on a thread first.",
+          );
+          return;
+        }
+
+        const meta = inlineCommentsUi.getMeta(thread);
+        if (!meta) {
+          vscode.window.showErrorMessage("Missing thread metadata.");
+          return;
+        }
+
+        await replyInline.run(
+          repoRoot,
+          meta.prNumber,
+          meta.rootCommentId,
+          body,
+        );
+
+        const updated = await loadInlineComments.run(repoRoot, meta.prNumber);
+        inlineCommentsUi.renderForDiff(
+          meta.leftUri,
+          meta.rightUri,
+          meta.path,
+          updated,
+          meta.prNumber,
+        );
+      },
+    ),
   );
 }
 

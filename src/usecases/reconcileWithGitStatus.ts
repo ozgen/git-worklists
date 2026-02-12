@@ -91,21 +91,8 @@ export class ReconcileWithGitStatus {
       }
     };
 
-    // enforce: untracked goes to Unversioned UNLESS user already assigned it to a custom list
+    // enforce: untracked ALWAYS goes to Unversioned
     for (const f of untracked) {
-      const owner = fileOwner.get(f);
-
-      const isCustomOwner =
-        owner &&
-        owner !== SystemChangelist.Unversioned &&
-        owner !== SystemChangelist.Default;
-
-      if (isCustomOwner) {
-        // keep in its custom list
-        continue;
-      }
-
-      // otherwise force to Unversioned
       removeEverywhere(f);
       const u = mustGet(SystemChangelist.Unversioned);
       u.files.push(f);
@@ -113,13 +100,13 @@ export class ReconcileWithGitStatus {
 
     // tracked changes: keep owner if it's not Unversioned, else Default
     for (const f of changed) {
+      removeEverywhere(f);
+
       const owner = fileOwner.get(f);
       if (owner && owner !== SystemChangelist.Unversioned) {
-        const l = mustGet(owner);
-        l.files.push(f);
+        mustGet(owner).files.push(f);
       } else {
-        const d = mustGet(SystemChangelist.Default);
-        d.files.push(f);
+        mustGet(SystemChangelist.Default).files.push(f);
       }
     }
 

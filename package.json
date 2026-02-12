@@ -130,6 +130,26 @@
       {
         "command": "gitWorklists.pr.commentLine",
         "title": "Git Worklists: Comment on PR Line"
+      },
+      {
+        "command": "gitWorklists.pr.resolveThread",
+        "title": "Resolve",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gitWorklists.pr.unresolveThread",
+        "title": "Unresolve",
+        "icon": "$(close)"
+      },
+      {
+        "command": "gitWorklists.pr.postReplyToActiveThread",
+        "title": "Comment",
+        "icon": "$(comment)"
+      },
+      {
+        "command": "gitWorklists.pr.replyToThread",
+        "title": "Reply",
+        "icon": "$(comment)"
       }
     ],
     "menus": {
@@ -198,6 +218,23 @@
         {
           "command": "gitWorklists.pr.commentLine",
           "when": "editorTextFocus"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "gitWorklists.pr.replyToThread",
+          "when": "commentThread == gitWorklists.prThread",
+          "group": "inline@0"
+        },
+        {
+          "command": "gitWorklists.pr.resolveThread",
+          "when": "commentThread == gitWorklists.prThread",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitWorklists.pr.unresolveThread",
+          "when": "commentThread == gitWorklists.prThread",
+          "group": "navigation@1"
         }
       ]
     }

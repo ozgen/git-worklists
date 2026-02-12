@@ -1,3 +1,4 @@
+import { PrInlineComment } from "../model/prInlineComment";
 import { PullRequest } from "../model/pullRequest";
 import { PullRequestDetails } from "../model/pullRequestDetails";
 import { ReviewAction } from "../model/reviewAction";
@@ -19,5 +20,21 @@ export interface PrProviderPort {
     path: string,
     line: number,
     body: string,
+    side: "LEFT" | "RIGHT",
+  ): Promise<void>;
+  listInlineReviewComments(
+    repoRoot: string,
+    prNumber: number,
+  ): Promise<PrInlineComment[]>;
+  replyToInlineComment(
+    repoRoot: string,
+    prNumber: number,
+    commentId: number,
+    body: string,
+  ): Promise<void>;
+  setReviewThreadResolved(
+    repoRoot: string,
+    threadId: string,
+    resolved: boolean,
   ): Promise<void>;
 }

@@ -7,9 +7,10 @@ export class AddPullRequestInlineComment {
     repoRoot: string,
     prNumber: number,
     path: string,
-    line: number,
+    position: number,
     body: string,
-  ): Promise<void> {
+    side: "LEFT" | "RIGHT",
+  ) {
     const msg = body.trim();
     if (!msg) {
       throw new Error("Comment is empty.");
@@ -17,9 +18,16 @@ export class AddPullRequestInlineComment {
     if (!path) {
       throw new Error("File path is empty.");
     }
-    if (!Number.isFinite(line) || line <= 0) {
-      throw new Error("Invalid line number.");
+    if (!Number.isFinite(position) || position <= 0) {
+      throw new Error("Invalid diff position.");
     }
-    return this.pr.addInlineComment(repoRoot, prNumber, path, line, msg);
+    return this.pr.addInlineComment(
+      repoRoot,
+      prNumber,
+      path,
+      position,
+      msg,
+      side,
+    );
   }
 }
