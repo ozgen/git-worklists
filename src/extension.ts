@@ -420,7 +420,11 @@ export async function activate(context: vscode.ExtensionContext) {
         if (!rel) {
           return;
         }
+        
         await runGit(repoRoot, ["add", "--", normalizeRepoRelPath(rel)]);
+        //Open File
+        await vscode.commands.executeCommand("vscode.open", uri);
+        //Refresh
         await coordinator.requestNow();
       },
     ),
@@ -438,6 +442,10 @@ export async function activate(context: vscode.ExtensionContext) {
           "--",
           normalizeRepoRelPath(rel),
         ]);
+
+        //Open File
+        await vscode.commands.executeCommand("vscode.open", uri);
+        //Refresh
         await coordinator.requestNow();
       },
     ),
@@ -535,7 +543,7 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     ),
   );
-  
+
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "gitWorklists.deleteChangelist",
@@ -704,7 +712,6 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     ),
   );
-
 }
 
 export function deactivate() {}
