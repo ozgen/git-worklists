@@ -6,6 +6,12 @@ It is designed for developers who want **explicit control over staging, commits,
 
 ---
 
+## Demo
+
+![Git Worklists demo](media/demo.gif)
+
+---
+
 # Features
 
 ---

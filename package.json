@@ -7,6 +7,10 @@
   "engines": {
     "vscode": "^1.108.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ozgen/git-worklists.git"
+  },
   "categories": [
     "Other"
   ],
