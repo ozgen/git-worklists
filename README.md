@@ -127,7 +127,7 @@ All operations are executed per repository using repo-relative paths.
 
 ## Stashes
 
-1. Right-click a changelist → **Stash changes…**
+1. Right-click a changelist -> **Stash changes…**
 2. Enter an optional stash message
 3. Open the **Stashes** view
 4. Apply, Pop, or Delete stashes as needed
