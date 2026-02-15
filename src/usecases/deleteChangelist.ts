@@ -1,9 +1,9 @@
 import { GitClient } from "../adapters/git/gitClient";
 import {
-  WorkspaceStateStore,
-  PersistedState,
+  PersistedState
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
+import { ChangelistStore } from "./changelistStore";
 
 function norm(p: string): string {
   return p.replace(/\\/g, "/");
@@ -32,7 +32,7 @@ function ensureSystemLists(state: PersistedState): PersistedState {
 export class DeleteChangelist {
   constructor(
     private readonly git: GitClient,
-    private readonly store: WorkspaceStateStore,
+    private readonly store: ChangelistStore,
   ) {}
 
   async run(repoRoot: string, listId: string): Promise<void> {
