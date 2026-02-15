@@ -111,6 +111,6 @@ describe("MoveFilesToChangelist", () => {
 
     const saved = store.getState()!;
     const t = saved.lists.find((l) => l.id === "cl_t")!;
-    expect(t.files).toEqual(["a.txt"]); // still single
+    expect(t.files).toEqual(["a.txt"]);
   });
 });
