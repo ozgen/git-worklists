@@ -7,10 +7,26 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [Unreleased]
+
+- No changes yet
+
+---
+
+## [0.0.2] - 2026-02-15
+
+### Added
+- Discard button in the changelist
+
+### Fixed
+- Correct staged count detection
+- Push now sets upstream for new branches automatically
+
+---
+
 ## [0.0.1] - 2026-02-13
 
 ### Added
-
 - Changelists view
 - Custom commit panel
 - Git staging support (`git add`, `git restore --staged`)
@@ -26,9 +42,3 @@ and adheres to Semantic Versioning.
 - Clean stash label formatting
 - Context menu + inline icon actions
 - Error handling improvements
-
----
-
-## [Unreleased]
-
-- No changes yet

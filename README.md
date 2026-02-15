@@ -165,21 +165,37 @@ Planned improvements:
 
 # Release Notes
 
+## 0.0.2
+
+### Added
+
+* Discard action for files directly from the Changelists view
+
+### Fixed
+
+* Correct staged file detection (UI now accurately reflects Git index state)
+* Automatic upstream setup when pushing new local branches
+* Improved amend behavior when commit would otherwise be empty
+
+---
+
 ## 0.0.1
 
-- Changelists view
-- Custom commit panel
-- Git staging, commit, amend, push
-- Per-changelist stash creation
-- Dedicated Stashes view
-- Apply / Pop / Delete stash actions
-- Move files between changelists
-- Move group to changelist
-- Move selected files to changelist
-- Improved reconciliation with Git status
-- Clean stash label formatting
-- Context menu + icon actions
-- Error handling improvements
+### Added
+
+* Changelists view
+* Custom commit panel
+* Git staging, commit, amend, push support
+* Per-changelist stash creation
+* Dedicated Stashes view
+* Apply / Pop / Delete stash actions
+* Move files between changelists
+* Move group to changelist
+* Move selected files to changelist
+* Improved reconciliation with Git status
+* Clean stash label formatting
+* Context menu + icon actions
+* Error handling improvements
 
 ---
 
