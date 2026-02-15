@@ -7,6 +7,7 @@ export default defineConfig({
       "src/test/core/**/*.test.ts",
       "src/test/adapters/**/*.test.ts",
       "src/test/usecases/**/*.test.ts",
+      "src/test/utils/**/*.test.ts",
     ],
   },
 });
