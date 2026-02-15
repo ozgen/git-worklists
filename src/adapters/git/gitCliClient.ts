@@ -21,8 +21,7 @@ function execGit(args: string[], cwd: string): Promise<string> {
   });
 }
 
-function parseStashLine(line: string): GitStashEntry | null {
-  
+export function parseStashLine(line: string): GitStashEntry | null {
   const trimmed = line.trim();
   if (!trimmed) {
     return null;
@@ -30,7 +29,6 @@ function parseStashLine(line: string): GitStashEntry | null {
 
   const m = trimmed.match(/^(stash@\{\d+\}):\s*(.*)$/);
   if (!m) {
-    // If format ever differs, keep raw
     return { ref: "stash@{?}", message: trimmed, raw: trimmed };
   }
 
@@ -118,7 +116,6 @@ export class GitCliClient implements GitClient {
     const p = out.trim();
     return path.isAbsolute(p) ? p : path.join(repoRootFsPath, p);
   }
-
 
   async stashList(repoRootFsPath: string): Promise<GitStashEntry[]> {
     const out = await execGit(["stash", "list"], repoRootFsPath);
