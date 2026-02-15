@@ -143,6 +143,11 @@
         "command": "gitWorklists.stash.drop",
         "title": "Delete Stash",
         "icon": "$(trash)"
+      },
+      {
+        "command": "gitWorklists.file.discard",
+        "title": "Discard",
+        "icon": "$(discard)"
       }
     ],
     "menus": {
@@ -193,6 +198,11 @@
           "command": "gitWorklists.unselectFile",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
           "group": "inline@2"
+        },
+        {
+          "command": "gitWorklists.file.discard",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "group": "inline@3"
         },
         {
           "command": "gitWorklists.stash.createFromChangelist",

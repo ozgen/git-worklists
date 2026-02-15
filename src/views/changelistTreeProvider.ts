@@ -13,6 +13,7 @@ abstract class Node extends vscode.TreeItem {
 }
 
 type GroupStageState = "all" | "none" | "mixed";
+type FileWorkStatus = "unversioned" | "tracked";
 
 class GroupNode extends Node {
   readonly kind = "group" as const;
@@ -47,6 +48,7 @@ class FileNode extends Node {
     repoRoot: vscode.Uri,
     public readonly repoRelativePath: string,
     public readonly isStaged: boolean,
+    public readonly workStatus: FileWorkStatus,
   ) {
     super(repoRelativePath, vscode.TreeItemCollapsibleState.None);
 
@@ -159,7 +161,12 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
       return files.map((p) => {
         const norm = normalizeRepoRelPath(p);
         const staged = this.stagedPaths.has(norm);
-        return new FileNode(repoRoot, norm, staged);
+        const workStatus: FileWorkStatus =
+          element.list.id === SystemChangelist.Unversioned
+            ? "unversioned"
+            : "tracked";
+
+        return new FileNode(repoRoot, norm, staged, workStatus);
       });
     }
 
