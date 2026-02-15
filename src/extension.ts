@@ -1,6 +1,6 @@
-import * as vscode from "vscode";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as vscode from "vscode";
 
 import { normalizeRepoRelPath, toRepoRelPath } from "./utils/paths";
 import { runGit, runGitCapture } from "./utils/process";
@@ -54,6 +54,51 @@ async function isHeadEmptyVsParent(repoRoot: string): Promise<boolean> {
 async function getHeadMessage(repoRoot: string): Promise<string> {
   const msg = await runGitCapture(repoRoot, ["log", "-1", "--pretty=%B"]);
   return msg.trim();
+}
+
+async function getCurrentBranch(repoRoot: string): Promise<string> {
+  const out = await runGitCapture(repoRoot, [
+    "rev-parse",
+    "--abbrev-ref",
+    "HEAD",
+  ]);
+  const branch = out.trim();
+
+  if (!branch || branch === "HEAD") {
+    throw new Error("Detached HEAD: cannot push without a branch.");
+  }
+  return branch;
+}
+
+function looksLikeNoUpstream(err: unknown): boolean {
+  const msg = String(err ?? "");
+  return (
+    msg.includes("no upstream branch") ||
+    msg.includes("has no upstream branch") ||
+    msg.includes("set the remote as upstream") ||
+    (msg.includes("The current branch") && msg.includes("has no upstream"))
+  );
+}
+
+async function pushWithUpstreamFallback(
+  repoRoot: string,
+  { amend }: { amend: boolean },
+): Promise<void> {
+  try {
+    await runGit(repoRoot, amend ? ["push", "--force-with-lease"] : ["push"]);
+    return;
+  } catch (e) {
+    if (!looksLikeNoUpstream(e)) {
+      throw e;
+    }
+  }
+
+  const branch = await getCurrentBranch(repoRoot);
+
+  const baseArgs = ["push", "-u", "origin", branch];
+  const args = amend ? [...baseArgs, "--force-with-lease"] : baseArgs;
+
+  await runGit(repoRoot, args);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -119,28 +164,45 @@ export async function activate(context: vscode.ExtensionContext) {
       const staged = await getStagedPaths(repoRoot);
 
       if (amend) {
-        if (staged.size === 0) {
-          const headEmpty = await isHeadEmptyVsParent(repoRoot);
-          const oldMsg = await getHeadMessage(repoRoot);
+        const oldMsg = await getHeadMessage(repoRoot);
 
-          // allow empty amend ONLY if message changes
-          if (newMsg !== oldMsg) {
-            await runGit(repoRoot, [
-              "commit",
-              "--amend",
-              "--allow-empty",
-              "-m",
-              newMsg,
-            ]);
-          } else {
+        // If nothing is staged, only allow amend when the message changes.
+        if (staged.size === 0) {
+          if (newMsg === oldMsg) {
+            const headEmpty = await isHeadEmptyVsParent(repoRoot);
             throw new Error(
               headEmpty
                 ? "Nothing to amend: last commit is empty and message is unchanged."
                 : "Nothing staged to amend. Stage files or disable Amend.",
             );
           }
+
+          // message-only amend
+          await runGit(repoRoot, [
+            "commit",
+            "--amend",
+            "--allow-empty",
+            "-m",
+            newMsg,
+          ]);
         } else {
-          await runGit(repoRoot, ["commit", "--amend", "-m", newMsg]);
+          // staged amend (but Git may still complain it would become empty)
+          try {
+            await runGit(repoRoot, ["commit", "--amend", "-m", newMsg]);
+          } catch (e) {
+            const msg = String((e as any)?.message ?? e);
+            if (msg.includes("would make it empty")) {
+              await runGit(repoRoot, [
+                "commit",
+                "--amend",
+                "--allow-empty",
+                "-m",
+                newMsg,
+              ]);
+            } else {
+              throw e;
+            }
+          }
         }
       } else {
         if (staged.size === 0) {
@@ -170,11 +232,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      if (amend) {
-        await runGit(repoRoot, ["push", "--force-with-lease"]);
-      } else {
-        await runGit(repoRoot, ["push"]);
-      }
+      await pushWithUpstreamFallback(repoRoot, { amend });
     },
   );
 
@@ -221,12 +279,32 @@ export async function activate(context: vscode.ExtensionContext) {
   // ----------------------------
   async function getStagedPaths(repoRoot: string): Promise<Set<string>> {
     const out = await runGitCapture(repoRoot, [
-      "diff",
-      "--cached",
-      "--name-only",
+      "status",
+      "--porcelain=v1",
       "-z",
     ]);
-    return new Set(out.split("\0").filter(Boolean));
+
+    const staged = new Set<string>();
+    const entries = out.split("\0").filter(Boolean);
+
+    for (const e of entries) {
+      // v1 format: XY<space>path
+      // "M  file" => staged (index)
+      // " M file" => not staged (working tree)
+      // "?? file" => untracked
+      const xy = e.slice(0, 2);
+      const p = e.slice(3);
+      if (!p) {
+        continue;
+      }
+
+      const x = xy[0]; // index status
+      if (x !== " " && x !== "?") {
+        staged.add(normalizeRepoRelPath(p));
+      }
+    }
+
+    return staged;
   }
 
   async function stagePaths(paths: string[]) {
