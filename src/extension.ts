@@ -6,7 +6,10 @@ import { normalizeRepoRelPath, toRepoRelPath } from "./utils/paths";
 import { runGit, runGitCapture } from "./utils/process";
 
 import { GitCliClient } from "./adapters/git/gitCliClient";
-import { WorkspaceStateStore } from "./adapters/storage/workspaceStateStore";
+import {
+  PersistedState,
+  WorkspaceStateStore,
+} from "./adapters/storage/workspaceStateStore";
 
 import { CreateChangelist } from "./usecases/createChangelist";
 import { DeleteChangelist } from "./usecases/deleteChangelist";
@@ -99,6 +102,20 @@ async function pushWithUpstreamFallback(
   const args = amend ? [...baseArgs, "--force-with-lease"] : baseArgs;
 
   await runGit(repoRoot, args);
+}
+
+function computeTotalWorklistCount(state: PersistedState | undefined): number {
+  if (!state || state.version !== 1) {
+    return 0;
+  }
+
+  const all = new Set<string>();
+  for (const l of state.lists) {
+    for (const f of l.files ?? []) {
+      all.add(f.replace(/\\/g, "/"));
+    }
+  }
+  return all.size;
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -259,6 +276,16 @@ export async function activate(context: vscode.ExtensionContext) {
       stagedCount: staged.size,
       lastError: undefined,
     });
+
+    const state = await store.load(repoRoot);
+    const count = computeTotalWorklistCount(
+      state as PersistedState | undefined,
+    );
+
+    treeView.badge =
+      count > 0
+        ? { value: count, tooltip: "Files in Git Worklists" }
+        : undefined;
   };
 
   const coordinator = new RefreshCoordinator(doRefresh, 200);
