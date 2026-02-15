@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 import { normalizeRepoRelPath, toRepoRelPath } from "./utils/paths";
 import { runGit, runGitCapture } from "./utils/process";
@@ -420,7 +422,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (!rel) {
           return;
         }
-        
+
         await runGit(repoRoot, ["add", "--", normalizeRepoRelPath(rel)]);
         //Open File
         await vscode.commands.executeCommand("vscode.open", uri);
@@ -570,6 +572,61 @@ export async function activate(context: vscode.ExtensionContext) {
         } catch (e: any) {
           console.error(e);
           vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.file.discard",
+      async (node: any) => {
+        try {
+          const rel =
+            typeof node?.repoRelativePath === "string"
+              ? normalizeRepoRelPath(node.repoRelativePath)
+              : "";
+          if (!rel) {
+            return;
+          }
+
+          const status = node?.workStatus as
+            | "unversioned"
+            | "tracked"
+            | undefined;
+
+          if (status === "unversioned") {
+            const ok = await vscode.window.showWarningMessage(
+              "Delete unversioned file?",
+              { modal: true, detail: rel },
+              "Delete",
+            );
+            if (ok !== "Delete") {
+              return;
+            }
+
+            await fs.rm(path.join(repoRoot, rel), {
+              recursive: true,
+              force: true,
+            });
+            await coordinator.requestNow();
+            return;
+          }
+
+          // tracked: discard working tree changes
+          await runGit(repoRoot, [
+            "restore",
+            "--staged",
+            "--worktree",
+            "--",
+            rel,
+          ]);
+          await coordinator.requestNow();
+        } catch (e) {
+          console.error(e);
+          vscode.window.showErrorMessage(
+            "Git Worklists: discard failed (see console)",
+          );
         }
       },
     ),
