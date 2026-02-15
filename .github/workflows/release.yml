@@ -3,11 +3,20 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      bump:
-        description: "Version bump type"
+      mode:
+        description: "What to do?"
         required: true
         type: choice
+        options: [bump-and-release, publish-existing-tag]
+      bump:
+        description: "Version bump type (only for bump-and-release)"
+        required: false
+        type: choice
         options: [patch, minor, major]
+      tag:
+        description: "Existing tag to publish (only for publish-existing-tag), e.g. v0.0.2"
+        required: false
+        type: string
 
 concurrency:
   group: release
@@ -20,11 +29,35 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main (full history for tags)
+      - name: Validate inputs
+        run: |
+          MODE="${{ inputs.mode }}"
+          if [ "$MODE" = "bump-and-release" ]; then
+            if [ -z "${{ inputs.bump }}" ]; then
+              echo "Input 'bump' is required for bump-and-release."
+              exit 1
+            fi
+          fi
+          if [ "$MODE" = "publish-existing-tag" ]; then
+            if [ -z "${{ inputs.tag }}" ]; then
+              echo "Input 'tag' is required for publish-existing-tag."
+              exit 1
+            fi
+          fi
+
+      - name: Checkout main (for bump)
+        if: ${{ inputs.mode == 'bump-and-release' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
+
+      - name: Checkout tag (for re-publish)
+        if: ${{ inputs.mode == 'publish-existing-tag' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -43,11 +76,13 @@ jobs:
         run: xvfb-run -a npm test
 
       - name: Configure git identity
+        if: ${{ inputs.mode == 'bump-and-release' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Ensure working tree is clean
+      - name: Ensure working tree is clean (before bump)
+        if: ${{ inputs.mode == 'bump-and-release' }}
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Working tree is not clean."
@@ -56,13 +91,22 @@ jobs:
           fi
 
       - name: Bump version + create tag
+        if: ${{ inputs.mode == 'bump-and-release' }}
         id: bump
         run: |
           NEW_TAG="$(npm version ${{ inputs.bump }} -m "chore(release): v%s")"
-          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
           echo "Created tag: $NEW_TAG"
 
-      - name: Push commit + tag
+      - name: Set release tag (publish existing)
+        if: ${{ inputs.mode == 'publish-existing-tag' }}
+        id: tag
+        run: |
+          echo "release_tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          echo "Using existing tag: ${{ inputs.tag }}"
+
+      - name: Push commit + tag (bump mode only)
+        if: ${{ inputs.mode == 'bump-and-release' }}
         run: git push --follow-tags origin main
 
       - name: Package (vsix)
@@ -76,6 +120,6 @@ jobs:
       - name: Create GitHub Release + upload VSIX
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
+          tag_name: ${{ steps.bump.outputs.release_tag || steps.tag.outputs.release_tag }}
           generate_release_notes: true
           files: "*.vsix"
