@@ -1,4 +1,4 @@
-import * as vscode from "vscode";
+import type { MementoLike } from "../vscode/mementoFacade";
 
 export type PersistedChangelist = {
   id: string;
@@ -11,17 +11,13 @@ export type PersistedState = {
   lists: PersistedChangelist[];
 };
 
-/**
- * UI-only persisted state (checkbox selections).
- * Kept separate from PersistedState so we don't pollute changelist persistence.
- */
 type PersistedSelectionState = {
   version: 1;
-  selectedFiles: string[]; // repo-relative paths
+  selectedFiles: string[];
 };
 
 export class WorkspaceStateStore {
-  constructor(private readonly memento: vscode.Memento) {}
+  constructor(private readonly memento: MementoLike) {}
 
   private keyForRepo(repoRootFsPath: string): string {
     return `git-worklists.state.v1:${repoRootFsPath}`;
