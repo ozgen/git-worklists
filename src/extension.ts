@@ -268,9 +268,13 @@ export async function activate(context: vscode.ExtensionContext) {
   await coordinator.requestNow();
 
   // Auto refresh signals
-  const auto = new AutoRefreshController(repoRoot, gitDir, () =>
-    coordinator.trigger(),
+  const auto = new AutoRefreshController(
+    { workspace: vscode.workspace, RelativePattern: vscode.RelativePattern },
+    repoRoot,
+    gitDir,
+    doRefresh,
   );
+
   auto.start();
   context.subscriptions.push(auto);
 
