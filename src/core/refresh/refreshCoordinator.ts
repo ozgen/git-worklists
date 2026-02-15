@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
+import { DisposableLike } from "../../adapters/vscode/vscodeFacade";
 
 type RefreshFn = () => Promise<void>;
 
-export class RefreshCoordinator implements vscode.Disposable {
+export class RefreshCoordinator implements DisposableLike {
   private pending = false;
   private running = false;
   private timer: NodeJS.Timeout | undefined;

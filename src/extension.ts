@@ -20,7 +20,7 @@ import { WorklistDecorationProvider } from "./views/worklistDecorationProvider";
 
 import { StashesTreeProvider } from "./views/stash/stashesTreeProvider";
 
-import { AutoRefreshController } from "./core/refresh/autoRefreshController";
+import { AutoRefreshController } from "./adapters/vscode/autoRefreshController";
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
 import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
 
