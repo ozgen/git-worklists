@@ -1,12 +1,12 @@
+import { randomUUID } from "crypto";
 import {
-  WorkspaceStateStore,
-  PersistedState,
+  PersistedState
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
-import { randomUUID } from "crypto";
+import { ChangelistStore } from "./changelistStore";
 
 export class CreateChangelist {
-  constructor(private readonly store: WorkspaceStateStore) {}
+  constructor(private readonly store: ChangelistStore) {}
 
   async run(repoRoot: string, nameRaw: string): Promise<string> {
     const name = nameRaw.trim();
