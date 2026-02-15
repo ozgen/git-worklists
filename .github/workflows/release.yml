@@ -47,14 +47,14 @@ jobs:
 
       - name: Checkout main (for bump)
         if: ${{ inputs.mode == 'bump-and-release' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: main
 
       - name: Checkout tag (for re-publish)
         if: ${{ inputs.mode == 'publish-existing-tag' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag }}
