@@ -8,6 +8,7 @@ export default defineConfig({
       "src/test/adapters/**/*.test.ts",
       "src/test/usecases/**/*.test.ts",
       "src/test/utils/**/*.test.ts",
+      "src/test/views/**/*.test.ts",
     ],
   },
 });
