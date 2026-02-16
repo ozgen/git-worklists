@@ -28,6 +28,13 @@ It is designed for developers who want **explicit control over staging, commits,
 A structured way to organize and stage changes.
 
 * Displays **Changes** and **Unversioned** files clearly
+* Shows **file count badges** per worklist
+* Unversioned files are detected via `git ls-files --others --exclude-standard`
+* Untracked directories are no longer shown as placeholder entries
+* Files are displayed in Source Control style:
+
+  * **File name** as primary label
+  * **Folder path** shown as description
 * Create, move, and delete **custom changelists**
 * Move files between changelists (per file or per group)
 * Move selected files to another changelist
@@ -108,6 +115,7 @@ Supported operations:
 * `git stash apply`
 * `git stash pop`
 * `git stash drop`
+* `git ls-files --others --exclude-standard`
 
 All operations are executed per repository using repo-relative paths.
 
@@ -176,6 +184,23 @@ Planned improvements:
 ---
 
 # Release Notes
+
+## 0.0.3
+
+### Added
+
+* Worklist file-count badge in Changelists view
+* Extended unit test coverage
+* Improved internal testability through refactoring
+
+### Fixed
+
+* Unversioned files now detected via `git ls-files --others --exclude-standard`
+* Untracked directories are no longer displayed as placeholder entries
+* Files now display in Source Control style (filename + folder description)
+* Improved reconciliation behavior for untracked vs tracked changes
+
+---
 
 ## 0.0.2
 
