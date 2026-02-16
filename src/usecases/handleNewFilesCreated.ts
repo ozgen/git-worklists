@@ -2,30 +2,35 @@ import * as vscode from "vscode";
 import { normalizeRepoRelPath, toRepoRelPath } from "../utils/paths";
 import { runGit } from "../utils/process";
 
-import { MoveFilesToChangelist } from "./moveFilesToChangelist";
-import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
-
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 
 export type NewFileDecision = "add" | "keep" | "disable" | "dismiss";
 
-export type HandleNewFilesCreatedDeps = {
-  repoRoot: string;
-  moveFiles: MoveFilesToChangelist;
-  coordinator: RefreshCoordinator;
-
-  settings: {
-    getPromptOnNewFile(): boolean;
-    setPromptOnNewFile(enabled: boolean): Promise<void>;
+export type MoveFilesPort = {
+    run(repoRoot: string, paths: string[], targetListId: string): Promise<void>;
   };
-
-  prompt: {
-    confirmAddNewFiles(
-      count: number,
-      sampleLabel?: string,
-    ): Promise<NewFileDecision>;
+  
+  export type RefreshPort = {
+    requestNow(): Promise<void>;
   };
-};
+  
+  export type HandleNewFilesCreatedDeps = {
+    repoRoot: string;
+    moveFiles: MoveFilesPort;
+    coordinator: RefreshPort;
+  
+    settings: {
+      getPromptOnNewFile(): boolean;
+      setPromptOnNewFile(enabled: boolean): Promise<void>;
+    };
+  
+    prompt: {
+      confirmAddNewFiles(
+        count: number,
+        sampleLabel?: string,
+      ): Promise<NewFileDecision>;
+    };
+  };  
 
 export class HandleNewFilesCreated {
   constructor(private readonly deps: HandleNewFilesCreatedDeps) {}
