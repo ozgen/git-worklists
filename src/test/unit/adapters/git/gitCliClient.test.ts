@@ -200,6 +200,7 @@ describe("GitCliClient (mocked git)", () => {
       cwd: "/repo",
     });
   });
+  
   it("tryGetRepoRoot returns null when git rev-parse fails", async () => {
     mockExecFileWithRouter((args) => {
       if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
