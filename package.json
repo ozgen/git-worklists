@@ -30,23 +30,7 @@
     "push",
     "amend"
   ],
-  "activationEvents": [
-    "onView:gitWorklists.changelists",
-    "onView:gitWorklists.stashes",
-    "onCommand:gitWorklists.refresh",
-    "onCommand:gitWorklists.createChangelist",
-    "onCommand:gitWorklists.moveFileToChangelist",
-    "onCommand:gitWorklists.moveGroupToChangelist",
-    "onCommand:gitWorklists.deleteChangelist",
-    "onCommand:gitWorklists.selectFile",
-    "onCommand:gitWorklists.unselectFile",
-    "onCommand:gitWorklists.toggleGroupSelection",
-    "onCommand:gitWorklists.stash.refresh",
-    "onCommand:gitWorklists.stash.createFromChangelist",
-    "onCommand:gitWorklists.stash.apply",
-    "onCommand:gitWorklists.stash.pop",
-    "onCommand:gitWorklists.stash.drop"
-  ],
+  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
