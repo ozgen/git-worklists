@@ -11,6 +11,10 @@ import {
   WorkspaceStateStore,
 } from "./adapters/storage/workspaceStateStore";
 
+import { VsCodeFsStat } from "./adapters/vscode/fsStat";
+import { VsCodeSettings } from "./adapters/vscode/settings";
+import { VsCodePrompt } from "./adapters/vscode/prompt";
+
 import { CreateChangelist } from "./usecases/createChangelist";
 import { DeleteChangelist } from "./usecases/deleteChangelist";
 import { LoadOrInitState } from "./usecases/loadOrInitState";
@@ -26,6 +30,7 @@ import { StashesTreeProvider } from "./views/stash/stashesTreeProvider";
 import { AutoRefreshController } from "./adapters/vscode/autoRefreshController";
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
 import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
+import { HandleNewFilesCreated } from "./usecases/handleNewFilesCreated";
 
 async function headHasParent(repoRoot: string): Promise<boolean> {
   try {
@@ -118,6 +123,18 @@ function computeTotalWorklistCount(state: PersistedState | undefined): number {
   return all.size;
 }
 
+async function isNewFileInRepo(
+  repoRoot: string,
+  rel: string,
+): Promise<boolean> {
+  try {
+    await runGit(repoRoot, ["cat-file", "-e", `HEAD:${rel}`]);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
@@ -139,6 +156,9 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   const gitDir = await git.getGitDir(repoRoot);
+  const fsStat = new VsCodeFsStat();
+  const settings = new VsCodeSettings();
+  const prompt = new VsCodePrompt();
 
   // ----------------------------
   // Providers
@@ -293,6 +313,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // First refresh
   await coordinator.requestNow();
+
+  const newFileHandler = new HandleNewFilesCreated({
+    repoRoot,
+    moveFiles,
+    coordinator,
+    settings,
+    prompt,
+  });
 
   // Auto refresh signals
   const auto = new AutoRefreshController(
@@ -704,6 +732,8 @@ export async function activate(context: vscode.ExtensionContext) {
             | "tracked"
             | undefined;
 
+          const isNew = await isNewFileInRepo(repoRoot, rel);
+
           if (status === "unversioned") {
             const ok = await vscode.window.showWarningMessage(
               "Delete unversioned file?",
@@ -722,7 +752,28 @@ export async function activate(context: vscode.ExtensionContext) {
             return;
           }
 
-          // tracked: discard working tree changes
+          if (isNew) {
+            const ok = await vscode.window.showWarningMessage(
+              "Discard will delete this newly added file. Continue?",
+              { modal: true, detail: rel },
+              "Delete",
+            );
+            if (ok !== "Delete") {
+              return;
+            }
+
+            await runGit(repoRoot, [
+              "restore",
+              "--staged",
+              "--worktree",
+              "--",
+              rel,
+            ]);
+            await coordinator.requestNow();
+            return;
+          }
+
+          // tracked normal
           await runGit(repoRoot, [
             "restore",
             "--staged",
@@ -739,6 +790,25 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       },
     ),
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidCreateFiles(async (e) => {
+      try {
+        // filter folders out (files only)
+        const filesOnly = await fsStat.filterOnlyFiles(e.files);
+        if (filesOnly.length === 0) {
+          return;
+        }
+
+        await newFileHandler.run(filesOnly);
+      } catch (err) {
+        console.error(err);
+        vscode.window.showErrorMessage(
+          "Git Worklists: failed handling new file (see console)",
+        );
+      }
+    }),
   );
 
   // ----------------------------------
