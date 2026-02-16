@@ -241,7 +241,8 @@
     "test": "npm run test:unit && npm run test:ext",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:ext": "vscode-test",
+    "compile:integration": "tsc -p tsconfig.integration.json",
+    "test:ext": "npm run compile:integration && node ./out/test/integration/runIntegrationTests.js",
     "release:patch": "npm version patch -m \"chore(release): v%s\"",
     "release:minor": "npm version minor -m \"chore(release): v%s\"",
     "release:major": "npm version major -m \"chore(release): v%s\""

@@ -6,7 +6,8 @@
     "lib": ["ES2022"],
     "sourceMap": true,
     "rootDir": "src",
-    "strict": true
+    "strict": true,
+    "strictBuiltinIteratorReturn": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "out", "test", "vitest.config.ts", "**/*.test.ts"]
