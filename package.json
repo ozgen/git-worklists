@@ -250,12 +250,12 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.19.11",
+    "@types/node": "^25.2.3",
     "@types/vscode": "^1.109.0",
     "@vitest/coverage-v8": "^4.0.18",
-    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
     "vitest": "^4.0.18"
