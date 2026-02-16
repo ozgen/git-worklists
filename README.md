@@ -46,7 +46,13 @@ A structured way to organize and stage changes.
 
   * **Unversioned** when newly created
   * **Changes** when tracked / modified
+  
+* Optional prompt when new files are created:
+  * **Add to Git**
+  * **Keep Unversioned**
+  * **Disable prompt**
 * Safe behavior when staging / unstaging newly created files
+* Newly added (staged) files require confirmation before permanent deletion
 
 All staging state reflects the actual Git index.
 
@@ -156,7 +162,16 @@ All operations are executed per repository using repo-relative paths.
 
 # Extension Settings
 
-This extension does not contribute custom VS Code settings yet.
+This extension contributes the following setting:
+
+### `gitWorklists.promptOnNewFile`
+
+* **Type:** boolean
+* **Default:** `true`
+* When enabled, shows a prompt when new files are created:
+  * Add to Git
+  * Keep Unversioned
+  * Disable prompt
 
 ---
 
@@ -184,6 +199,19 @@ Planned improvements:
 ---
 
 # Release Notes
+
+## 0.0.4
+
+### Added
+
+* Optional “Add to Git?” prompt on new file creation
+* Setting to enable/disable new-file prompt
+
+### Fixed
+
+* Discard now confirms before deleting newly added staged files
+
+---
 
 ## 0.0.3
 

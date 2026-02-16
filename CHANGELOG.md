@@ -13,6 +13,17 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.0.4] - 2026-02-17
+
+### Added
+* Setting to enable/disable the “Add to Git?” prompt on new file creation
+* New-file creation prompt workflow (Add / Keep Unversioned / Disable)
+
+### Fixed
+* Discard now confirms before deleting newly added staged files
+
+---
+
 ## [0.0.3] - 2026-02-16
 
 ### Added
