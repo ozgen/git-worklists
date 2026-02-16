@@ -1,5 +1,6 @@
 import { WorkspaceStateStore } from "../../adapters/storage/workspaceStateStore";
 import { GitClient } from "../../adapters/git/gitClient";
+import { normalizeRepoRelPath } from "../../utils/paths";
 
 export class CreateStashForChangelist {
   constructor(
@@ -66,8 +67,4 @@ export class CreateStashForChangelist {
       skippedUntrackedCount,
     };
   }
-}
-
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
 }

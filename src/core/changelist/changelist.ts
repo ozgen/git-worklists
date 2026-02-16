@@ -1,3 +1,5 @@
+import { normalizeRepoRelPath } from "../../utils/paths";
+
 export class Changelist {
   private readonly files = new Set<string>();
 
@@ -6,7 +8,9 @@ export class Changelist {
     readonly name: string,
     initialFiles: Iterable<string> = [],
   ) {
-    for (const f of initialFiles) {this.files.add(normalizeRepoRelPath(f));}
+    for (const f of initialFiles) {
+      this.files.add(normalizeRepoRelPath(f));
+    }
   }
 
   addFile(repoRelativePath: string) {
@@ -24,8 +28,4 @@ export class Changelist {
   listFiles(): string[] {
     return [...this.files].sort();
   }
-}
-
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
 }
