@@ -12,8 +12,11 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
@@ -21,11 +24,21 @@ jobs:
           cache: npm
 
       - run: npm ci
+
       - run: npm run lint --if-present
+
       - run: npm run compile
+
+      - run: npm run test:unit:cov
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+         token: ${{ secrets.CODECOV_TOKEN }}
+         slug: ozgen/git-worklists
 
       - name: Install xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
-      - name: Test (VS Code)
-        run: xvfb-run -a npm test
+      - name: Test (VS Code integration)
+        run: xvfb-run -a npm run test:ext

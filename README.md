@@ -1,6 +1,13 @@
 # Git Worklists
 
-**Git Worklists** is a Visual Studio Code extension that provides a lightweight, Git-focused workflow for organizing changes, staging files, committing, and managing stashes, all through a custom UI.
+[![CI](https://github.com/ozgen/git-worklists/actions/workflows/ci.yml/badge.svg)](https://github.com/ozgen/git-worklists/actions/workflows/ci.yml)
+[![Release](https://github.com/ozgen/git-worklists/actions/workflows/release.yml/badge.svg)](https://github.com/ozgen/git-worklists/actions/workflows/release.yml)
+[![codecov](https://codecov.io/gh/ozgen/git-worklists/branch/main/graph/badge.svg)](https://codecov.io/gh/ozgen/git-worklists)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/ozgen.git-worklists)](https://marketplace.visualstudio.com/items?itemName=ozgen.git-worklists)
+
+---
+
+**Git Worklists** is a Visual Studio Code extension that provides a lightweight, Git-focused workflow for organizing changes, staging files, committing, and managing stashes - all through a custom UI.
 
 It is designed for developers who want **explicit control over staging, commits, and stash workflows**, without relying on VS Code’s built-in Source Control view.
 
@@ -20,19 +27,21 @@ It is designed for developers who want **explicit control over staging, commits,
 
 A structured way to organize and stage changes.
 
-- Displays **Changes** and **Unversioned** files clearly
-- Create, move, and delete **custom changelists**
-- Move files between changelists (per file or per group)
-- Move selected files to another changelist
-- File-level and group-level **checkboxes** for staging / unstaging
-- Visual file decorations (badges)
-- Click files to open instantly
-- Automatic reconciliation with Git status
-- Files move automatically between:
-  - **Unversioned** when newly created
-  - **Changes** when tracked / modified
+* Displays **Changes** and **Unversioned** files clearly
+* Create, move, and delete **custom changelists**
+* Move files between changelists (per file or per group)
+* Move selected files to another changelist
+* File-level and group-level **checkboxes** for staging / unstaging
+* Visual file decorations (badges)
+* Click files to open instantly
+* Automatic reconciliation with Git status
+* Files move automatically between:
 
-- Safe behavior when staging / unstaging newly created files
+  * **Unversioned** when newly created
+  * **Changes** when tracked / modified
+* Safe behavior when staging / unstaging newly created files
+
+All staging state reflects the actual Git index.
 
 ---
 
@@ -40,12 +49,15 @@ A structured way to organize and stage changes.
 
 A focused commit experience separate from VS Code SCM.
 
-- Custom **Commit Message** field
-- **Amend** support (with safe handling)
-- **Commit** and **Commit & Push**
-- Live staged file counter
-- Clear error feedback
-- Safe confirmation before force-with-lease push
+* Custom **Commit Message** field
+* **Amend** support with safe handling
+* **Commit** and **Commit & Push**
+* Live staged file counter
+* Clear and actionable error feedback
+* Safe confirmation before force-with-lease push
+* Automatic upstream setup for new local branches
+
+Commit behavior is predictable and aligned with Git CLI behavior.
 
 ---
 
@@ -55,28 +67,28 @@ Integrated Git stash support directly inside Git Worklists.
 
 ### Create Stash (Per Changelist)
 
-- Stash all tracked changes from a selected changelist
-- Automatically tags stashes with their originating changelist
-- Optional custom stash message
-- Safe handling of untracked files (skipped unless explicitly supported)
-- Immediate UI refresh after stash
+* Stash all tracked changes from a selected changelist
+* Automatically tags stashes with their originating changelist
+* Optional custom stash message
+* Safe handling of untracked files (skipped unless explicitly supported)
+* Immediate UI refresh after stash
 
 ### Stash List View
 
-- Dedicated **Stashes** view
-- Clean, readable labels (no raw `stash@{0}` noise)
-- Displays originating changelist (e.g. `[CL:changes]`)
-- Shows branch context
-- Hover tooltip includes full Git reference
+* Dedicated **Stashes** view
+* Clean, readable labels (no raw `stash@{0}` noise)
+* Displays originating changelist (e.g. `[CL:changes]`)
+* Shows branch context
+* Hover tooltip includes full Git reference
 
 ### Stash Actions
 
 Per-stash context actions:
 
-- **Apply Stash** - restore changes without removing stash
-- **Pop Stash** - restore changes and remove stash
-- **Delete Stash** - drop stash with confirmation
-- Refresh support
+* **Apply Stash** – restore changes without removing stash
+* **Pop Stash** – restore changes and remove stash
+* **Delete Stash** – drop stash with confirmation
+* Refresh support
 
 ---
 
@@ -86,16 +98,16 @@ Uses **Git CLI directly** (no VS Code SCM provider).
 
 Supported operations:
 
-- `git add`
-- `git restore --staged`
-- `git commit`
-- `git commit --amend`
-- `git push`
-- `git stash push`
-- `git stash list`
-- `git stash apply`
-- `git stash pop`
-- `git stash drop`
+* `git add`
+* `git restore --staged`
+* `git commit`
+* `git commit --amend`
+* `git push`
+* `git stash push`
+* `git stash list`
+* `git stash apply`
+* `git stash pop`
+* `git stash drop`
 
 All operations are executed per repository using repo-relative paths.
 
@@ -103,9 +115,9 @@ All operations are executed per repository using repo-relative paths.
 
 # Requirements
 
-- Git installed and available in PATH
-- Workspace opened inside a Git repository
-- VS Code **v1.108.0** or newer
+* Git installed and available in PATH
+* Workspace opened inside a Git repository
+* VS Code **v1.108.0** or newer
 
 ---
 
@@ -142,11 +154,11 @@ This extension does not contribute custom VS Code settings yet.
 
 # Known Limitations
 
-- No partial staging (no hunk / line staging)
-- No multi-repository support
-- Merge conflicts must be resolved manually
-- Untracked files are not included in per-changelist stash by default
-- GitHub / GitLab PR features are not included
+* No partial staging (no hunk / line staging)
+* No multi-repository support
+* Merge conflicts must be resolved manually
+* Untracked files are not included in per-changelist stash by default
+* GitHub / GitLab PR features are not included
 
 ---
 
@@ -154,12 +166,12 @@ This extension does not contribute custom VS Code settings yet.
 
 Planned improvements:
 
-- Include-untracked option for stash
-- Multi-repository support
-- Partial staging (hunk-based)
-- Improved visual polish
-- Extended test coverage
-- Performance optimizations
+* Include-untracked option for stash
+* Multi-repository support
+* Partial staging (hunk-based)
+* Improved visual polish
+* Extended test coverage
+* Performance optimizations
 
 ---
 
@@ -205,9 +217,9 @@ Git Worklists intentionally avoids VS Code’s built-in SCM provider.
 
 Instead, it builds a focused, predictable workflow using:
 
-- Tree Views
-- Commit UI
-- Git CLI
+* Tree Views
+* Commit UI
+* Git CLI
 
 The goal is **clarity, explicit control, and zero hidden magic**.
 
