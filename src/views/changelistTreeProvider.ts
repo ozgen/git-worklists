@@ -50,20 +50,26 @@ class FileNode extends Node {
     public readonly isStaged: boolean,
     public readonly workStatus: FileWorkStatus,
   ) {
-    super(repoRelativePath, vscode.TreeItemCollapsibleState.None);
+    const norm = normalizeRepoRelPath(repoRelativePath);
+
+    const slash = norm.lastIndexOf("/");
+    const label = slash === -1 ? norm : norm.slice(slash + 1);
+    const folder = slash === -1 ? "" : norm.slice(0, slash);
+
+    super(label, vscode.TreeItemCollapsibleState.None);
 
     this.contextValue = "gitWorklists.file";
 
-    const abs = vscode.Uri.joinPath(repoRoot, repoRelativePath);
+    const abs = vscode.Uri.joinPath(repoRoot, norm);
     this.resourceUri = abs;
 
     this.iconPath = new vscode.ThemeIcon(isStaged ? "check" : "square");
 
     // show folder on the right (like Source Control)
-    const parts = repoRelativePath.split("/");
-    if (parts.length > 1) {
-      this.description = parts.slice(0, -1).join("/");
-    }
+    this.description = folder;
+
+    // helpful hover
+    this.tooltip = norm;
 
     // Click toggles staged state (NOT open)
     this.command = {

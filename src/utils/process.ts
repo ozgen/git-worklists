@@ -54,3 +54,25 @@ export async function runGhCapture(
 ): Promise<string> {
   return await runCmdCapture(repoRoot, "gh", args);
 }
+
+function parseNullSeparatedPaths(output: string): string[] {
+  return output
+    .split("\0")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function normalizeRepoRelPath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+export async function getUntrackedPaths(repoRoot: string): Promise<string[]> {
+  const out = await runGitCapture(repoRoot, [
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+    "-z",
+  ]);
+
+  return parseNullSeparatedPaths(out).map(normalizeRepoRelPath);
+}
