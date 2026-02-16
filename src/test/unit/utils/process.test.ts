@@ -33,6 +33,7 @@ import {
   runGit,
   runGitCapture,
   runGhCapture,
+  getUntrackedPaths,
 } from "../../../utils/process";
 
 beforeEach(() => {
@@ -133,5 +134,49 @@ describe("runGit / runGitCapture / runGhCapture", () => {
     spawns[0].child.emit("close", 0);
 
     await expect(p).resolves.toBe('{"title":"x"}\n');
+  });
+});
+
+describe("getUntrackedPaths", () => {
+  it("runs git ls-files --others --exclude-standard -z and parses NUL-separated output", async () => {
+    const p = getUntrackedPaths("/repo");
+
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(spawns[0].bin).toBe("git");
+    expect(spawns[0].args).toEqual([
+      "ls-files",
+      "--others",
+      "--exclude-standard",
+      "-z",
+    ]);
+    expect(spawns[0].opts).toMatchObject({
+      cwd: "/repo",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    spawns[0].child.stdout.emit("data", Buffer.from("a.txt\0dir/b.txt\0\0"));
+    spawns[0].child.emit("close", 0);
+
+    await expect(p).resolves.toEqual(["a.txt", "dir/b.txt"]);
+  });
+
+  it("normalizes backslashes to forward slashes", async () => {
+    const p = getUntrackedPaths("/repo");
+
+    spawns[0].child.stdout.emit("data", Buffer.from("a\\b.txt\0c\\\\d.txt\0"));
+    spawns[0].child.emit("close", 0);
+
+    await expect(p).resolves.toEqual(["a/b.txt", "c//d.txt"]);
+  });
+
+  it("propagates errors from runGitCapture", async () => {
+    const p = getUntrackedPaths("/repo");
+
+    spawns[0].child.stderr.emit("data", Buffer.from("fatal: nope\n"));
+    spawns[0].child.emit("close", 128);
+
+    await expect(p).rejects.toThrow(
+      "git ls-files --others --exclude-standard -z failed (code 128):",
+    );
   });
 });

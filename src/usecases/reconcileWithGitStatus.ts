@@ -4,6 +4,7 @@ import {
   PersistedState,
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
+import { getUntrackedPaths } from "../utils/process";
 
 function norm(p: string): string {
   return p.replace(/\\/g, "/");
@@ -45,16 +46,20 @@ export class ReconcileWithGitStatus {
 
     const status = await this.git.getStatusPorcelainZ(repoRoot);
 
-    const untracked = new Set<string>();
+    const untracked = new Set<string>(
+      (await getUntrackedPaths(repoRoot)).map(norm),
+    );
+
     const changed = new Set<string>();
 
     for (const e of status) {
       const p = norm(e.path);
+
       if (e.x === "?" && e.y === "?") {
-        untracked.add(p);
-      } else {
-        changed.add(p);
+        continue;
       }
+
+      changed.add(p);
     }
 
     const inStatus = new Set<string>([...untracked, ...changed]);

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("../../../utils/process", () => {
+  return {
+    getUntrackedPaths: vi.fn(async () => [] as string[]),
+  };
+});
+
+import { getUntrackedPaths } from "../../../utils/process";
 import { ReconcileWithGitStatus } from "../../../usecases/reconcileWithGitStatus";
 import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
 import type { GitClient } from "../../../adapters/git/gitClient";
@@ -30,7 +37,7 @@ function makeGit(
     stashApply: vi.fn(async () => {}),
     stashPop: vi.fn(async () => {}),
     stashDrop: vi.fn(async () => {}),
-  };
+  } as any;
 }
 
 function getList(state: PersistedState, id: string) {
@@ -61,6 +68,8 @@ describe("ReconcileWithGitStatus", () => {
       version: 1,
       lists: [{ id: "cl_x", name: "X", files: ["a.txt"] }],
     };
+
+    vi.mocked(getUntrackedPaths).mockResolvedValueOnce([]);
 
     const git = makeGit([{ path: "a.txt", x: " ", y: "M" }]);
     const store = makeStore(initial);
@@ -96,11 +105,11 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
-    // only keep-* are in status
+    vi.mocked(getUntrackedPaths).mockResolvedValueOnce(["keep-u.txt"]);
+
     const git = makeGit([
-      { path: "keep-u.txt", x: "?", y: "?" }, // untracked
-      { path: "keep-d.txt", x: " ", y: "M" }, // changed
-      { path: "keep-x.txt", x: "M", y: " " }, // changed
+      { path: "keep-d.txt", x: " ", y: "M" },
+      { path: "keep-x.txt", x: "M", y: " " },
     ]);
 
     const store = makeStore(initial);
@@ -127,7 +136,9 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
-    const git = makeGit([{ path: "u.txt", x: "?", y: "?" }]);
+    vi.mocked(getUntrackedPaths).mockResolvedValueOnce(["u.txt"]);
+
+    const git = makeGit([]);
     const store = makeStore(initial);
 
     const uc = new ReconcileWithGitStatus(git, store as any);
@@ -151,15 +162,17 @@ describe("ReconcileWithGitStatus", () => {
           id: SystemChangelist.Unversioned,
           name: "Unversioned",
           files: ["a.txt"],
-        }, // owner=unversioned
+        },
         { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "X", files: ["b.txt"] }, // owner=cl_x
+        { id: "cl_x", name: "X", files: ["b.txt"] },
       ],
     };
 
+    vi.mocked(getUntrackedPaths).mockResolvedValueOnce([]);
+
     const git = makeGit([
-      { path: "a.txt", x: " ", y: "M" }, // changed -> owner is Unversioned => should go to Default
-      { path: "b.txt", x: "M", y: " " }, // changed -> should stay in cl_x
+      { path: "a.txt", x: " ", y: "M" },
+      { path: "b.txt", x: "M", y: " " },
     ]);
 
     const store = makeStore(initial);
@@ -191,10 +204,12 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
+    vi.mocked(getUntrackedPaths).mockResolvedValueOnce(["b/u.txt"]);
+
     const git = makeGit([
-      { path: "b/u.txt", x: "?", y: "?" }, // untracked
-      { path: "c/d.txt", x: " ", y: "M" }, // changed
-      { path: "a.txt", x: " ", y: "M" }, // changed, not owned
+      { path: "c/d.txt", x: " ", y: "M" },
+      { path: "a.txt", x: " ", y: "M" },
+      { path: "b/u.txt", x: "?", y: "?" },
     ]);
 
     const store = makeStore(initial);
@@ -206,7 +221,6 @@ describe("ReconcileWithGitStatus", () => {
     const d = getList(saved, SystemChangelist.Default);
 
     expect(u.files).toEqual(["b/u.txt"]);
-
     expect(d.files).toEqual(["a.txt", "c/d.txt"]);
   });
 });

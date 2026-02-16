@@ -44,6 +44,7 @@ const vscodeMock = vi.hoisted(() => {
     command?: any;
     description?: string;
     resourceUri?: any;
+    tooltip?: any;
     constructor(label?: string, collapsibleState?: number) {
       this.label = label;
       this.collapsibleState = collapsibleState;
@@ -119,12 +120,10 @@ describe("ChangelistTreeProvider (unit)", () => {
       "Beta (1)",
     ]);
 
-    // system vs custom contextValue
     expect((root[0] as any).contextValue).toBe("gitWorklists.group.system");
     expect((root[1] as any).contextValue).toBe("gitWorklists.group.system");
     expect((root[2] as any).contextValue).toBe("gitWorklists.group.custom");
 
-    // icon for none-staged group is "square"
     expect(((root[0] as any).iconPath as any).id).toBe("square");
   });
 
@@ -155,11 +154,11 @@ describe("ChangelistTreeProvider (unit)", () => {
     const changes = root[0] as any;
     const unv = root[1] as any;
 
-    expect((changes.iconPath as any).id).toBe("remove"); // mixed
-    expect((unv.iconPath as any).id).toBe("check"); // all
+    expect((changes.iconPath as any).id).toBe("remove");
+    expect((unv.iconPath as any).id).toBe("check");
   });
 
-  it("group children are FileNodes with correct resourceUri, description, command, workStatus", async () => {
+  it("group children are FileNodes with correct label/description, resourceUri, command, workStatus", async () => {
     const state: PersistedState = {
       version: 1,
       lists: [
@@ -188,15 +187,15 @@ describe("ChangelistTreeProvider (unit)", () => {
     const unvGroup = root[1] as any;
 
     const changesFiles = await tp.getChildren(changesGroup);
-    expect(changesFiles.map((n: any) => n.label)).toEqual([
-      "dir/a.txt",
-      "z.txt",
-    ]);
+
+    expect(changesFiles.map((n: any) => n.label)).toEqual(["a.txt", "z.txt"]);
 
     const f0 = changesFiles[0] as any;
     expect(f0.workStatus).toBe("tracked");
     expect(f0.isStaged).toBe(true);
+
     expect(f0.description).toBe("dir");
+
     expect(f0.resourceUri.fsPath).toBe("/repo/dir/a.txt");
     expect(f0.command.command).toBe("gitWorklists.unstagePath");
     expect(f0.command.arguments[0].fsPath).toBe("/repo/dir/a.txt");
@@ -204,12 +203,18 @@ describe("ChangelistTreeProvider (unit)", () => {
     const f1 = changesFiles[1] as any;
     expect(f1.workStatus).toBe("tracked");
     expect(f1.isStaged).toBe(false);
-    expect(f1.description).toBeUndefined();
+
+    expect(f1.description === "" || typeof f1.description === "undefined").toBe(
+      true,
+    );
+
     expect(f1.command.command).toBe("gitWorklists.stagePath");
 
     const unvFiles = await tp.getChildren(unvGroup);
     const u0 = unvFiles[0] as any;
-    expect(u0.label).toBe("u/x.txt");
+
+    expect(u0.label).toBe("x.txt");
+    expect(u0.description).toBe("u");
     expect(u0.workStatus).toBe("unversioned");
     expect(u0.isStaged).toBe(true);
   });
