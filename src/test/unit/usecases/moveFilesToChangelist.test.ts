@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { MoveFilesToChangelist } from "../../usecases/moveFilesToChangelist";
-import type { PersistedState } from "../../adapters/storage/workspaceStateStore";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
+import { MoveFilesToChangelist } from "../../../usecases/moveFilesToChangelist";
+import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;

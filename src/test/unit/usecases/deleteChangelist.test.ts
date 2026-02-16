@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { DeleteChangelist } from "../../usecases/deleteChangelist";
-import type { PersistedState } from "../../adapters/storage/workspaceStateStore";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
-import type { GitClient } from "../../adapters/git/gitClient";
-import { ChangelistStore } from "../../usecases/changelistStore";
+import { DeleteChangelist } from "../../../usecases/deleteChangelist";
+import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
+import type { GitClient } from "../../../adapters/git/gitClient";
+import { ChangelistStore } from "../../../usecases/changelistStore";
 
 function makeStore(
   initial?: PersistedState,

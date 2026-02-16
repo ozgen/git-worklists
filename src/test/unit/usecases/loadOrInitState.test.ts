@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { LoadOrInitState } from "../../usecases/loadOrInitState";
-import type { PersistedState } from "../../adapters/storage/workspaceStateStore";
-import type { GitClient } from "../../adapters/git/gitClient";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
+import { LoadOrInitState } from "../../../usecases/loadOrInitState";
+import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import type { GitClient } from "../../../adapters/git/gitClient";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 function makeGit(repoRoot = "/repo"): GitClient {
   return {

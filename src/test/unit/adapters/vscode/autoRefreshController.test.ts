@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { AutoRefreshController } from "../../../adapters/vscode/autoRefreshController";
+import { AutoRefreshController } from "../../../../adapters/vscode/autoRefreshController";
 import type {
   VscodeFacade,
   DisposableLike,
@@ -7,7 +7,7 @@ import type {
   FileSystemWatcherLike,
   RelativePatternLike,
   EventLike,
-} from "../../../adapters/vscode/vscodeFacade";
+} from "../../../../adapters/vscode/vscodeFacade";
 
 function makeDisposable(): DisposableLike {
   return { dispose: vi.fn() };

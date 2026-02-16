@@ -4,11 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: [
-      "src/test/core/**/*.test.ts",
-      "src/test/adapters/**/*.test.ts",
-      "src/test/usecases/**/*.test.ts",
-      "src/test/utils/**/*.test.ts",
-      "src/test/views/**/*.test.ts",
+      "src/test/unit/**/*.test.ts",
     ],
   },
 });

@@ -14,7 +14,7 @@ const vscodeMock = vi.hoisted(() => {
 vi.mock("vscode", () => vscodeMock);
 
 import * as vscode from "vscode";
-import { CommitViewProvider } from "../../views/commitViewProvider";
+import { CommitViewProvider } from "../../../views/commitViewProvider";
 
 type ReceiveHandler = (msg: any) => any;
 
@@ -74,7 +74,7 @@ describe("CommitViewProvider (unit)", () => {
     expect(webview.html).toContain("acquireVsCodeApi()");
     expect(webview.html).toContain('id="btnCommit"');
     expect(webview.html).toContain("acquireVsCodeApi()");
-    
+
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
       state: { stagedCount: 0 },

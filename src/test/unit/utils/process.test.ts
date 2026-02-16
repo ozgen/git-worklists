@@ -33,7 +33,7 @@ import {
   runGit,
   runGitCapture,
   runGhCapture,
-} from "../../utils/process";
+} from "../../../utils/process";
 
 beforeEach(() => {
   spawnMock.mockClear();

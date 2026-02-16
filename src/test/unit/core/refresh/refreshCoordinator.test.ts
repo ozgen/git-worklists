@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { RefreshCoordinator } from "../../../core/refresh/refreshCoordinator";
+import { RefreshCoordinator } from "../../../../core/refresh/refreshCoordinator";
 
 function wait(ms: number) {
   return new Promise((r) => setTimeout(r, ms));

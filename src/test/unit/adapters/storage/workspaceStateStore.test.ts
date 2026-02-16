@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   WorkspaceStateStore,
   type PersistedState,
-} from "../../../adapters/storage/workspaceStateStore";
-import type { MementoLike } from "../../../adapters/vscode/mementoFacade";
+} from "../../../../adapters/storage/workspaceStateStore";
+import type { MementoLike } from "../../../../adapters/vscode/mementoFacade";
 
 function makeMemento(
   initial: Record<string, unknown> = {},

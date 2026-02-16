@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { ListStashes } from "../../../usecases/stash/listStashes";
-import type { GitClient, GitStashEntry } from "../../../adapters/git/gitClient";
+import { ListStashes } from "../../../../usecases/stash/listStashes";
+import type {
+  GitClient,
+  GitStashEntry,
+} from "../../../../adapters/git/gitClient";
 
 function makeGit(returnValue: GitStashEntry[] = []): GitClient {
   return {

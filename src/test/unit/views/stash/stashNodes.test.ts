@@ -28,7 +28,7 @@ const vscodeMock = vi.hoisted(() => {
 
 vi.mock("vscode", () => vscodeMock);
 
-import { toTreeItem } from "../../../views/stash/stashNodes";
+import { toTreeItem } from "../../../../views/stash/stashNodes";
 
 describe("stashNodes.toTreeItem", () => {
   it("root node: creates expanded 'Stashes' TreeItem with context and icon", () => {
