@@ -1,3 +1,4 @@
+import { normalizeRepoRelPath } from "../../utils/paths";
 import type { MementoLike } from "../vscode/mementoFacade";
 
 export type PersistedChangelist = {
@@ -78,8 +79,4 @@ export class WorkspaceStateStore {
   async clearSelectedFiles(repoRootFsPath: string): Promise<void> {
     await this.setSelectedFiles(repoRootFsPath, new Set());
   }
-}
-
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
 }

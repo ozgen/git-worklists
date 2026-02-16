@@ -1,9 +1,14 @@
 import * as vscode from "vscode";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
+import { normalizeRepoRelPath } from "../utils/paths";
 
-export class WorklistDecorationProvider implements vscode.FileDecorationProvider {
-  private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri | vscode.Uri[]>();
+export class WorklistDecorationProvider
+  implements vscode.FileDecorationProvider
+{
+  private readonly _onDidChange = new vscode.EventEmitter<
+    vscode.Uri | vscode.Uri[]
+  >();
   readonly onDidChangeFileDecorations = this._onDidChange.event;
 
   private repoRootFsPath?: string;
@@ -19,17 +24,25 @@ export class WorklistDecorationProvider implements vscode.FileDecorationProvider
     this._onDidChange.fire([]);
   }
 
-  async provideFileDecoration(uri: vscode.Uri): Promise<vscode.FileDecoration | undefined> {
-    if (!this.repoRootFsPath) {return;}
+  async provideFileDecoration(
+    uri: vscode.Uri,
+  ): Promise<vscode.FileDecoration | undefined> {
+    if (!this.repoRootFsPath) {
+      return;
+    }
 
     const state = await this.store.load(this.repoRootFsPath);
-    if (!state || state.version !== 1) {return;}
+    if (!state || state.version !== 1) {
+      return;
+    }
 
     const rel = toRepoRelPath(this.repoRootFsPath, uri);
-    if (!rel) {return;}
+    if (!rel) {
+      return;
+    }
 
     // Build lookup: path -> list (first match wins)
-    // Priority: Unversioned > Default > Custom 
+    // Priority: Unversioned > Default > Custom
     const unv = state.lists.find((l) => l.id === SystemChangelist.Unversioned);
     if (unv?.files.includes(rel)) {
       return new vscode.FileDecoration(
@@ -69,23 +82,25 @@ export class WorklistDecorationProvider implements vscode.FileDecorationProvider
   }
 }
 
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
-}
-
 function toRepoRelPath(repoRootFsPath: string, uri: vscode.Uri): string {
   const root = normalizeRepoRelPath(repoRootFsPath).replace(/\/+$/, "");
   const full = normalizeRepoRelPath(uri.fsPath);
 
-  if (full === root) {return "";}
-  if (!full.startsWith(root + "/")) {return "";}
+  if (full === root) {
+    return "";
+  }
+  if (!full.startsWith(root + "/")) {
+    return "";
+  }
 
   return full.slice(root.length + 1);
 }
 
 function badgeFromName(name: string): string {
   const trimmed = name.trim();
-  if (!trimmed) {return "L";}
+  if (!trimmed) {
+    return "L";
+  }
   const ch = trimmed[0]?.toUpperCase();
   // badge must be short; 1 char is safest
   return /^[A-Z0-9]$/.test(ch) ? ch : "L";

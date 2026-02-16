@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
+import { normalizeRepoRelPath } from "../utils/paths";
 
 type PersistedChangelist = {
   id: string;
@@ -178,10 +179,6 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
 
     return [];
   }
-}
-
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
 }
 
 function groupStageState(

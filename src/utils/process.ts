@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { normalizeRepoRelPath } from "./paths";
 
 export async function runCmdCapture(
   cwd: string,
@@ -60,10 +61,6 @@ function parseNullSeparatedPaths(output: string): string[] {
     .split("\0")
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-function normalizeRepoRelPath(p: string): string {
-  return p.replace(/\\/g, "/");
 }
 
 export async function getUntrackedPaths(repoRoot: string): Promise<string[]> {
