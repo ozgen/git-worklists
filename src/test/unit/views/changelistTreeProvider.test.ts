@@ -61,8 +61,8 @@ const vscodeMock = vi.hoisted(() => {
 
 vi.mock("vscode", () => vscodeMock);
 
-import { ChangelistTreeProvider } from "../../views/changelistTreeProvider";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
+import { ChangelistTreeProvider } from "../../../views/changelistTreeProvider";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 type PersistedState = {
   version: 1;

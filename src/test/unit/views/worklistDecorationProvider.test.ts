@@ -33,12 +33,12 @@ const vscodeMock = vi.hoisted(() => {
 vi.mock("vscode", () => vscodeMock);
 
 import * as vscode from "vscode";
-import { WorklistDecorationProvider } from "../../views/worklistDecorationProvider";
+import { WorklistDecorationProvider } from "../../../views/worklistDecorationProvider";
 import {
   WorkspaceStateStore,
   type PersistedState,
-} from "../../adapters/storage/workspaceStateStore";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
+} from "../../../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 class MemMemento {
   private data = new Map<string, any>();
@@ -60,7 +60,7 @@ describe("WorklistDecorationProvider", () => {
   let provider: WorklistDecorationProvider;
 
   const repoRoot = "/repo";
-  const keyRepo = repoRoot; 
+  const keyRepo = repoRoot;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,12 +85,16 @@ describe("WorklistDecorationProvider", () => {
 
   it("returns undefined if repoRoot not set", async () => {
     const p = new WorklistDecorationProvider(store);
-    const dec = await p.provideFileDecoration(vscode.Uri.file("/repo/a.txt") as any);
+    const dec = await p.provideFileDecoration(
+      vscode.Uri.file("/repo/a.txt") as any,
+    );
     expect(dec).toBeUndefined();
   });
 
   it("returns undefined if state missing", async () => {
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/repo/a.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/a.txt") as any,
+    );
     expect(dec).toBeUndefined();
   });
 
@@ -98,12 +102,18 @@ describe("WorklistDecorationProvider", () => {
     await store.save(
       keyRepo,
       state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["a.txt"] },
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: ["a.txt"],
+        },
         { id: SystemChangelist.Default, name: "Changes", files: ["b.txt"] },
       ]),
     );
 
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/other/a.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/other/a.txt") as any,
+    );
     expect(dec).toBeUndefined();
   });
 
@@ -111,18 +121,26 @@ describe("WorklistDecorationProvider", () => {
     await store.save(
       keyRepo,
       state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["a.txt"] },
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: ["a.txt"],
+        },
         { id: SystemChangelist.Default, name: "Changes", files: ["a.txt"] },
-        { id: "cl_1", name: "Hotfix", files: ["a.txt"] }, 
+        { id: "cl_1", name: "Hotfix", files: ["a.txt"] },
       ]),
     );
 
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/repo/a.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/a.txt") as any,
+    );
 
     expect(dec).toBeDefined();
     expect(dec?.badge).toBe("U");
     expect(dec?.tooltip).toBe("Unversioned");
-    expect(dec?.color).toMatchObject({ id: "gitDecoration.untrackedResourceForeground" });
+    expect(dec?.color).toMatchObject({
+      id: "gitDecoration.untrackedResourceForeground",
+    });
   });
 
   it("default returns D decoration", async () => {
@@ -134,11 +152,15 @@ describe("WorklistDecorationProvider", () => {
       ]),
     );
 
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/repo/b.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/b.txt") as any,
+    );
 
     expect(dec?.badge).toBe("D");
     expect(dec?.tooltip).toBe("In Changes");
-    expect(dec?.color).toMatchObject({ id: "gitDecoration.modifiedResourceForeground" });
+    expect(dec?.color).toMatchObject({
+      id: "gitDecoration.modifiedResourceForeground",
+    });
   });
 
   it("custom returns first-letter badge and tooltip", async () => {
@@ -151,11 +173,15 @@ describe("WorklistDecorationProvider", () => {
       ]),
     );
 
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/repo/c.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/c.txt") as any,
+    );
 
     expect(dec?.badge).toBe("R");
     expect(dec?.tooltip).toBe("In refactor");
-    expect(dec?.color).toMatchObject({ id: "gitDecoration.addedResourceForeground" });
+    expect(dec?.color).toMatchObject({
+      id: "gitDecoration.addedResourceForeground",
+    });
   });
 
   it("custom badge falls back to L for empty/invalid names", async () => {
@@ -168,9 +194,11 @@ describe("WorklistDecorationProvider", () => {
       ]),
     );
 
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/repo/d.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/d.txt") as any,
+    );
     expect(dec?.badge).toBe("L");
-    expect(dec?.tooltip).toBe("In    "); 
+    expect(dec?.tooltip).toBe("In    ");
   });
 
   it("returns undefined if file not in any list", async () => {
@@ -183,7 +211,9 @@ describe("WorklistDecorationProvider", () => {
       ]),
     );
 
-    const dec = await provider.provideFileDecoration(vscode.Uri.file("/repo/nope.txt") as any);
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/nope.txt") as any,
+    );
     expect(dec).toBeUndefined();
   });
 });

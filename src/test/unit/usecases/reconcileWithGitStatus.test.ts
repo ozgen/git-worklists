@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { ReconcileWithGitStatus } from "../../usecases/reconcileWithGitStatus";
-import type { PersistedState } from "../../adapters/storage/workspaceStateStore";
-import type { GitClient } from "../../adapters/git/gitClient";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
+import { ReconcileWithGitStatus } from "../../../usecases/reconcileWithGitStatus";
+import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import type { GitClient } from "../../../adapters/git/gitClient";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;

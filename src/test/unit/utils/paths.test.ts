@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeRepoRelPath, toRepoRelPath } from "../../utils/paths";
+import { normalizeRepoRelPath, toRepoRelPath } from "../../../utils/paths";
 
 type UriLike = { fsPath: string };
 

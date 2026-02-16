@@ -6,9 +6,9 @@ vi.mock("crypto", () => {
   };
 });
 
-import { CreateChangelist } from "../../usecases/createChangelist";
-import type { PersistedState } from "../../adapters/storage/workspaceStateStore";
-import { SystemChangelist } from "../../core/changelist/systemChangelist";
+import { CreateChangelist } from "../../../usecases/createChangelist";
+import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;

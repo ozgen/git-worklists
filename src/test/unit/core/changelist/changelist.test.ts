@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Changelist } from "../../../core/changelist/changelist";
+import { Changelist } from "../../../../core/changelist/changelist";
 
 describe("Changelist", () => {
   it("normalizes initialFiles to repo-relative forward slashes", () => {

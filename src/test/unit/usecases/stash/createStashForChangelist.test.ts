@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
-import { CreateStashForChangelist } from "../../../usecases/stash/createStashForChangelist";
-import type { GitClient } from "../../../adapters/git/gitClient";
-import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import { CreateStashForChangelist } from "../../../../usecases/stash/createStashForChangelist";
+import type { GitClient } from "../../../../adapters/git/gitClient";
+import type { PersistedState } from "../../../../adapters/storage/workspaceStateStore";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;
