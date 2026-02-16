@@ -31,6 +31,14 @@ export interface GitClient {
 
   getGitDir(repoRootFsPath: string): Promise<string>;
 
+  tryGetRepoRoot(workspaceFsPath: string): Promise<string | null>;
+
+  add(repoRootFsPath: string, repoRelativePath: string): Promise<void>;
+
+  addMany?(repoRootFsPath: string, repoRelativePaths: string[]): Promise<void>;
+
+  isIgnored(repoRootFsPath: string, repoRelativePath: string): Promise<boolean>;
+
   // ---- Stash (new) ----
 
   /** `git stash list` */

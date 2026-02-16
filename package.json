@@ -33,6 +33,16 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Git Worklists",
+      "properties": {
+        "gitWorklists.promptOnNewFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prompt to add new files to Git when they are created."
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {

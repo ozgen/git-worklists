@@ -117,6 +117,41 @@ export class GitCliClient implements GitClient {
     return path.isAbsolute(p) ? p : path.join(repoRootFsPath, p);
   }
 
+  async tryGetRepoRoot(workspaceFsPath: string): Promise<string | null> {
+    try {
+      return await this.getRepoRoot(workspaceFsPath);
+    } catch {
+      return null;
+    }
+  }
+
+  async isIgnored(
+    repoRootFsPath: string,
+    repoRelativePath: string,
+  ): Promise<boolean> {
+    try {
+      // -q => quiet, exit code 0 if ignored, 1 if not ignored
+      // execGit throws on non-zero, so:
+      await execGit(
+        ["check-ignore", "-q", "--", repoRelativePath],
+        repoRootFsPath,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async addMany(
+    repoRootFsPath: string,
+    repoRelativePaths: string[],
+  ): Promise<void> {
+    if (repoRelativePaths.length === 0) {
+      return;
+    }
+    await execGit(["add", "--", ...repoRelativePaths], repoRootFsPath);
+  }
+
   async stashList(repoRootFsPath: string): Promise<GitStashEntry[]> {
     const out = await execGit(["stash", "list"], repoRootFsPath);
     const lines = out.split("\n");
