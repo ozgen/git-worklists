@@ -33,6 +33,7 @@ import { CreateStashForChangelist } from "./usecases/stash/createStashForChangel
 import { HandleNewFilesCreated } from "./usecases/handleNewFilesCreated";
 import { OpenDiffForFile } from "./usecases/openDiffForFile";
 import { VsCodeDiffOpener } from "./adapters/vscode/diffOpener";
+import { GitShowContentProvider } from "./adapters/vscode/gitShowContentProvider";
 
 async function headHasParent(repoRoot: string): Promise<boolean> {
   try {
@@ -179,6 +180,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerFileDecorationProvider(deco),
   );
   const stashesProvider = new StashesTreeProvider(repoRoot, git);
+
+  const showProvider = new GitShowContentProvider(git, repoRoot);
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      GitShowContentProvider.scheme,
+      showProvider,
+    ),
+  );
 
   // ----------------------------
   // Use cases
@@ -809,26 +818,25 @@ export async function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        try {
-          const res = await openDiffForFile.run({ repoRoot, uri, ref: "HEAD" });
-
-          if (res.kind === "open-file") {
-            await vscode.commands.executeCommand("vscode.open", res.uri);
-            return;
-          }
-
-          await diffOpener.openContentVsFileDiff({
-            title: res.title,
-            leftContent: res.leftContent,
-            leftLabelPath: res.leftLabelPath,
-            rightUri: res.rightUri,
-          });
-        } catch (e) {
-          console.error(e);
-          vscode.window.showErrorMessage(
-            "Git Worklists: failed to open diff (see console)",
-          );
+        const rel = toRepoRelPath(repoRoot, uri);
+        if (!rel) {
+          await vscode.commands.executeCommand("vscode.open", uri);
+          return;
         }
+
+        const repoRel = normalizeRepoRelPath(rel);
+        const ref = "HEAD";
+
+        const leftUri = vscode.Uri.parse(
+          `${GitShowContentProvider.scheme}:/${encodeURIComponent(ref)}/${encodeURIComponent(repoRel)}`,
+        );
+
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          leftUri,
+          uri,
+          `${repoRel} (${ref} ↔ Working Tree)`,
+        );
       },
     ),
   );
