@@ -40,7 +40,7 @@ A structured way to organize and stage changes.
 * Move selected files to another changelist
 * File-level and group-level **checkboxes** for staging / unstaging
 * Visual file decorations (badges)
-* Click files to open instantly
+* Click files to open a diff view (HEAD <-> Working Tree)
 * Automatic reconciliation with Git status
 * Files move automatically between:
 
@@ -63,6 +63,8 @@ All staging state reflects the actual Git index.
 A focused commit experience separate from VS Code SCM.
 
 * Custom **Commit Message** field
+* Commit message draft is automatically preserved
+* Inline warning when attempting to commit with no staged files
 * **Amend** support with safe handling
 * **Commit** and **Commit & Push**
 * Live staged file counter
@@ -199,6 +201,19 @@ Planned improvements:
 ---
 
 # Release Notes
+
+## 0.0.5
+
+### Added
+
+* Diff view when clicking files in the Changelists view (HEAD ↔ Working Tree)
+* Commit message draft persistence (message and amend flag)
+
+### Changed
+
+* Inline error message when committing with no staged files
+
+---
 
 ## 0.0.4
 
