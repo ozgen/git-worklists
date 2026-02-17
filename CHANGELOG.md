@@ -13,6 +13,17 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.0.5] - 2026-02-17
+
+### Added
+* Diff view when clicking a file in the Changelists view (HEAD <-> Working Tree)
+* Commit message draft persistence (message and amend flag are preserved)
+
+### Fixed
+* Inline error message when attempting to commit with no staged files (displayed in commit panel instead of popup)
+
+---
+
 ## [0.0.4] - 2026-02-17
 
 ### Added
