@@ -60,9 +60,7 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    const view = makeWebviewView(webview);
-
-    provider.resolveWebviewView(view);
+    provider.resolveWebviewView(makeWebviewView(webview));
 
     expect(webview.options).toEqual({
       enableScripts: true,
@@ -73,7 +71,9 @@ describe("CommitViewProvider (unit)", () => {
     expect(webview.html).toContain("<!doctype html>");
     expect(webview.html).toContain("acquireVsCodeApi()");
     expect(webview.html).toContain('id="btnCommit"');
-    expect(webview.html).toContain("acquireVsCodeApi()");
+
+    expect(webview.html).toContain("vscode.getState()");
+    expect(webview.html).toContain("vscode.setState");
 
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
@@ -106,7 +106,32 @@ describe("CommitViewProvider (unit)", () => {
     });
   });
 
-  it("on 'commit' message calls onCommit and clears error + posts clearMessage", async () => {
+  it("on notify(no-staged) sets lastError and posts state (does not call onCommit)", async () => {
+    const onCommit = vi.fn(async () => {});
+    const provider = new CommitViewProvider(
+      vscode.Uri.file("/ext") as any,
+      onCommit,
+    );
+
+    const webview = makeWebview();
+    provider.resolveWebviewView(makeWebviewView(webview));
+
+    webview.postMessage.mockClear();
+
+    await webview.__emitReceive({
+      type: "notify",
+      kind: "no-staged",
+    });
+
+    expect(onCommit).not.toHaveBeenCalled();
+
+    expect(webview.postMessage).toHaveBeenCalledWith({
+      type: "state",
+      state: { stagedCount: 0, lastError: "No staged files." },
+    });
+  });
+
+  it("on 'commit' message calls onCommit and clears error (does not clear message)", async () => {
     const onCommit = vi.fn(async () => {});
     const provider = new CommitViewProvider(
       vscode.Uri.file("/ext") as any,
@@ -137,7 +162,9 @@ describe("CommitViewProvider (unit)", () => {
       type: "state",
       state: { stagedCount: 0, lastError: undefined },
     });
-    expect(webview.postMessage).toHaveBeenCalledWith({ type: "clearMessage" });
+
+    const calls = webview.postMessage.mock.calls.map((c: any[]) => c[0]);
+    expect(calls.some((m: any) => m?.type === "clearMessage")).toBe(false);
   });
 
   it("when onCommit throws, it posts state with lastError", async () => {
@@ -169,7 +196,7 @@ describe("CommitViewProvider (unit)", () => {
     });
   });
 
-  it("ignores non-commit messages", async () => {
+  it("ignores unknown messages", async () => {
     const onCommit = vi.fn(async () => {});
     const provider = new CommitViewProvider(
       vscode.Uri.file("/ext") as any,

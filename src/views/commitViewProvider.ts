@@ -32,6 +32,13 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
 
     view.webview.onDidReceiveMessage(async (msg) => {
       try {
+        if (msg?.type === "notify" && msg?.kind === "no-staged") {
+          this.state.lastError =
+            "No staged files.";
+          this.postState();
+          return;
+        }        
+
         if (msg?.type === "commit") {
           const message = String(msg.message ?? "").trim();
           const amend = Boolean(msg.amend);
@@ -42,7 +49,7 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
           // Clear error
           this.state.lastError = undefined;
           this.postState();
-          view.webview.postMessage({ type: "clearMessage" });
+
         }
       } catch (e: any) {
         this.state.lastError = e?.message ?? String(e);
@@ -60,7 +67,9 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
   }
 
   private postState() {
-    if (!this.view) {return;}
+    if (!this.view) {
+      return;
+    }
     this.view.webview.postMessage({ type: "state", state: this.state });
   }
 
@@ -113,6 +122,10 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
       border-radius: 6px;
       cursor: pointer;
       font-size: 13px;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
     }
     .primary {
       background: var(--vscode-button-background);
@@ -169,6 +182,30 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
     const btnCommit = document.getElementById("btnCommit");
     const btnCommitPush = document.getElementById("btnCommitPush");
 
+    // Track staged count locally (for click guard)
+    let stagedCount = 0;
+
+    // Restore draft from webview state
+    const persisted = vscode.getState() || {};
+    if (typeof persisted.message === "string") {
+      messageEl.value = persisted.message;
+    }
+    if (typeof persisted.amend === "boolean") {
+      amendEl.checked = persisted.amend;
+    }
+
+    function persist() {
+      const current = vscode.getState() || {};
+      vscode.setState({
+        ...current,
+        message: messageEl.value,
+        amend: amendEl.checked,
+      });
+    }
+
+    messageEl.addEventListener("input", persist);
+    amendEl.addEventListener("change", persist);
+
     function sendCommit(push) {
       vscode.postMessage({
         type: "commit",
@@ -178,22 +215,28 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
       });
     }
 
-    btnCommit.addEventListener("click", () => sendCommit(false));
-    btnCommitPush.addEventListener("click", () => sendCommit(true));
+    function tryCommit(push) {
+      if ((stagedCount ?? 0) === 0) {
+        vscode.postMessage({ type: "notify", kind: "no-staged" });
+        return;
+      }
+      sendCommit(push);
+    }
+
+    btnCommit.addEventListener("click", () => tryCommit(false));
+    btnCommitPush.addEventListener("click", () => tryCommit(true));
 
     window.addEventListener("message", (event) => {
       const msg = event.data;
       if (msg?.type === "state") {
         const s = msg.state || {};
-        stagedLabel.textContent = "Staged: " + (s.stagedCount ?? 0);
+        stagedCount = s.stagedCount ?? 0;
+
+        stagedLabel.textContent = "Staged: " + stagedCount;
         errorEl.textContent = s.lastError ? String(s.lastError) : "";
 
-        const disabled = (s.stagedCount ?? 0) === 0;
-        btnCommit.disabled = disabled;
-        btnCommitPush.disabled = disabled;
-      }
-      if (msg?.type === "clearMessage") {
-        messageEl.value = "";
+        btnCommit.disabled = false;
+        btnCommitPush.disabled = false;
       }
     });
   </script>
