@@ -142,6 +142,10 @@
         "command": "gitWorklists.file.discard",
         "title": "Discard",
         "icon": "$(discard)"
+      },
+      {
+        "command": "gitWorklists.openDiff",
+        "title": "Git Worklists: Open Diff (HEAD <-> Working Tree)"
       }
     ],
     "menus": {

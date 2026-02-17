@@ -31,6 +31,8 @@ import { AutoRefreshController } from "./adapters/vscode/autoRefreshController";
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
 import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
 import { HandleNewFilesCreated } from "./usecases/handleNewFilesCreated";
+import { OpenDiffForFile } from "./usecases/openDiffForFile";
+import { VsCodeDiffOpener } from "./adapters/vscode/diffOpener";
 
 async function headHasParent(repoRoot: string): Promise<boolean> {
   try {
@@ -333,6 +335,9 @@ export async function activate(context: vscode.ExtensionContext) {
   auto.start();
   context.subscriptions.push(auto);
 
+  const diffOpener = new VsCodeDiffOpener();
+  const openDiffForFile = new OpenDiffForFile(git);
+
   // ----------------------------
   // Staging helpers (checkboxes + commands)
   // ----------------------------
@@ -427,22 +432,6 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     }
   });
-
-  // ----------------------------
-  // Confirmation Action helper
-  // ----------------------------
-
-  async function confirmAction(
-    title: string,
-    detail: string,
-  ): Promise<boolean> {
-    const ok = await vscode.window.showWarningMessage(
-      title,
-      { modal: true, detail },
-      "Yes",
-    );
-    return ok === "Yes";
-  }
 
   // ----------------------------
   // Commands (context menus)
@@ -561,10 +550,11 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         await runGit(repoRoot, ["add", "--", normalizeRepoRelPath(rel)]);
-        //Open File
-        await vscode.commands.executeCommand("vscode.open", uri);
+
         //Refresh
         await coordinator.requestNow();
+        // Open diff (HEAD Working Tree)
+        await vscode.commands.executeCommand("gitWorklists.openDiff", uri);
       },
     ),
 
@@ -582,10 +572,10 @@ export async function activate(context: vscode.ExtensionContext) {
           normalizeRepoRelPath(rel),
         ]);
 
-        //Open File
-        await vscode.commands.executeCommand("vscode.open", uri);
         //Refresh
         await coordinator.requestNow();
+        // Open diff (HEAD Working Tree)
+        await vscode.commands.executeCommand("gitWorklists.openDiff", uri);
       },
     ),
   );
@@ -809,6 +799,38 @@ export async function activate(context: vscode.ExtensionContext) {
         );
       }
     }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.openDiff",
+      async (uri: vscode.Uri) => {
+        if (!uri) {
+          return;
+        }
+
+        try {
+          const res = await openDiffForFile.run({ repoRoot, uri, ref: "HEAD" });
+
+          if (res.kind === "open-file") {
+            await vscode.commands.executeCommand("vscode.open", res.uri);
+            return;
+          }
+
+          await diffOpener.openContentVsFileDiff({
+            title: res.title,
+            leftContent: res.leftContent,
+            leftLabelPath: res.leftLabelPath,
+            rightUri: res.rightUri,
+          });
+        } catch (e) {
+          console.error(e);
+          vscode.window.showErrorMessage(
+            "Git Worklists: failed to open diff (see console)",
+          );
+        }
+      },
+    ),
   );
 
   // ----------------------------------
