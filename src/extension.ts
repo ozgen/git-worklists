@@ -12,8 +12,8 @@ import {
 } from "./adapters/storage/workspaceStateStore";
 
 import { VsCodeFsStat } from "./adapters/vscode/fsStat";
-import { VsCodeSettings } from "./adapters/vscode/settings";
 import { VsCodePrompt } from "./adapters/vscode/prompt";
+import { VsCodeSettings } from "./adapters/vscode/settings";
 
 import { CreateChangelist } from "./usecases/createChangelist";
 import { DeleteChangelist } from "./usecases/deleteChangelist";
@@ -28,12 +28,12 @@ import { WorklistDecorationProvider } from "./views/worklistDecorationProvider";
 import { StashesTreeProvider } from "./views/stash/stashesTreeProvider";
 
 import { AutoRefreshController } from "./adapters/vscode/autoRefreshController";
-import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
-import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
-import { HandleNewFilesCreated } from "./usecases/handleNewFilesCreated";
-import { OpenDiffForFile } from "./usecases/openDiffForFile";
-import { VsCodeDiffOpener } from "./adapters/vscode/diffOpener";
+import { DiffTabTracker } from "./adapters/vscode/diffTabTracker";
 import { GitShowContentProvider } from "./adapters/vscode/gitShowContentProvider";
+import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
+import { CloseDiffTabs } from "./usecases/closeDiffTabs";
+import { HandleNewFilesCreated } from "./usecases/handleNewFilesCreated";
+import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
 
 async function headHasParent(repoRoot: string): Promise<boolean> {
   try {
@@ -138,6 +138,23 @@ async function isNewFileInRepo(
   }
 }
 
+async function fileExistsAtRef(
+  repoRoot: string,
+  ref: string,
+  rel: string,
+): Promise<boolean> {
+  try {
+    await runGit(repoRoot, ["cat-file", "-e", `${ref}:${rel}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function info(msg: string) {
+  vscode.window.showInformationMessage(msg);
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
@@ -162,6 +179,9 @@ export async function activate(context: vscode.ExtensionContext) {
   const fsStat = new VsCodeFsStat();
   const settings = new VsCodeSettings();
   const prompt = new VsCodePrompt();
+
+  const diffTabTracker = new DiffTabTracker();
+  const closeDiffTabs = new CloseDiffTabs(diffTabTracker);
 
   // ----------------------------
   // Providers
@@ -205,36 +225,91 @@ export async function activate(context: vscode.ExtensionContext) {
     context.extensionUri,
     async ({ message, amend, push }) => {
       const newMsg = message.trim();
+      const staged = await getStagedPaths(repoRoot);
+
+      const closeAfterCommit = async () => {
+        if (settings.closeDiffTabsAfterCommit()) {
+          await diffTabTracker.closeTrackedTabs();
+        }
+      };
+
+      const closeAfterPush = async () => {
+        if (settings.closeDiffTabsAfterPush()) {
+          await diffTabTracker.closeTrackedTabs();
+        }
+      };
+
+      const confirmPush = async (forceWithLease: boolean) => {
+        const ok = await vscode.window.showWarningMessage(
+          forceWithLease
+            ? "Push amended commit (force-with-lease)?"
+            : "Push commits to remote?",
+          {
+            modal: true,
+            detail: forceWithLease
+              ? "This will run: git push --force-with-lease"
+              : "This will run: git push",
+          },
+          "Push",
+        );
+        return ok === "Push";
+      };
+
+      const pushOnlyConfirm = async () => {
+        const ok = await vscode.window.showWarningMessage(
+          "No staged files. Push existing local commits to remote?",
+          { modal: true, detail: "This will run: git push" },
+          "Push",
+        );
+        return ok === "Push";
+      };
+
+      const doPush = async (amendForPush: boolean) => {
+        await pushWithUpstreamFallback(repoRoot, { amend: amendForPush });
+        await closeAfterPush();
+      };
+
+      // -------------------------
+      // Push-only path
+      // -------------------------
+      if (!amend && push && staged.size === 0) {
+        if (!(await pushOnlyConfirm())) {
+          return;
+        }
+
+        await doPush(false);
+        info("Pushed to remote.");
+        return;
+      }
+
       if (!newMsg) {
         throw new Error("Commit message is empty.");
       }
 
-      const staged = await getStagedPaths(repoRoot);
+      let messageOnlyAmend = false;
 
+      // -------------------------
+      // Amend / Commit
+      // -------------------------
       if (amend) {
         const oldMsg = await getHeadMessage(repoRoot);
+        info(oldMsg);
 
-        // If nothing is staged, only allow amend when the message changes.
         if (staged.size === 0) {
           if (newMsg === oldMsg) {
             const headEmpty = await isHeadEmptyVsParent(repoRoot);
             throw new Error(
               headEmpty
                 ? "Nothing to amend: last commit is empty and message is unchanged."
-                : "Nothing staged to amend. Stage files or disable Amend.",
+                : "Nothing to amend: message unchanged and nothing staged.",
             );
           }
 
-          // message-only amend
-          await runGit(repoRoot, [
-            "commit",
-            "--amend",
-            "--allow-empty",
-            "-m",
-            newMsg,
-          ]);
+          // message-only amend (no need for --allow-empty)
+          await runGit(repoRoot, ["commit", "--amend", "--only", "-m", newMsg]);
+          messageOnlyAmend = true;
         } else {
-          // staged amend (but Git may still complain it would become empty)
+          // staged amend (fallback if git says it would become empty)
           try {
             await runGit(repoRoot, ["commit", "--amend", "-m", newMsg]);
           } catch (e) {
@@ -259,28 +334,41 @@ export async function activate(context: vscode.ExtensionContext) {
         await runGit(repoRoot, ["commit", "-m", newMsg]);
       }
 
+      await closeAfterCommit();
+
+      // -------------------------
+      // No push requested
+      // -------------------------
       if (!push) {
+        if (amend) {
+          info(
+            messageOnlyAmend ? "Amended commit message." : "Amended commit.",
+          );
+        } else {
+          info("Created commit.");
+        }
         return;
       }
 
-      const pushConfirmed = await vscode.window.showWarningMessage(
-        amend
-          ? "Push amended commit (force-with-lease)?"
-          : "Push commits to remote?",
-        {
-          modal: true,
-          detail: amend
-            ? "This will run: git push --force-with-lease"
-            : "This will run: git push",
-        },
-        "Push",
-      );
-
-      if (pushConfirmed !== "Push") {
+      // -------------------------
+      // Push after commit/amend
+      // -------------------------
+      if (!(await confirmPush(amend))) {
         return;
       }
 
-      await pushWithUpstreamFallback(repoRoot, { amend });
+      await doPush(amend);
+
+      // One final success notification (no duplicates)
+      if (amend) {
+        info(
+          messageOnlyAmend
+            ? "Amended message and pushed."
+            : "Amended and pushed.",
+        );
+      } else {
+        info("Committed and pushed.");
+      }
     },
   );
 
@@ -343,9 +431,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   auto.start();
   context.subscriptions.push(auto);
-
-  const diffOpener = new VsCodeDiffOpener();
-  const openDiffForFile = new OpenDiffForFile(git);
 
   // ----------------------------
   // Staging helpers (checkboxes + commands)
@@ -827,6 +912,13 @@ export async function activate(context: vscode.ExtensionContext) {
         const repoRel = normalizeRepoRelPath(rel);
         const ref = "HEAD";
 
+        const existsInHead = await fileExistsAtRef(repoRoot, ref, repoRel);
+
+        if (!existsInHead) {
+          await vscode.commands.executeCommand("vscode.open", uri);
+          return;
+        }
+
         const leftUri = vscode.Uri.parse(
           `${GitShowContentProvider.scheme}:/${encodeURIComponent(ref)}/${encodeURIComponent(repoRel)}`,
         );
@@ -837,8 +929,17 @@ export async function activate(context: vscode.ExtensionContext) {
           uri,
           `${repoRel} (${ref} ↔ Working Tree)`,
         );
+
+        //add track of opened tabs
+        diffTabTracker.track(uri);
       },
     ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitWorklists.closeDiffTabs", async () => {
+      await closeDiffTabs.run();
+    }),
   );
 
   // ----------------------------------

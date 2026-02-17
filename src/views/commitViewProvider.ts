@@ -216,12 +216,26 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
     }
 
     function tryCommit(push) {
+      const isAmend = Boolean(amendEl.checked);
+    
       if ((stagedCount ?? 0) === 0) {
+        if (isAmend) {
+          sendCommit(push);
+          return;
+        }
+    
+        if (push) {
+          sendCommit(true);
+          return;
+        }
+    
+        // otherwise: normal commit needs staged files
         vscode.postMessage({ type: "notify", kind: "no-staged" });
         return;
       }
+    
       sendCommit(push);
-    }
+    }    
 
     btnCommit.addEventListener("click", () => tryCommit(false));
     btnCommitPush.addEventListener("click", () => tryCommit(true));

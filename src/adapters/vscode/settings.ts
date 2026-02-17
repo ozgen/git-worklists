@@ -12,4 +12,16 @@ export class VsCodeSettings {
       .getConfiguration("gitWorklists")
       .update("promptOnNewFile", enabled, vscode.ConfigurationTarget.Global);
   }
+
+  closeDiffTabsAfterCommit(): boolean {
+    return vscode.workspace
+      .getConfiguration("gitWorklists")
+      .get<boolean>("ui.closeDiffTabsAfterCommit", false);
+  }
+
+  closeDiffTabsAfterPush(): boolean {
+    return vscode.workspace
+      .getConfiguration("gitWorklists")
+      .get<boolean>("ui.closeDiffTabsAfterPush", false);
+  }
 }

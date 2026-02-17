@@ -70,4 +70,62 @@ describe("VsCodeSettings", () => {
       );
     });
   });
+
+  describe("closeDiffTabsAfterCommit", () => {
+    it("reads gitWorklists.ui.closeDiffTabsAfterCommit with default false", () => {
+      mocks.configGet.mockReturnValue(false);
+
+      const s = new VsCodeSettings();
+      const v = s.closeDiffTabsAfterCommit();
+
+      expect(v).toBe(false);
+      expect(mocks.getConfiguration).toHaveBeenCalledWith("gitWorklists");
+      expect(mocks.configGet).toHaveBeenCalledWith(
+        "ui.closeDiffTabsAfterCommit",
+        false,
+      );
+    });
+
+    it("returns true when configuration value is true", () => {
+      mocks.configGet.mockReturnValue(true);
+
+      const s = new VsCodeSettings();
+      const v = s.closeDiffTabsAfterCommit();
+
+      expect(v).toBe(true);
+      expect(mocks.configGet).toHaveBeenCalledWith(
+        "ui.closeDiffTabsAfterCommit",
+        false,
+      );
+    });
+  });
+
+  describe("closeDiffTabsAfterPush", () => {
+    it("reads gitWorklists.ui.closeDiffTabsAfterPush with default false", () => {
+      mocks.configGet.mockReturnValue(false);
+
+      const s = new VsCodeSettings();
+      const v = s.closeDiffTabsAfterPush();
+
+      expect(v).toBe(false);
+      expect(mocks.getConfiguration).toHaveBeenCalledWith("gitWorklists");
+      expect(mocks.configGet).toHaveBeenCalledWith(
+        "ui.closeDiffTabsAfterPush",
+        false,
+      );
+    });
+
+    it("returns true when configuration value is true", () => {
+      mocks.configGet.mockReturnValue(true);
+
+      const s = new VsCodeSettings();
+      const v = s.closeDiffTabsAfterPush();
+
+      expect(v).toBe(true);
+      expect(mocks.configGet).toHaveBeenCalledWith(
+        "ui.closeDiffTabsAfterPush",
+        false,
+      );
+    });
+  });
 });

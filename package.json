@@ -40,6 +40,16 @@
           "type": "boolean",
           "default": true,
           "description": "Prompt to add new files to Git when they are created."
+        },
+        "gitWorklists.ui.closeDiffTabsAfterCommit": {
+          "type": "boolean",
+          "default": false,
+          "description": "Close diff tabs opened by Git Worklists after a successful commit."
+        },
+        "gitWorklists.ui.closeDiffTabsAfterPush": {
+          "type": "boolean",
+          "default": false,
+          "description": "Close diff tabs opened by Git Worklists after a successful push."
         }
       }
     },
@@ -146,6 +156,12 @@
       {
         "command": "gitWorklists.openDiff",
         "title": "Git Worklists: Open Diff (HEAD <-> Working Tree)"
+      },
+      {
+        "command": "gitWorklists.closeDiffTabs",
+        "title": "Close Diff Tabs",
+        "category": "Git Worklists",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -159,6 +175,11 @@
           "command": "gitWorklists.refresh",
           "when": "view == gitWorklists.changelists",
           "group": "navigation@1"
+        },
+        {
+          "command": "gitWorklists.closeDiffTabs",
+          "when": "view == gitWorklists.changelists",
+          "group": "navigation@2"
         },
         {
           "command": "gitWorklists.stash.refresh",
