@@ -73,6 +73,34 @@ describe("parseStashLine", () => {
       raw: "weird format line",
     });
   });
+
+  it("sets isGitWorklists=false when no GW tag exists", () => {
+    const e = parseStashLine("stash@{3}: On main: plain message");
+    expect(e).toMatchObject({
+      ref: "stash@{3}",
+      message: "On main: plain message",
+      isGitWorklists: false,
+      changelistId: undefined,
+    });
+  });
+
+  it("detects GW tag even if it is not at the beginning of message", () => {
+    const e = parseStashLine("stash@{0}: On main: something GW:xyz_99 later");
+    expect(e).toMatchObject({
+      ref: "stash@{0}",
+      isGitWorklists: true,
+      changelistId: "xyz_99",
+    });
+  });
+
+  it("does not treat 'GW:' without an id as a valid tag", () => {
+    const e = parseStashLine("stash@{0}: On main: GW: WIP");
+    expect(e).toMatchObject({
+      ref: "stash@{0}",
+      isGitWorklists: false,
+      changelistId: undefined,
+    });
+  });
 });
 
 describe("GitCliClient (mocked git)", () => {
@@ -200,7 +228,7 @@ describe("GitCliClient (mocked git)", () => {
       cwd: "/repo",
     });
   });
-  
+
   it("tryGetRepoRoot returns null when git rev-parse fails", async () => {
     mockExecFileWithRouter((args) => {
       if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
@@ -368,5 +396,37 @@ describe("GitCliClient (mocked git)", () => {
     const entries = await git.getStatusPorcelainZ("/repo");
 
     expect(entries).toEqual([{ path: "new.txt", x: "C", y: " " }]);
+  });
+
+  it("showFileAtRef runs git show REF:path", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "show") {
+        return { stdout: "file-content\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRef("/repo", "HEAD", "src/a.ts");
+
+    expect(out).toBe("file-content\n");
+    expect(calls[0]).toEqual({
+      args: ["show", "HEAD:src/a.ts"],
+      cwd: "/repo",
+    });
+  });
+
+  it("showFileAtRef propagates git errors", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args[0] === "show") {
+        return new Error("fatal: Path 'x' does not exist in 'HEAD'");
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await expect(
+      git.showFileAtRef("/repo", "HEAD", "missing.txt"),
+    ).rejects.toThrow("git show HEAD:missing.txt failed");
   });
 });
