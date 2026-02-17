@@ -152,6 +152,19 @@ export class GitCliClient implements GitClient {
     await execGit(["add", "--", ...repoRelativePaths], repoRootFsPath);
   }
 
+  async showFileAtRef(
+    repoRootFsPath: string,
+    ref: string,
+    repoRelativePath: string,
+  ): Promise<string> {
+    // git show REF:path
+    // e.g. "HEAD:src/a.ts"
+    return await execGit(
+      ["show", `${ref}:${repoRelativePath}`],
+      repoRootFsPath,
+    );
+  }
+
   async stashList(repoRootFsPath: string): Promise<GitStashEntry[]> {
     const out = await execGit(["stash", "list"], repoRootFsPath);
     const lines = out.split("\n");

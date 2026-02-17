@@ -39,6 +39,16 @@ export interface GitClient {
 
   isIgnored(repoRootFsPath: string, repoRelativePath: string): Promise<boolean>;
 
+  /**
+   * Returns file content as it exists at a git ref (e.g. HEAD, HEAD^, : for index)
+   * Throws if the path does not exist at that ref.
+   */
+  showFileAtRef(
+    repoRootFsPath: string,
+    ref: string,
+    repoRelativePath: string,
+  ): Promise<string>;
+
   // ---- Stash (new) ----
 
   /** `git stash list` */
