@@ -35,7 +35,15 @@ export interface GitClient {
 
   add(repoRootFsPath: string, repoRelativePath: string): Promise<void>;
 
-  addMany?(repoRootFsPath: string, repoRelativePaths: string[]): Promise<void>;
+  stageMany(
+    repoRootFsPath: string,
+    repoRelativePaths: string[],
+  ): Promise<void>;
+
+  unstageMany(
+    repoRootFsPath: string,
+    repoRelativePaths: string[],
+  ): Promise<void>;
 
   isIgnored(repoRootFsPath: string, repoRelativePath: string): Promise<boolean>;
 

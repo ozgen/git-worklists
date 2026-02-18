@@ -275,18 +275,18 @@ describe("GitCliClient (mocked git)", () => {
     expect(ignored).toBe(false);
   });
 
-  it("addMany is a no-op for empty list", async () => {
+  it("stageMany is a no-op for empty list", async () => {
     const { calls } = mockExecFileWithRouter(() => {
       return new Error("should not be called");
     });
 
     const git = new GitCliClient();
-    await git.addMany("/repo", []);
+    await git.stageMany("/repo", []);
 
     expect(calls.length).toBe(0);
   });
 
-  it("addMany runs git add -- <paths...>", async () => {
+  it("stageMany runs git add -- <paths...>", async () => {
     const { calls } = mockExecFileWithRouter((args) => {
       if (args[0] === "add") {
         return { stdout: "" };
@@ -295,10 +295,38 @@ describe("GitCliClient (mocked git)", () => {
     });
 
     const git = new GitCliClient();
-    await git.addMany("/repo", ["a.txt", "b/c.ts"]);
+    await git.stageMany("/repo", ["a.txt", "b/c.ts"]);
 
     expect(calls[0]).toEqual({
       args: ["add", "--", "a.txt", "b/c.ts"],
+      cwd: "/repo",
+    });
+  });
+
+  it("unstageMany is a no-op for empty list", async () => {
+    const { calls } = mockExecFileWithRouter(() => {
+      return new Error("should not be called");
+    });
+
+    const git = new GitCliClient();
+    await git.unstageMany("/repo", []);
+
+    expect(calls.length).toBe(0);
+  });
+
+  it("unstageMany runs git reset -- <paths...>", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "reset" && args[1] === "--") {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await git.unstageMany("/repo", ["a.txt", "b/c.ts"]);
+
+    expect(calls[0]).toEqual({
+      args: ["reset", "--", "a.txt", "b/c.ts"],
       cwd: "/repo",
     });
   });

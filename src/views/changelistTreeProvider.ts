@@ -31,14 +31,13 @@ class GroupNode extends Node {
       list.id === SystemChangelist.Unversioned
         ? "gitWorklists.group.system"
         : "gitWorklists.group.custom";
+
+    // purely visual now (do NOT toggle on click)
     this.iconPath = new vscode.ThemeIcon(groupIcon(stageState));
 
-    // Click toggles staging for all files in group
-    this.command = {
-      command: "gitWorklists.toggleGroupSelection",
-      title: "Toggle Group Staging",
-      arguments: [this],
-    };
+    // IMPORTANT: no command here.
+    // Clicking group row should just expand/collapse.
+    this.command = undefined;
   }
 }
 
@@ -59,25 +58,23 @@ class FileNode extends Node {
 
     super(label, vscode.TreeItemCollapsibleState.None);
 
-    this.contextValue = "gitWorklists.file";
-
+    this.contextValue = isStaged
+    ? "gitWorklists.file.staged"
+    : "gitWorklists.file.unstaged";
+  
     const abs = vscode.Uri.joinPath(repoRoot, norm);
     this.resourceUri = abs;
 
     this.iconPath = new vscode.ThemeIcon(isStaged ? "check" : "square");
 
-    // show folder on the right (like Source Control)
     this.description = folder;
-
-    // helpful hover
     this.tooltip = norm;
 
-    // Click toggles staged state (NOT open)
     this.command = {
-      command: isStaged ? "gitWorklists.unstagePath" : "gitWorklists.stagePath",
-      title: isStaged ? "Unstage" : "Stage",
+      command: "gitWorklists.openDiff",
+      title: "Open Diff",
       arguments: [abs],
-    };
+    };    
   }
 }
 
@@ -119,7 +116,6 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
 
     const lists = state.lists as PersistedChangelist[];
 
-    // Root level: show system lists first, then all custom lists
     if (!element) {
       const systemIds = new Set<string>([
         SystemChangelist.Default,
@@ -127,10 +123,8 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
       ]);
 
       const byId = new Map(lists.map((l) => [l.id, l] as const));
-
       const result: GroupNode[] = [];
 
-      // System lists first (stable order)
       const def = byId.get(SystemChangelist.Default);
       if (def) {
         result.push(
@@ -145,7 +139,6 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
         );
       }
 
-      // Then custom lists
       const custom = lists
         .filter((l) => !systemIds.has(l.id))
         .slice()
@@ -160,7 +153,6 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
       return result;
     }
 
-    // Group -> file children
     if (element instanceof GroupNode) {
       const repoRoot = vscode.Uri.file(this.repoRootFsPath);
       const files = [...element.list.files].sort((a, b) => a.localeCompare(b));

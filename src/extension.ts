@@ -33,7 +33,9 @@ import { GitShowContentProvider } from "./adapters/vscode/gitShowContentProvider
 import { RefreshCoordinator } from "./core/refresh/refreshCoordinator";
 import { CloseDiffTabs } from "./usecases/closeDiffTabs";
 import { HandleNewFilesCreated } from "./usecases/handleNewFilesCreated";
+import { stageChangelistAll } from "./usecases/stageChangelistAll";
 import { CreateStashForChangelist } from "./usecases/stash/createStashForChangelist";
+import { unstageChangelistAll } from "./usecases/unstageChangelistAll";
 
 async function headHasParent(repoRoot: string): Promise<boolean> {
   try {
@@ -154,6 +156,8 @@ async function fileExistsAtRef(
 function info(msg: string) {
   vscode.window.showInformationMessage(msg);
 }
+
+type GroupArg = { list: { id: string; name: string; files: string[] } };
 
 export async function activate(context: vscode.ExtensionContext) {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -940,6 +944,69 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("gitWorklists.closeDiffTabs", async () => {
       await closeDiffTabs.run();
     }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.stageChangelistAll",
+      async (group: GroupArg) => {
+        if (!group?.list?.files) {
+          return;
+        }
+
+        const repoRoot = await git.tryGetRepoRoot(
+          vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
+        );
+        if (!repoRoot) {
+          vscode.window.showErrorMessage("No Git repository found.");
+          return;
+        }
+
+        const ok = await vscode.window.showWarningMessage(
+          `Stage all files in "${group.list.name}"?`,
+          { modal: true },
+          "Stage",
+        );
+        if (ok !== "Stage") {
+          return;
+        }
+
+        await stageChangelistAll(git, repoRoot, group.list.files);
+
+        // call your existing refresh pipeline
+        await vscode.commands.executeCommand("gitWorklists.refresh");
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.unstageChangelistAll",
+      async (group: GroupArg) => {
+        if (!group?.list?.files) {
+          return;
+        }
+
+        const repoRoot = await git.tryGetRepoRoot(
+          vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
+        );
+        if (!repoRoot) {
+          vscode.window.showErrorMessage("No Git repository found.");
+          return;
+        }
+
+        const ok = await vscode.window.showWarningMessage(
+          `Unstage all files in "${group.list.name}"? (Working tree changes will be kept.)`,
+          { modal: true },
+          "Unstage",
+        );
+        if (ok !== "Unstage") {
+          return;
+        }
+
+        await unstageChangelistAll(git, repoRoot, group.list.files);
+
+        await vscode.commands.executeCommand("gitWorklists.refresh");
+      },
+    ),
   );
 
   // ----------------------------------

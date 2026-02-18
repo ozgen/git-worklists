@@ -162,6 +162,16 @@
         "title": "Close Diff Tabs",
         "category": "Git Worklists",
         "icon": "$(close)"
+      },
+      {
+        "command": "gitWorklists.stageChangelistAll",
+        "title": "Stage All in Changelist",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "gitWorklists.unstageChangelistAll",
+        "title": "Unstage All in Changelist",
+        "icon": "$(circle-slash)"
       }
     ],
     "menus": {
@@ -190,7 +200,7 @@
       "view/item/context": [
         {
           "command": "gitWorklists.moveFileToChangelist",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
           "group": "navigation@0"
         },
         {
@@ -210,18 +220,28 @@
         },
         {
           "command": "gitWorklists.selectFile",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.unstaged",
           "group": "inline@1"
         },
         {
           "command": "gitWorklists.unselectFile",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
           "group": "inline@2"
         },
         {
           "command": "gitWorklists.file.discard",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
           "group": "inline@3"
+        },
+        {
+          "command": "gitWorklists.stageChangelistAll",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.group.custom || viewItem == gitWorklists.group.system)",
+          "group": "inline@1"
+        },
+        {
+          "command": "gitWorklists.unstageChangelistAll",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.group.custom || viewItem == gitWorklists.group.system)",
+          "group": "inline@2"
         },
         {
           "command": "gitWorklists.stash.createFromChangelist",

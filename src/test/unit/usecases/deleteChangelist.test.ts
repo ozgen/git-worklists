@@ -25,9 +25,14 @@ function makeGit(
 ): GitClient {
   return {
     getRepoRoot: vi.fn(async () => "/repo"),
+    tryGetRepoRoot: vi.fn(async () => "/repo"),
     getStatusPorcelainZ: vi.fn(async () => status as any),
     add: vi.fn(async () => {}),
+    stageMany: vi.fn(async () => {}),
+    unstageMany: vi.fn(async () => {}),
+    isIgnored: vi.fn(async () => false),
     getGitDir: vi.fn(async () => "/repo/.git"),
+    showFileAtRef: vi.fn(async () => "mock-file-content"),
     stashList: vi.fn(async () => []),
     stashPushPaths: vi.fn(async () => {}),
     stashApply: vi.fn(async () => {}),
@@ -35,6 +40,7 @@ function makeGit(
     stashDrop: vi.fn(async () => {}),
   };
 }
+
 
 describe("DeleteChangelist", () => {
   it("rejects deleting system changelists", async () => {

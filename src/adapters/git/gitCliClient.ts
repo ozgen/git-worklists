@@ -142,7 +142,7 @@ export class GitCliClient implements GitClient {
     }
   }
 
-  async addMany(
+  async stageMany(
     repoRootFsPath: string,
     repoRelativePaths: string[],
   ): Promise<void> {
@@ -150,6 +150,16 @@ export class GitCliClient implements GitClient {
       return;
     }
     await execGit(["add", "--", ...repoRelativePaths], repoRootFsPath);
+  }
+
+  async unstageMany(
+    repoRootFsPath: string,
+    repoRelativePaths: string[],
+  ): Promise<void> {
+    if (repoRelativePaths.length === 0) {
+      return;
+    }
+    await execGit(["reset", "--", ...repoRelativePaths], repoRootFsPath);
   }
 
   async showFileAtRef(
