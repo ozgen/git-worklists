@@ -267,12 +267,14 @@ Planned improvements:
 - File row click now opens diff only
 - Staging is handled exclusively via checkbox or inline action
 - Group rows no longer toggle staging on click
+- Refactored extension activation into smaller registration modules for improved maintainability
 
 ### Fixed
 
 - Removed accidental staging when clicking file rows
 - Correct inline icon visibility based on staged state
 - Fixed Commit panel sometimes showing an outdated staged count after staging files via the new-file prompt.
+- Fixed stale worklist decorations after commit or push (files no longer remain blue when clean)
 
 ## 0.1.0
 
