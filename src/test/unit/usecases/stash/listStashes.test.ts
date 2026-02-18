@@ -18,6 +18,11 @@ function makeGit(returnValue: GitStashEntry[] = []): GitClient {
     stashApply: vi.fn(async () => {}),
     stashPop: vi.fn(async () => {}),
     stashDrop: vi.fn(async () => {}),
+    tryGetRepoRoot: vi.fn(),
+    isIgnored: vi.fn(),
+    showFileAtRef: vi.fn(),
+    stageMany: vi.fn(async () => {}),
+    unstageMany: vi.fn(async () => {}),
   };
 }
 
