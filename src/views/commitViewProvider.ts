@@ -32,6 +32,12 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
 
     view.webview.onDidReceiveMessage(async (msg) => {
       try {
+
+        if (msg?.type === "ready") {
+          this.postState();
+          return;
+        }
+        
         if (msg?.type === "notify" && msg?.kind === "no-staged") {
           this.state.lastError =
             "No staged files.";
@@ -253,6 +259,7 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
         btnCommitPush.disabled = false;
       }
     });
+    vscode.postMessage({ type: "ready" });
   </script>
 </body>
 </html>`;

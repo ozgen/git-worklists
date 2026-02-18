@@ -272,6 +272,7 @@ Planned improvements:
 
 - Removed accidental staging when clicking file rows
 - Correct inline icon visibility based on staged state
+- Fixed Commit panel sometimes showing an outdated staged count after staging files via the new-file prompt.
 
 ## 0.1.0
 
