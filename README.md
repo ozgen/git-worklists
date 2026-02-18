@@ -46,12 +46,19 @@ A structured way to organize and stage changes.
 - Move selected files to another changelist
 
 - File-level and group-level **checkboxes** for staging / unstaging
+- State-aware inline action:
+  - Shows **Stage** when file is unstaged
+  - Shows **Unstage** when file is staged
+- Stage All / Unstage All per changelist
+- Visual file decorations (badges)
 
 - Visual file decorations (badges)
 
 ### Diff Integration
 
-- Click a file to open a **HEAD <-> Working Tree diff**
+- Click a file row to open a **HEAD <-> Working Tree diff**
+
+- Clicking a file does NOT change staging state
 
 - Diff view works correctly even when HEAD does not yet exist (initial commit case)
 
@@ -247,6 +254,24 @@ Planned improvements:
 ---
 
 # Release Notes
+
+## 0.2.0
+
+### Added
+
+- Stage All / Unstage All per changelist
+- State-aware inline Stage / Unstage actions
+
+### Changed
+
+- File row click now opens diff only
+- Staging is handled exclusively via checkbox or inline action
+- Group rows no longer toggle staging on click
+
+### Fixed
+
+- Removed accidental staging when clicking file rows
+- Correct inline icon visibility based on staged state
 
 ## 0.1.0
 

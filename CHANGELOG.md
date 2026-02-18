@@ -13,6 +13,26 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.2.0]
+
+### Added
+
+- Stage All / Unstage All per changelist
+- State-aware inline Stage / Unstage actions
+
+### Changed
+
+- File click no longer toggles staging
+- Staging is now handled exclusively via checkbox or inline action
+- Group rows no longer toggle staging on click
+
+### Fixed
+
+- Removed accidental staging when clicking file rows
+- Correct inline icon visibility based on staged state
+
+---
+
 ## [0.1.0] - 2026-02-18
 
 ### Added
