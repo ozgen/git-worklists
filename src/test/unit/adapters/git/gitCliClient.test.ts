@@ -457,4 +457,220 @@ describe("GitCliClient (mocked git)", () => {
       git.showFileAtRef("/repo", "HEAD", "missing.txt"),
     ).rejects.toThrow("git show HEAD:missing.txt failed");
   });
+
+  it("getUpstreamRef returns trimmed upstream ref", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (
+        args.join(" ") === "rev-parse --abbrev-ref --symbolic-full-name @{u}"
+      ) {
+        return { stdout: "origin/main\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const upstream = await git.getUpstreamRef("/repo");
+
+    expect(upstream).toBe("origin/main");
+    expect(calls[0]).toEqual({
+      args: ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+      cwd: "/repo",
+    });
+  });
+
+  it("getUpstreamRef throws when upstream is missing", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args[0] === "rev-parse" && args.includes("@{u}")) {
+        return new Error("fatal: no upstream configured");
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await expect(git.getUpstreamRef("/repo")).rejects.toThrow(
+      "git rev-parse --abbrev-ref --symbolic-full-name @{u} failed",
+    );
+  });
+
+  it("listOutgoingCommits returns [] when log output is empty", async () => {
+    mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "rev-parse --abbrev-ref --symbolic-full-name @{u}") {
+        return { stdout: "origin/main\n" };
+      }
+      if (cmd.includes(" log ") && cmd.includes("origin/main..HEAD")) {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const commits = await git.listOutgoingCommits("/repo");
+
+    expect(commits).toEqual([]);
+  });
+
+  it("listOutgoingCommits parses commits from upstream..HEAD", async () => {
+    // format: "%H%x1f%h%x1f%s%x1f%an%x1f%aI"
+    const sep = "\x1f";
+    const logOut =
+      [
+        [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaa",
+          "First commit",
+          "Mehmet",
+          "2026-02-19T10:11:12+01:00",
+        ].join(sep),
+        [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "bbbbbbb",
+          "Second commit",
+          "Alice",
+          "2026-02-19T12:00:00+01:00",
+        ].join(sep),
+      ].join("\n") + "\n";
+
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "rev-parse --abbrev-ref --symbolic-full-name @{u}") {
+        return { stdout: "origin/main\n" };
+      }
+      if (cmd.includes(" log ") && cmd.includes("origin/main..HEAD")) {
+        return { stdout: logOut };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const commits = await git.listOutgoingCommits("/repo");
+
+    expect(commits).toEqual([
+      {
+        hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        shortHash: "aaaaaaa",
+        subject: "First commit",
+        authorName: "Mehmet",
+        authorDateIso: "2026-02-19T10:11:12+01:00",
+      },
+      {
+        hash: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        shortHash: "bbbbbbb",
+        subject: "Second commit",
+        authorName: "Alice",
+        authorDateIso: "2026-02-19T12:00:00+01:00",
+      },
+    ]);
+
+    expect(
+      calls.some((c) => c.args.join(" ").includes("origin/main..HEAD")),
+    ).toBe(true);
+  });
+
+  it("getCommitFiles returns [] when show --name-status output is empty", async () => {
+    mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd.includes(" show --name-status --format= ")) {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.getCommitFiles("/repo", "deadbeef");
+
+    expect(files).toEqual([]);
+  });
+
+  it("getCommitFiles parses M/A/D entries", async () => {
+    const showOut = "M\tsrc/a.ts\n" + "A\tREADME.md\n" + "D\told.txt\n";
+
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (
+        cmd.includes(" show --name-status --format= ") &&
+        cmd.endsWith(" deadbeef")
+      ) {
+        return { stdout: showOut };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.getCommitFiles("/repo", "deadbeef");
+
+    expect(files).toEqual([
+      { status: "M", path: "src/a.ts" },
+      { status: "A", path: "README.md" },
+      { status: "D", path: "old.txt" },
+    ]);
+
+    expect(calls[0].cwd).toBe("/repo");
+    expect(calls[0].args.includes("show")).toBe(true);
+    expect(calls[0].args.includes("--name-status")).toBe(true);
+  });
+
+  it("getCommitFiles parses rename (R) with oldPath", async () => {
+    const showOut = "R100\told/name.txt\tnew/name.txt\n";
+
+    mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (
+        cmd.includes(" show --name-status --format= ") &&
+        cmd.endsWith(" cafebabe")
+      ) {
+        return { stdout: showOut };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.getCommitFiles("/repo", "cafebabe");
+
+    expect(files).toEqual([
+      { status: "R", oldPath: "old/name.txt", path: "new/name.txt" },
+    ]);
+  });
+
+  it("getCommitFiles parses copy (C) with oldPath", async () => {
+    const showOut = "C100\tfrom.txt\tto.txt\n";
+
+    mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (
+        cmd.includes(" show --name-status --format= ") &&
+        cmd.endsWith(" feedface")
+      ) {
+        return { stdout: showOut };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.getCommitFiles("/repo", "feedface");
+
+    expect(files).toEqual([
+      { status: "C", oldPath: "from.txt", path: "to.txt" },
+    ]);
+  });
+
+  it("getCommitFiles ignores malformed lines", async () => {
+    const showOut = "\n" + "M\n" + "A\tgood.txt\n" + "\tbroken\n";
+
+    mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (
+        cmd.includes(" show --name-status --format= ") &&
+        cmd.endsWith(" abcdef")
+      ) {
+        return { stdout: showOut };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.getCommitFiles("/repo", "abcdef");
+
+    expect(files).toEqual([{ status: "A", path: "good.txt" }]);
+  });
 });

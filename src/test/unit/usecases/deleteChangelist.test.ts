@@ -3,7 +3,11 @@ import { describe, it, expect, vi } from "vitest";
 import { DeleteChangelist } from "../../../usecases/deleteChangelist";
 import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../../../core/changelist/systemChangelist";
-import type { GitClient } from "../../../adapters/git/gitClient";
+import type {
+  CommitFileChange,
+  GitClient,
+  OutgoingCommit,
+} from "../../../adapters/git/gitClient";
 import { ChangelistStore } from "../../../usecases/changelistStore";
 
 function makeStore(
@@ -22,25 +26,45 @@ function makeStore(
 
 function makeGit(
   status: Array<{ path: string; x: string; y: string }>,
+  opts?: {
+    upstreamRef?: string;
+    outgoingCommits?: OutgoingCommit[];
+    commitFilesByHash?: Record<string, CommitFileChange[]>;
+    commitPatchByHash?: Record<string, string>;
+  },
 ): GitClient {
+  const upstreamRef = opts?.upstreamRef ?? "origin/main";
+  const outgoingCommits = opts?.outgoingCommits ?? [];
+  const commitFilesByHash = opts?.commitFilesByHash ?? {};
+  const commitPatchByHash = opts?.commitPatchByHash ?? {};
+
   return {
     getRepoRoot: vi.fn(async () => "/repo"),
     tryGetRepoRoot: vi.fn(async () => "/repo"),
+
     getStatusPorcelainZ: vi.fn(async () => status as any),
+
     add: vi.fn(async () => {}),
     stageMany: vi.fn(async () => {}),
     unstageMany: vi.fn(async () => {}),
+
     isIgnored: vi.fn(async () => false),
     getGitDir: vi.fn(async () => "/repo/.git"),
     showFileAtRef: vi.fn(async () => "mock-file-content"),
+
     stashList: vi.fn(async () => []),
     stashPushPaths: vi.fn(async () => {}),
     stashApply: vi.fn(async () => {}),
     stashPop: vi.fn(async () => {}),
     stashDrop: vi.fn(async () => {}),
+    getUpstreamRef: vi.fn(async () => upstreamRef),
+    listOutgoingCommits: vi.fn(async () => outgoingCommits),
+
+    getCommitFiles: vi.fn(async (_repoRoot, hash) => {
+      return commitFilesByHash[hash] ?? [];
+    }),
   };
 }
-
 
 describe("DeleteChangelist", () => {
   it("rejects deleting system changelists", async () => {
