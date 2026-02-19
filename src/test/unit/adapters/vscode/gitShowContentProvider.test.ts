@@ -28,11 +28,12 @@ vi.mock("vscode", () => {
   };
 });
 
-import * as vscode from "vscode";
 import { GitShowContentProvider } from "../../../../adapters/vscode/gitShowContentProvider";
 
 type GitClientMock = {
-  showFileAtRef: ReturnType<typeof vi.fn>;
+  showFileAtRefOptional: ReturnType<typeof vi.fn>;
+  // Keep this optional because some places may still use it elsewhere
+  showFileAtRef?: ReturnType<typeof vi.fn>;
 };
 
 beforeEach(() => {
@@ -41,9 +42,9 @@ beforeEach(() => {
 });
 
 describe("GitShowContentProvider", () => {
-  it("parses ref and repo-relative path from uri.path and calls git.showFileAtRef", async () => {
+  it("parses ref and repo-relative path from uri.path and calls git.showFileAtRefOptional", async () => {
     const git: GitClientMock = {
-      showFileAtRef: vi.fn().mockResolvedValue("content"),
+      showFileAtRefOptional: vi.fn().mockResolvedValue("content"),
     };
 
     const provider = new GitShowContentProvider(git as any, "/repo");
@@ -53,12 +54,16 @@ describe("GitShowContentProvider", () => {
     const out = await provider.provideTextDocumentContent(uri);
 
     expect(out).toBe("content");
-    expect(git.showFileAtRef).toHaveBeenCalledWith("/repo", "HEAD", "src/a.ts");
+    expect(git.showFileAtRefOptional).toHaveBeenCalledWith(
+      "/repo",
+      "HEAD",
+      "src/a.ts",
+    );
   });
 
   it("decodes URI components (spaces etc.)", async () => {
     const git: GitClientMock = {
-      showFileAtRef: vi.fn().mockResolvedValue("x"),
+      showFileAtRefOptional: vi.fn().mockResolvedValue("x"),
     };
 
     const provider = new GitShowContentProvider(git as any, "/repo");
@@ -67,7 +72,7 @@ describe("GitShowContentProvider", () => {
 
     await provider.provideTextDocumentContent(uri);
 
-    expect(git.showFileAtRef).toHaveBeenCalledWith(
+    expect(git.showFileAtRefOptional).toHaveBeenCalledWith(
       "/repo",
       "stash@{2}",
       "a b.txt",
@@ -76,7 +81,7 @@ describe("GitShowContentProvider", () => {
 
   it("uses HEAD when ref segment is missing (empty path)", async () => {
     const git: GitClientMock = {
-      showFileAtRef: vi.fn().mockResolvedValue("x"),
+      showFileAtRefOptional: vi.fn().mockResolvedValue("x"),
     };
 
     const provider = new GitShowContentProvider(git as any, "/repo");
@@ -85,11 +90,26 @@ describe("GitShowContentProvider", () => {
 
     await provider.provideTextDocumentContent(uri);
 
-    expect(git.showFileAtRef).toHaveBeenCalledWith("/repo", "HEAD", "");
+    expect(git.showFileAtRefOptional).toHaveBeenCalledWith("/repo", "HEAD", "");
+  });
+
+  it("returns empty string when ref is EMPTY", async () => {
+    const git: GitClientMock = {
+      showFileAtRefOptional: vi.fn(),
+    };
+
+    const provider = new GitShowContentProvider(git as any, "/repo");
+
+    const uri = { path: "/EMPTY/src/a.ts" } as any;
+
+    const out = await provider.provideTextDocumentContent(uri);
+
+    expect(out).toBe("");
+    expect(git.showFileAtRefOptional).not.toHaveBeenCalled();
   });
 
   it("refresh fires onDidChange event with the same uri", () => {
-    const git: GitClientMock = { showFileAtRef: vi.fn() };
+    const git: GitClientMock = { showFileAtRefOptional: vi.fn() };
     const provider = new GitShowContentProvider(git as any, "/repo");
 
     const uri = { path: "/HEAD/src/a.ts" } as any;
@@ -101,7 +121,7 @@ describe("GitShowContentProvider", () => {
   });
 
   it("exposes onDidChange event (smoke test)", () => {
-    const git: GitClientMock = { showFileAtRef: vi.fn() };
+    const git: GitClientMock = { showFileAtRefOptional: vi.fn() };
     const provider = new GitShowContentProvider(git as any, "/repo");
 
     expect(provider.onDidChange).toBeDefined();

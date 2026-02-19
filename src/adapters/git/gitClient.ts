@@ -105,4 +105,14 @@ export interface GitClient {
     repoRootFsPath: string,
     commitHash: string,
   ): Promise<CommitFileChange[]>;
+
+  /**
+   * Like showFileAtRef, but returns undefined when the ref/path does not exist.
+   * Used for diffs of added files, first commits, and renames.
+   */
+  showFileAtRefOptional(
+    repoRootFsPath: string,
+    ref: string,
+    repoRelativePath: string,
+  ): Promise<string | undefined>;
 }

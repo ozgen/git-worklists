@@ -102,17 +102,30 @@ export async function openPushPreviewPanel(
         if (msg.type === "openDiff") {
           const hash = String(msg.hash ?? "");
           const repoRel = String(msg.path ?? "");
+          const statusRaw = String(msg.status ?? "");
+          const oldRepoRel = String(msg.oldPath ?? "");
+
           if (!hash || !repoRel) {
             return;
           }
 
           const p = normalizeRepoRelPath(repoRel);
+          const oldP = oldRepoRel ? normalizeRepoRelPath(oldRepoRel) : "";
 
-          const leftRef = `${hash}^`;
+          // IMPORTANT:
+          // - A (added) => no left content
+          // - also handle first-commit / missing parent by letting provider return ""
+          const isAdded = statusRaw.toUpperCase().startsWith("A");
+          const isRenamed = statusRaw.toUpperCase().startsWith("R") && !!oldP;
+
+          // We'll use a special "EMPTY" ref for left side.
+          const leftRef = isAdded ? "EMPTY" : `${hash}^`;
           const rightRef = `${hash}`;
 
+          const leftPath = isRenamed ? oldP : p;
+
           const leftUri = vscode.Uri.parse(
-            `${GitShowContentProvider.scheme}:/${encodeURIComponent(leftRef)}/${encodeURIComponent(p)}`,
+            `${GitShowContentProvider.scheme}:/${encodeURIComponent(leftRef)}/${encodeURIComponent(leftPath)}`,
           );
           const rightUri = vscode.Uri.parse(
             `${GitShowContentProvider.scheme}:/${encodeURIComponent(rightRef)}/${encodeURIComponent(p)}`,
@@ -295,7 +308,13 @@ function getHtml(args: {
         const el = document.createElement("div");
         el.className = "row";
         el.onclick = () => {
-          vscode.postMessage({ type: "openDiff", hash, path: f.path });
+          vscode.postMessage({
+            type: "openDiff",
+            hash,
+            path: f.path,
+            status: f.status,
+            oldPath: f.oldPath,
+          });
         };
 
         const status = escapeHtml(f.status || "?");
