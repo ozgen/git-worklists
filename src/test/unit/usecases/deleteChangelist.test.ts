@@ -6,6 +6,8 @@ import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 import type {
   CommitFileChange,
   GitClient,
+  GitStashEntry,
+  GitStatusEntry,
   OutgoingCommit,
 } from "../../../adapters/git/gitClient";
 import { ChangelistStore } from "../../../usecases/changelistStore";
@@ -36,7 +38,6 @@ function makeGit(
   const upstreamRef = opts?.upstreamRef ?? "origin/main";
   const outgoingCommits = opts?.outgoingCommits ?? [];
   const commitFilesByHash = opts?.commitFilesByHash ?? {};
-  const commitPatchByHash = opts?.commitPatchByHash ?? {};
 
   return {
     getRepoRoot: vi.fn(async () => "/repo"),
@@ -63,6 +64,10 @@ function makeGit(
     getCommitFiles: vi.fn(async (_repoRoot, hash) => {
       return commitFilesByHash[hash] ?? [];
     }),
+    showFileAtRefOptional: vi.fn(
+      async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
+        "",
+    ),
   };
 }
 

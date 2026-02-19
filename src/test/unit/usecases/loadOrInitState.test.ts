@@ -36,6 +36,10 @@ function makeGit(repoRoot = "/repo"): GitClient {
     getCommitFiles: vi.fn(
       async (_repo: string, _hash: string) => [] as CommitFileChange[],
     ),
+    showFileAtRefOptional: vi.fn(
+      async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
+        "",
+    ),
   };
 }
 
