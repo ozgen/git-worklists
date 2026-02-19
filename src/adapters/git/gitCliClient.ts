@@ -337,4 +337,45 @@ export class GitCliClient implements GitClient {
 
     return changes;
   }
+
+  async showFileAtRefOptional(
+    repoRootFsPath: string,
+    ref: string,
+    repoRelativePath: string,
+  ): Promise<string | undefined> {
+    try {
+      return await execGit(
+        ["show", `${ref}:${repoRelativePath}`],
+        repoRootFsPath,
+      );
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+
+      // fatal: path 'X' exists on disk, but not in '<ref>'
+      if (msg.includes("exists on disk, but not in")) {
+        return undefined;
+      }
+
+      // Other common “missing” shapes:
+      if (msg.includes("does not exist in")) {
+        return undefined;
+      }
+      if (msg.includes("Path '") && msg.includes("' does not exist in")) {
+        return undefined;
+      }
+
+      // Parent missing / unborn ref / invalid object:
+      if (msg.includes("fatal: invalid object name")) {
+        return undefined;
+      }
+      if (msg.includes("fatal: bad object")) {
+        return undefined;
+      }
+      if (msg.includes("fatal: Not a valid object name")) {
+        return undefined;
+      }
+
+      throw e;
+    }
+  }
 }

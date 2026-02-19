@@ -673,4 +673,44 @@ describe("GitCliClient (mocked git)", () => {
 
     expect(files).toEqual([{ status: "A", path: "good.txt" }]);
   });
+
+  it("showFileAtRefOptional runs git show REF:path and returns content on success", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "show") {
+        return { stdout: "file-content\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "HEAD", "src/a.ts");
+
+    expect(out).toBe("file-content\n");
+    expect(calls[0]).toEqual({
+      args: ["show", "HEAD:src/a.ts"],
+      cwd: "/repo",
+    });
+  });
+
+  it("showFileAtRefOptional returns empty when file does not exist at ref (exists on disk, but not in ref)", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args[0] === "show") {
+        return {
+          stdout: "",
+          stderr:
+            "fatal: path 'vvvvvv.txt' exists on disk, but not in 'deadbeef^'\n",
+        };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional(
+      "/repo",
+      "deadbeef^",
+      "vvvvvv.txt",
+    );
+
+    expect(out).toBe("");
+  });
 });
