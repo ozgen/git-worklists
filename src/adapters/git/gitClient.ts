@@ -101,6 +101,8 @@ export interface GitClient {
   /** commits that would be pushed: upstream..HEAD */
   listOutgoingCommits(repoRootFsPath: string): Promise<OutgoingCommit[]>;
 
+  tryGetUpstreamRef(repoRootFsPath: string): Promise<string | undefined>;
+
   getCommitFiles(
     repoRootFsPath: string,
     commitHash: string,

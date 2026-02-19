@@ -90,10 +90,12 @@ import { openPushPreviewPanel } from "../../../views/pushPreviewPanel";
 function makeDeps(overrides?: Partial<any>) {
   const deps: any = {
     git: {
+      tryGetUpstreamRef: vi.fn(async () => "origin/main"),
       getUpstreamRef: vi.fn(async () => "origin/main"),
       listOutgoingCommits: vi.fn(async () => []),
       getCommitFiles: vi.fn(async () => []),
     },
+    
     ...overrides,
   };
   return deps;
@@ -123,6 +125,7 @@ describe("openPushPreviewPanel", () => {
   it("returns cancel and shows info when there are no outgoing commits", async () => {
     const deps = makeDeps({
       git: {
+        tryGetUpstreamRef: vi.fn(async () => "origin/main"),
         getUpstreamRef: vi.fn(async () => "origin/main"),
         listOutgoingCommits: vi.fn(async () => []),
         getCommitFiles: vi.fn(async () => []),
@@ -143,7 +146,7 @@ describe("openPushPreviewPanel", () => {
   it("creates panel, sets html, and preloads files for first commit", async () => {
     const deps = makeDeps({
       git: {
-        getUpstreamRef: vi.fn(async () => "origin/main"),
+        tryGetUpstreamRef: vi.fn(async () => "origin/main"),
         listOutgoingCommits: vi.fn(async () => [
           {
             hash: "aaaaaaaa",
@@ -196,7 +199,7 @@ describe("openPushPreviewPanel", () => {
   it("handles selectCommit by fetching files and posting commitFiles", async () => {
     const deps = makeDeps({
       git: {
-        getUpstreamRef: vi.fn(async () => "origin/main"),
+        tryGetUpstreamRef: vi.fn(async () => "origin/main"),
         listOutgoingCommits: vi.fn(async () => [
           { hash: "aaaaaaaa", shortHash: "aaaaaaa", subject: "First" },
           { hash: "bbbbbbbb", shortHash: "bbbbbbb", subject: "Second" },
@@ -235,7 +238,7 @@ describe("openPushPreviewPanel", () => {
   it("handles openDiff by executing vscode.diff with gitshow URIs", async () => {
     const deps = makeDeps({
       git: {
-        getUpstreamRef: vi.fn(async () => "origin/main"),
+        tryGetUpstreamRef: vi.fn(async () => "origin/main"),
         listOutgoingCommits: vi.fn(async () => [
           { hash: "aaaaaaaa", shortHash: "aaaaaaa", subject: "First" },
         ]),
@@ -280,7 +283,7 @@ describe("openPushPreviewPanel", () => {
   it("resolves push when receiving push message (not overwritten by dispose)", async () => {
     const deps = makeDeps({
       git: {
-        getUpstreamRef: vi.fn(async () => "origin/main"),
+        tryGetUpstreamRef: vi.fn(async () => "origin/main"),
         listOutgoingCommits: vi.fn(async () => [
           { hash: "aaaaaaaa", shortHash: "aaaaaaa", subject: "First" },
         ]),

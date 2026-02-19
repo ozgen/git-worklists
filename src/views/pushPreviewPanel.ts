@@ -12,24 +12,26 @@ export async function openPushPreviewPanel(
     forceWithLease: boolean;
   },
 ): Promise<PushPreviewResult> {
-  const upstreamRef = await deps.git.getUpstreamRef(opts.repoRoot);
+  const upstreamRef = await deps.git.tryGetUpstreamRef(opts.repoRoot);
   const commits = await deps.git.listOutgoingCommits(opts.repoRoot);
+
+  const upstreamLabel =
+  upstreamRef ?? "(no upstream – will set on push)";
 
   if (commits.length === 0) {
     await vscode.window.showInformationMessage(
-      `Nothing to push (already up to date with ${upstreamRef}).`,
+      upstreamRef
+        ? `Nothing to push (already up to date with ${upstreamRef}).`
+        : "Nothing to push (no local-only commits found).",
     );
     return "cancel";
   }
 
   const panel = vscode.window.createWebviewPanel(
     "gitWorklists.pushPreview",
-    `Push Commits to ${upstreamRef}`,
+    upstreamRef ? `Push Commits to ${upstreamRef}` : "Push Preview (Set Upstream)",
     vscode.ViewColumn.Active,
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-    },
+    { enableScripts: true, retainContextWhenHidden: true },
   );
 
   const nonce = String(Date.now());
@@ -39,7 +41,7 @@ export async function openPushPreviewPanel(
   const render = () => {
     panel.webview.html = getHtml({
       nonce,
-      upstreamRef,
+      upstreamRef: upstreamLabel,
       commits: commits.map((c) => ({
         hash: c.hash,
         shortHash: c.shortHash,
