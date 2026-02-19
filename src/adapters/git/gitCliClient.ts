@@ -1,6 +1,12 @@
 import * as cp from "child_process";
 import * as path from "path";
-import { GitClient, GitStatusEntry, GitStashEntry } from "./gitClient";
+import {
+  GitClient,
+  GitStatusEntry,
+  GitStashEntry,
+  OutgoingCommit,
+  CommitFileChange,
+} from "./gitClient";
 
 function execGit(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -216,5 +222,119 @@ export class GitCliClient implements GitClient {
 
   async stashDrop(repoRootFsPath: string, ref: string): Promise<void> {
     await execGit(["stash", "drop", ref], repoRootFsPath);
+  }
+
+  async getUpstreamRef(repoRootFsPath: string): Promise<string> {
+    // Throws if upstream is not configured
+    const out = await execGit(
+      ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+      repoRootFsPath,
+    );
+    const upstream = out.trim();
+    if (!upstream) {
+      throw new Error("No upstream configured for current branch.");
+    }
+    return upstream;
+  }
+
+  async listOutgoingCommits(repoRootFsPath: string): Promise<OutgoingCommit[]> {
+    const upstream = await this.getUpstreamRef(repoRootFsPath);
+
+    // Use a delimiter that won't appear in normal text
+    const format = "%H%x1f%h%x1f%s%x1f%an%x1f%aI";
+
+    // --no-pager and no color => clean patch/log text for display
+    const out = await execGit(
+      [
+        "--no-pager",
+        "-c",
+        "color.ui=false",
+        "log",
+        `--format=${format}`,
+        `${upstream}..HEAD`,
+      ],
+      repoRootFsPath,
+    );
+
+    const text = out.trim();
+    if (!text) {
+      return [];
+    }
+
+    const commits: OutgoingCommit[] = [];
+    for (const line of text.split("\n")) {
+      const [hash, shortHash, subject, authorName, authorDateIso] =
+        line.split("\x1f");
+      if (!hash || !shortHash) {
+        continue;
+      }
+
+      commits.push({
+        hash,
+        shortHash,
+        subject: subject ?? "",
+        authorName: authorName || undefined,
+        authorDateIso: authorDateIso || undefined,
+      });
+    }
+
+    return commits;
+  }
+
+  async getCommitFiles(
+    repoRootFsPath: string,
+    commitHash: string,
+  ): Promise<CommitFileChange[]> {
+    // Output lines like:
+    // M\tpath
+    // A\tpath
+    // D\tpath
+    // R100\told\tnew
+    // C100\told\tnew
+    const out = await execGit(
+      [
+        "--no-pager",
+        "-c",
+        "color.ui=false",
+        "show",
+        "--name-status",
+        "--format=",
+        commitHash,
+      ],
+      repoRootFsPath,
+    );
+
+    const lines = out
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const changes: CommitFileChange[] = [];
+
+    for (const line of lines) {
+      const parts = line.split("\t");
+      if (parts.length < 2) {
+        continue;
+      }
+
+      const statusRaw = parts[0] ?? "";
+      const code = (statusRaw[0] ?? "?") as CommitFileChange["status"];
+
+      if (code === "R" || code === "C") {
+        // R100 old new
+        const oldPath = parts[1] ?? "";
+        const newPath = parts[2] ?? "";
+        if (newPath) {
+          changes.push({ status: code, oldPath, path: newPath });
+        }
+        continue;
+      }
+
+      const p = parts[1] ?? "";
+      if (p) {
+        changes.push({ status: code, path: p });
+      }
+    }
+
+    return changes;
   }
 }

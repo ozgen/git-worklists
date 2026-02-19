@@ -1,13 +1,15 @@
 import * as vscode from "vscode";
 
-import { CommitViewProvider } from "../views/commitViewProvider";
 import { Deps } from "../app/types";
+import { CommitViewProvider } from "../views/commitViewProvider";
 
 import { getHeadMessage, isHeadEmptyVsParent } from "../git/head";
 import { pushWithUpstreamFallback } from "../git/push";
 import { getStagedPaths } from "../git/staged";
-import { runGit } from "../utils/process";
 import { info } from "../ui/info";
+import { runGit } from "../utils/process";
+
+import { openPushPreviewPanel } from "../views/pushPreviewPanel";
 
 export function registerCommitView(
   context: vscode.ExtensionContext,
@@ -31,7 +33,9 @@ export function registerCommitView(
         }
       };
 
-      const confirmPush = async (forceWithLease: boolean) => {
+      // TODO: this func is now legacy, currenty the extention
+      // used openPushPreviewPanel webview panel
+      const confirmPushFallbackModal = async (forceWithLease: boolean) => {
         const ok = await vscode.window.showWarningMessage(
           forceWithLease
             ? "Push amended commit (force-with-lease)?"
@@ -47,25 +51,71 @@ export function registerCommitView(
         return ok === "Push";
       };
 
-      const pushOnlyConfirm = async () => {
-        const ok = await vscode.window.showWarningMessage(
-          "No staged files. Push existing local commits to remote?",
-          { modal: true, detail: "This will run: git push" },
-          "Push",
-        );
-        return ok === "Push";
-      };
-
       const doPush = async (amendForPush: boolean) => {
         await pushWithUpstreamFallback(deps.repoRoot, { amend: amendForPush });
         await closeAfterPush();
+      };
+
+      const confirmPushViaPanelOrFallback = async (
+        forceWithLease: boolean,
+      ): Promise<boolean> => {
+        try {
+          const upstreamRef = await deps.git.getUpstreamRef(deps.repoRoot);
+          const commits = await deps.git.listOutgoingCommits(deps.repoRoot);
+
+          if (commits.length === 0) {
+            void vscode.window.showInformationMessage(
+              `Nothing to push (already up to date with ${upstreamRef}).`,
+            );
+            return false;
+          }
+
+          // If only 1 outgoing commit -> simple modal (no panel)
+          if (commits.length === 1) {
+            const c = commits[0];
+            const ok = await vscode.window.showWarningMessage(
+              forceWithLease
+                ? `Push 1 commit (force-with-lease) to ${upstreamRef}?`
+                : `Push 1 commit to ${upstreamRef}?`,
+              {
+                modal: true,
+                detail: `${c.shortHash} ${c.subject}`,
+              },
+              "Push",
+            );
+            return ok === "Push";
+          }
+
+          // 2+ commits -> show panel
+          const decision = await openPushPreviewPanel(deps, {
+            repoRoot: deps.repoRoot,
+            forceWithLease,
+          });
+          return decision === "push";
+        } catch (e) {
+          // Upstream missing or other preview issues -> fallback to old modal
+          const ok = await vscode.window.showWarningMessage(
+            forceWithLease
+              ? "Push amended commit (force-with-lease)?"
+              : "Push commits to remote?",
+            {
+              modal: true,
+              detail: forceWithLease
+                ? "This will run: git push --force-with-lease"
+                : "This will run: git push",
+            },
+            "Push",
+          );
+          return ok === "Push";
+        }
       };
 
       // -------------------------
       // Push-only path
       // -------------------------
       if (!amend && push && staged.size === 0) {
-        if (!(await pushOnlyConfirm())) {
+        const ok = await confirmPushViaPanelOrFallback(false);
+        if (!ok) {
           return;
         }
 
@@ -98,7 +148,6 @@ export function registerCommitView(
             );
           }
 
-          // message-only amend (no need for --allow-empty)
           await runGit(deps.repoRoot, [
             "commit",
             "--amend",
@@ -108,7 +157,6 @@ export function registerCommitView(
           ]);
           messageOnlyAmend = true;
         } else {
-          // staged amend (fallback if git says it would become empty)
           try {
             await runGit(deps.repoRoot, ["commit", "--amend", "-m", newMsg]);
           } catch (e) {
@@ -134,7 +182,7 @@ export function registerCommitView(
       }
 
       await closeAfterCommit();
-      await deps.coordinator.requestNow(); 
+      await deps.coordinator.requestNow();
 
       // -------------------------
       // No push requested
@@ -153,14 +201,14 @@ export function registerCommitView(
       // -------------------------
       // Push after commit/amend
       // -------------------------
-      if (!(await confirmPush(amend))) {
+      const ok = await confirmPushViaPanelOrFallback(amend);
+      if (!ok) {
         return;
       }
 
       await doPush(amend);
       await deps.coordinator.requestNow();
 
-      // One final success notification (no duplicates)
       if (amend) {
         info(
           messageOnlyAmend

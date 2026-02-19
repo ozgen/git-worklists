@@ -6,12 +6,13 @@ import { Deps } from "../app/types";
 import { normalizeRepoRelPath, toRepoRelPath } from "../utils/paths";
 import { runGit } from "../utils/process";
 
+import { fileExistsAtRef, isNewFileInRepo } from "../git/refs";
 import { getStagedPaths, stagePaths, unstagePaths } from "../git/staged";
-import { isNewFileInRepo, fileExistsAtRef } from "../git/refs";
 
 import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvider";
 import { stageChangelistAll } from "../usecases/stageChangelistAll";
 import { unstageChangelistAll } from "../usecases/unstageChangelistAll";
+import { openPushPreviewPanel } from "../views/pushPreviewPanel";
 
 export function registerCommands(deps: Deps) {
   const { context } = deps;
@@ -455,6 +456,34 @@ export function registerCommands(deps: Deps) {
 
         await unstageChangelistAll(deps.git, repoRoot, group.list.files);
         await vscode.commands.executeCommand("gitWorklists.refresh");
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.pushWithPreview",
+      async () => {
+        try {
+          const repoRoot = deps.repoRoot;
+
+          const decision = await openPushPreviewPanel(deps, {
+            repoRoot,
+            forceWithLease: false,
+          });
+
+          if (decision !== "push") {
+            return;
+          }
+
+          await runGit(repoRoot, ["push"]);
+          await deps.coordinator.requestNow();
+        } catch (e) {
+          console.error(e);
+          vscode.window.showErrorMessage(
+            "Git Worklists: push preview failed (see console)",
+          );
+        }
       },
     ),
   );
