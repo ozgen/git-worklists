@@ -5,6 +5,11 @@ export type CommitViewState = {
   lastError?: string;
 };
 
+type UiMessage =
+  | { type: "state"; state: CommitViewState }
+  | { type: "ui"; action: "setAmend"; value: boolean }
+  | { type: "ui"; action: "setMessage"; value: string };
+
 export class CommitViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = "gitWorklists.commitPanel";
 
@@ -32,18 +37,16 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
 
     view.webview.onDidReceiveMessage(async (msg) => {
       try {
-
         if (msg?.type === "ready") {
           this.postState();
           return;
         }
-        
+
         if (msg?.type === "notify" && msg?.kind === "no-staged") {
-          this.state.lastError =
-            "No staged files.";
+          this.state.lastError = "No staged files.";
           this.postState();
           return;
-        }        
+        }
 
         if (msg?.type === "commit") {
           const message = String(msg.message ?? "").trim();
@@ -52,9 +55,10 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
 
           await this.onCommit({ message, amend, push });
 
-          // Clear error
           this.state.lastError = undefined;
           this.postState();
+
+          this.setAmend(false);
 
         }
       } catch (e: any) {
@@ -63,7 +67,6 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // initial state
     this.postState();
   }
 
@@ -72,11 +75,23 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
     this.postState();
   }
 
+  setAmend(value: boolean) {
+    this.postUi({ type: "ui", action: "setAmend", value });
+  }
+
+  setMessage(value: string) {
+    this.postUi({ type: "ui", action: "setMessage", value });
+  }
+
+  private postUi(msg: UiMessage) {
+    if (!this.view) {return;}
+    this.view.webview.postMessage(msg);
+  }
+
   private postState() {
-    if (!this.view) {
-      return;
-    }
-    this.view.webview.postMessage({ type: "state", state: this.state });
+    if (!this.view) {return;}
+    const msg: UiMessage = { type: "state", state: this.state };
+    this.view.webview.postMessage(msg);
   }
 
   private renderHtml(webview: vscode.Webview): string {
@@ -94,65 +109,21 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Commit</title>
   <style>
-    body {
-      font-family: var(--vscode-font-family);
-      color: var(--vscode-foreground);
-      padding: 10px;
-    }
-    .muted {
-      color: var(--vscode-descriptionForeground);
-      font-size: 12px;
-    }
+    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px; }
+    .muted { color: var(--vscode-descriptionForeground); font-size: 12px; }
     textarea {
-      width: 100%;
-      min-height: 90px;
-      resize: vertical;
-      box-sizing: border-box;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid var(--vscode-input-border);
-      background: var(--vscode-input-background);
-      color: var(--vscode-input-foreground);
-      outline: none;
+      width: 100%; min-height: 90px; resize: vertical; box-sizing: border-box;
+      padding: 8px; border-radius: 6px; border: 1px solid var(--vscode-input-border);
+      background: var(--vscode-input-background); color: var(--vscode-input-foreground); outline: none;
     }
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-    }
+    .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
     .spacer { flex: 1; }
-    button {
-      border: 1px solid var(--vscode-button-border, transparent);
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-    .primary {
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-    }
-    .secondary {
-      background: var(--vscode-button-secondaryBackground);
-      color: var(--vscode-button-secondaryForeground);
-      border-color: var(--vscode-button-secondaryBorder, transparent);
-    }
-    .error {
-      margin-top: 10px;
-      color: var(--vscode-errorForeground);
-      white-space: pre-wrap;
-      font-size: 12px;
-    }
-    .footer {
-      margin-top: 12px;
-      display: flex;
-      gap: 8px;
-    }
+    button { border: 1px solid var(--vscode-button-border, transparent); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    .primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+    .secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-color: var(--vscode-button-secondaryBorder, transparent); }
+    .error { margin-top: 10px; color: var(--vscode-errorForeground); white-space: pre-wrap; font-size: 12px; }
+    .footer { margin-top: 12px; display: flex; gap: 8px; }
     .footer button { flex: 1; }
   </style>
 </head>
@@ -188,66 +159,43 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
     const btnCommit = document.getElementById("btnCommit");
     const btnCommitPush = document.getElementById("btnCommitPush");
 
-    // Track staged count locally (for click guard)
     let stagedCount = 0;
 
-    // Restore draft from webview state
     const persisted = vscode.getState() || {};
-    if (typeof persisted.message === "string") {
-      messageEl.value = persisted.message;
-    }
-    if (typeof persisted.amend === "boolean") {
-      amendEl.checked = persisted.amend;
-    }
+    if (typeof persisted.message === "string") messageEl.value = persisted.message;
+    if (typeof persisted.amend === "boolean") amendEl.checked = persisted.amend;
 
     function persist() {
       const current = vscode.getState() || {};
-      vscode.setState({
-        ...current,
-        message: messageEl.value,
-        amend: amendEl.checked,
-      });
+      vscode.setState({ ...current, message: messageEl.value, amend: amendEl.checked });
     }
 
     messageEl.addEventListener("input", persist);
     amendEl.addEventListener("change", persist);
 
     function sendCommit(push) {
-      vscode.postMessage({
-        type: "commit",
-        message: messageEl.value,
-        amend: amendEl.checked,
-        push
-      });
+      vscode.postMessage({ type: "commit", message: messageEl.value, amend: amendEl.checked, push });
     }
 
     function tryCommit(push) {
       const isAmend = Boolean(amendEl.checked);
-    
+
       if ((stagedCount ?? 0) === 0) {
-        if (isAmend) {
-          sendCommit(push);
-          return;
-        }
-    
-        if (push) {
-          sendCommit(true);
-          return;
-        }
-    
-        // otherwise: normal commit needs staged files
+        if (isAmend) { sendCommit(push); return; }
+        if (push) { sendCommit(true); return; }
         vscode.postMessage({ type: "notify", kind: "no-staged" });
         return;
       }
-    
+
       sendCommit(push);
-    }    
+    }
 
     btnCommit.addEventListener("click", () => tryCommit(false));
     btnCommitPush.addEventListener("click", () => tryCommit(true));
 
     window.addEventListener("message", (event) => {
       const msg = event.data;
+
       if (msg?.type === "state") {
         const s = msg.state || {};
         stagedCount = s.stagedCount ?? 0;
@@ -257,8 +205,22 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
 
         btnCommit.disabled = false;
         btnCommitPush.disabled = false;
+        return;
+      }
+
+      if (msg?.type === "ui" && msg?.action === "setAmend") {
+        amendEl.checked = Boolean(msg.value);
+        persist();
+        return;
+      }
+
+      if (msg?.type === "ui" && msg?.action === "setMessage") {
+        messageEl.value = String(msg.value ?? "");
+        persist();
+        return;
       }
     });
+
     vscode.postMessage({ type: "ready" });
   </script>
 </body>
