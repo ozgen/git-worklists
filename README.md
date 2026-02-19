@@ -46,13 +46,16 @@ A structured way to organize and stage changes.
 - Move selected files to another changelist
 
 - File-level and group-level **checkboxes** for staging / unstaging
+
 - State-aware inline action:
   - Shows **Stage** when file is unstaged
   - Shows **Unstage** when file is staged
+
 - Stage All / Unstage All per changelist
-- Visual file decorations (badges)
 
 - Visual file decorations (badges)
+
+- Decorations are automatically refreshed after commit or push (no stale indicators)
 
 ### Diff Integration
 
@@ -75,7 +78,7 @@ A structured way to organize and stage changes.
   - **Changes** when tracked / modified
 
 - Optional prompt when new files are created:
-  - **Add to Git**
+  - **Add to Git** (stages file and moves it to Changes)
   - **Keep Unversioned**
   - **Disable prompt**
 
@@ -92,18 +95,32 @@ All staging state reflects the actual Git index.
 A focused commit experience separate from VS Code SCM.
 
 - Custom **Commit Message** field
+
 - Commit message draft is automatically preserved
+
 - Live staged file counter
+
 - Inline warning when attempting to commit with no staged files
+
 - **Amend support**
   - Supports message-only amend (no staged files required)
   - Handles empty-amend edge cases safely
+  - Amend checkbox automatically resets after a successful commit or commit & push
 
 - **Commit**
+
 - **Commit & Push**
+
 - **Push-only support** (push existing local commits even if nothing is staged)
+
 - Safe confirmation before force-with-lease push
+
 - Automatic upstream setup for new local branches
+
+- Push preview panel when multiple outgoing commits exist:
+  - Shows commit hashes and subjects before pushing
+  - Requires explicit confirmation
+
 - Clear and actionable error feedback
 
 Commit behavior is predictable and aligned with Git CLI behavior.
@@ -152,6 +169,7 @@ Supported operations:
 - `git commit`
 - `git commit --amend`
 - `git push`
+- `git push --force-with-lease`
 - `git stash push`
 - `git stash list`
 - `git stash apply`
@@ -167,7 +185,7 @@ All operations are executed per repository using repo-relative paths.
 
 - Git installed and available in PATH
 - Workspace opened inside a Git repository
-- VS Code **v1.108.0** or newer
+- VS Code **v1.109.0** or newer
 
 ---
 
@@ -254,6 +272,22 @@ Planned improvements:
 ---
 
 # Release Notes
+
+## [0.3.0] - 2026-02-19
+
+### Added
+
+- Push preview panel when multiple outgoing commits are detected (improved push confirmation workflow)
+
+### Changed
+
+- Commit panel now automatically unchecks Amend after a successful commit or commit & push
+- Improved refresh coordination to ensure UI state and decorations stay in sync with Git
+
+### Fixed
+
+- “Add to Git?” prompt now correctly stages files and moves them to the appropriate changelist
+- File decorations are properly invalidated after reconcile (no more stale green/blue indicators after commit or push)
 
 ## 0.2.0
 

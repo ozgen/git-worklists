@@ -11,6 +11,22 @@ and adheres to Semantic Versioning.
 
 - No changes yet
 
+## [0.3.0] - 2026-02-19
+
+### Added
+
+- Push preview panel when multiple outgoing commits are detected (improved push confirmation workflow)
+
+### Changed
+
+- Commit panel now automatically unchecks Amend after a successful commit or commit & push
+- Improved refresh coordination to ensure UI state and decorations stay in sync with Git
+
+### Fixed
+
+- “Add to Git?” prompt now correctly stages files and moves them to the appropriate changelist
+- File decorations are properly invalidated after reconcile (no more stale green/blue indicators after commit or push)
+
 ---
 
 ## [0.2.0]
