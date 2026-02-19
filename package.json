@@ -24,11 +24,20 @@
   "keywords": [
     "git",
     "changelist",
+    "changelists",
     "staging",
     "stash",
     "commit",
     "push",
-    "amend"
+    "amend",
+    "intellij",
+    "intellij-like",
+    "git workflow",
+    "organize changes",
+    "group staging",
+    "source control",
+    "version control",
+    "diff preview"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
