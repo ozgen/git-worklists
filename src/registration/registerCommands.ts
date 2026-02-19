@@ -13,6 +13,7 @@ import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvide
 import { stageChangelistAll } from "../usecases/stageChangelistAll";
 import { unstageChangelistAll } from "../usecases/unstageChangelistAll";
 import { openPushPreviewPanel } from "../views/pushPreviewPanel";
+import { SystemChangelist } from "../core/changelist/systemChangelist";
 
 export function registerCommands(deps: Deps) {
   const { context } = deps;
@@ -349,6 +350,123 @@ export function registerCommands(deps: Deps) {
           console.error(e);
           vscode.window.showErrorMessage(
             "Git Worklists: discard failed (see console)",
+          );
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.changelist.discardAll",
+      async (node: any) => {
+        try {
+          const list = node?.list;
+          const listId: string = String(list?.id ?? "");
+          const rawFiles: unknown = list?.files;
+
+          const paths = Array.isArray(rawFiles)
+            ? rawFiles
+                .filter((p: any) => typeof p === "string")
+                .map((p: string) => normalizeRepoRelPath(p))
+                .filter(Boolean)
+            : [];
+
+          if (paths.length === 0) {
+            return;
+          }
+
+          const isUnversionedList = listId === SystemChangelist.Unversioned;
+
+          const unversioned = isUnversionedList ? paths : [];
+          const tracked = isUnversionedList ? [] : paths;
+
+          const newlyAdded: string[] = [];
+          const normalTracked: string[] = [];
+
+          for (const rel of tracked) {
+            const isNew = await isNewFileInRepo(deps.repoRoot, rel);
+            if (isNew) {
+              newlyAdded.push(rel);
+            } else {
+              normalTracked.push(rel);
+            }
+          }
+
+          if (unversioned.length > 0) {
+            const ok = await vscode.window.showWarningMessage(
+              `Delete ${unversioned.length} unversioned file(s)?`,
+              {
+                modal: true,
+                detail:
+                  unversioned.slice(0, 10).join("\n") +
+                  (unversioned.length > 10 ? "\n…" : ""),
+              },
+              "Delete",
+            );
+            if (ok !== "Delete") {
+              return;
+            }
+          }
+
+          if (newlyAdded.length > 0) {
+            const ok = await vscode.window.showWarningMessage(
+              `Discard will delete ${newlyAdded.length} newly added file(s). Continue?`,
+              {
+                modal: true,
+                detail:
+                  newlyAdded.slice(0, 10).join("\n") +
+                  (newlyAdded.length > 10 ? "\n…" : ""),
+              },
+              "Delete",
+            );
+            if (ok !== "Delete") {
+              return;
+            }
+          }
+
+          if (normalTracked.length > 0) {
+            const ok = await vscode.window.showWarningMessage(
+              `Discard changes in ${normalTracked.length} file(s)?`,
+              {
+                modal: true,
+                detail:
+                  normalTracked.slice(0, 10).join("\n") +
+                  (normalTracked.length > 10 ? "\n…" : ""),
+              },
+              "Discard",
+            );
+            if (ok !== "Discard") {
+              return;
+            }
+          }
+
+          // --- Execute ---
+          if (unversioned.length > 0) {
+            await Promise.all(
+              unversioned.map((rel) =>
+                fs.rm(path.join(deps.repoRoot, rel), {
+                  recursive: true,
+                  force: true,
+                }),
+              ),
+            );
+          }
+
+          const toRestore = [...newlyAdded, ...normalTracked];
+          if (toRestore.length > 0) {
+            await runGit(deps.repoRoot, [
+              "restore",
+              "--staged",
+              "--worktree",
+              "--",
+              ...toRestore,
+            ]);
+          }
+
+          await deps.coordinator.requestNow();
+        } catch (e) {
+          console.error(e);
+          void vscode.window.showErrorMessage(
+            "Git Worklists: discard all failed (see console)",
           );
         }
       },
