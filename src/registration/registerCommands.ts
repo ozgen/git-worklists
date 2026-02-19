@@ -605,4 +605,24 @@ export function registerCommands(deps: Deps) {
       },
     ),
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.file.openSource",
+      async (node: any) => {
+        const rel =
+          typeof node?.repoRelativePath === "string"
+            ? normalizeRepoRelPath(node.repoRelativePath)
+            : "";
+        if (!rel) {
+          return;
+        }
+
+        const abs = vscode.Uri.file(path.join(deps.repoRoot, rel));
+
+        // Opens the real file (source) in an editor tab
+        await vscode.window.showTextDocument(abs, { preview: true });
+      },
+    ),
+  );
 }
