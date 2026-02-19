@@ -57,13 +57,19 @@ A structured way to organize and stage changes.
 
 - Decorations are automatically refreshed after commit or push (no stale indicators)
 
+---
+
 ### Diff Integration
 
 - Click a file row to open a **HEAD <-> Working Tree diff**
 
 - Clicking a file does NOT change staging state
 
-- Diff view works correctly even when HEAD does not yet exist (initial commit case)
+- Diff view works correctly for:
+  - Initial commit (no parent commit)
+  - Newly added files
+  - Renamed files
+  - Missing parent references
 
 - Dedicated **Close Diff Tabs** button in the view title
 
@@ -85,6 +91,10 @@ A structured way to organize and stage changes.
 - Safe behavior when staging / unstaging newly created files
 
 - Newly added (staged) files require confirmation before permanent deletion
+- Changelist-level **Discard All Changes** action:
+  - Categorized confirmation (unversioned / newly added / tracked)
+  - Safe bulk restore using `git restore`
+  - Permanent deletion confirmation for unversioned files
 
 All staging state reflects the actual Git index.
 
@@ -166,6 +176,7 @@ Supported operations:
 
 - `git add`
 - `git restore --staged`
+- `git restore --staged --worktree`
 - `git commit`
 - `git commit --amend`
 - `git push`
@@ -277,17 +288,23 @@ Planned improvements:
 
 ### Added
 
-- Push preview panel when multiple outgoing commits are detected (improved push confirmation workflow)
+- Push preview panel when multiple outgoing commits are detected (explicit confirmation before push)
+- Changelist-level **Discard All Changes** action with categorized confirmation
+- Safe diff preview for:
+  - Newly added files
+  - Initial commits (no parent)
+  - Missing parent references
 
 ### Changed
 
 - Commit panel now automatically unchecks Amend after a successful commit or commit & push
-- Improved refresh coordination to ensure UI state and decorations stay in sync with Git
+- Improved refresh coordination to ensure UI state and decorations stay fully in sync with Git
 
 ### Fixed
 
 - “Add to Git?” prompt now correctly stages files and moves them to the appropriate changelist
-- File decorations are properly invalidated after reconcile (no more stale green/blue indicators after commit or push)
+- File decorations are properly invalidated after reconcile (no stale indicators after commit or push)
+- Diff preview no longer throws when parent commit does not exist
 
 ## 0.2.0
 

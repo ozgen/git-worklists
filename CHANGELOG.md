@@ -15,16 +15,23 @@ and adheres to Semantic Versioning.
 
 ### Added
 
-- Push preview panel when multiple outgoing commits are detected (improved push confirmation workflow)
+- Push preview panel when multiple outgoing commits are detected (explicit confirmation before push)
+- Changelist-level **Discard All Changes** action with categorized confirmation
+- Safe diff preview for:
+  - Newly added files
+  - Initial commits (no parent)
+  - Missing parent references
 
 ### Changed
 
 - Commit panel now automatically unchecks Amend after a successful commit or commit & push
-- Improved refresh coordination to ensure UI state and decorations stay in sync with Git
+- Improved refresh coordination to ensure UI state and decorations stay fully in sync with Git
 
 ### Fixed
 
 - “Add to Git?” prompt now correctly stages files and moves them to the appropriate changelist
+- File decorations are properly invalidated after reconcile (no stale indicators after commit or push)
+- Diff preview no longer throws when parent commit does not exist
 - File decorations are properly invalidated after reconcile (no more stale green/blue indicators after commit or push)
 
 ---
