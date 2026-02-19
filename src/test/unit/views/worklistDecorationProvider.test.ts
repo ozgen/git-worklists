@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// --- hoisted vscode mock ---
 const vscodeMock = vi.hoisted(() => {
   class ThemeColor {
     constructor(public readonly id: string) {}
@@ -22,7 +21,7 @@ const vscodeMock = vi.hoisted(() => {
   }
 
   class EventEmitter<T> {
-    public readonly event = vi.fn(); // we don’t need actual Event behavior here
+    public readonly event = vi.fn();
     public fire = vi.fn((_arg?: T) => {});
     dispose() {}
   }
@@ -72,7 +71,7 @@ describe("WorklistDecorationProvider", () => {
 
   it("fires change when setRepoRoot is called", () => {
     const ee = (provider as any)._onDidChange;
-    expect(ee.fire).toHaveBeenCalledWith([]);
+    expect(ee.fire).toHaveBeenCalledWith(undefined);
   });
 
   it("refreshAll fires change", () => {
@@ -80,7 +79,7 @@ describe("WorklistDecorationProvider", () => {
     ee.fire.mockClear();
 
     provider.refreshAll();
-    expect(ee.fire).toHaveBeenCalledWith([]);
+    expect(ee.fire).toHaveBeenCalledWith(undefined);
   });
 
   it("returns undefined if repoRoot not set", async () => {
