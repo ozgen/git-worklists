@@ -2,25 +2,40 @@ import { describe, it, expect, vi } from "vitest";
 
 import { LoadOrInitState } from "../../../usecases/loadOrInitState";
 import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
-import type { GitClient } from "../../../adapters/git/gitClient";
+import type {
+  CommitFileChange,
+  GitClient,
+  OutgoingCommit,
+} from "../../../adapters/git/gitClient";
 import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 
 function makeGit(repoRoot = "/repo"): GitClient {
   return {
     getRepoRoot: vi.fn(async (_ws: string) => repoRoot),
+    tryGetRepoRoot: vi.fn(async (_ws: string) => repoRoot),
+
     getStatusPorcelainZ: vi.fn(async () => [] as any),
+
     add: vi.fn(async () => {}),
+    stageMany: vi.fn(async () => {}),
+    unstageMany: vi.fn(async () => {}),
+
     getGitDir: vi.fn(async () => `${repoRoot}/.git`),
+    isIgnored: vi.fn(async () => false),
+
+    showFileAtRef: vi.fn(async () => "mock-file-content"),
+
     stashList: vi.fn(async () => []),
     stashPushPaths: vi.fn(async () => {}),
     stashApply: vi.fn(async () => {}),
     stashPop: vi.fn(async () => {}),
     stashDrop: vi.fn(async () => {}),
-    tryGetRepoRoot: vi.fn(),
-    isIgnored: vi.fn(),
-    showFileAtRef: vi.fn(),
-    stageMany: vi.fn(async () => {}),
-    unstageMany: vi.fn(async () => {}),
+
+    getUpstreamRef: vi.fn(async () => "origin/main"),
+    listOutgoingCommits: vi.fn(async () => [] as OutgoingCommit[]),
+    getCommitFiles: vi.fn(
+      async (_repo: string, _hash: string) => [] as CommitFileChange[],
+    ),
   };
 }
 
