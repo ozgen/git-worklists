@@ -172,6 +172,10 @@
         "command": "gitWorklists.unstageChangelistAll",
         "title": "Unstage All in Changelist",
         "icon": "$(circle-slash)"
+      },
+      {
+        "command": "gitWorklists.changelist.discardAll",
+        "title": "Discard All Changes"
       }
     ],
     "menus": {
@@ -207,6 +211,11 @@
           "command": "gitWorklists.moveGroupToChangelist",
           "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.group.custom || viewItem == gitWorklists.group.system)",
           "group": "navigation@0"
+        },
+        {
+          "command": "gitWorklists.changelist.discardAll",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.group.custom || viewItem == gitWorklists.group.system)",
+          "group": "navigation@1"
         },
         {
           "command": "gitWorklists.deleteChangelist",
