@@ -713,4 +713,101 @@ describe("GitCliClient (mocked git)", () => {
 
     expect(out).toBe("");
   });
+
+  it("showFileAtRefOptional runs git show REF:path and returns content on success", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "show") {
+        return { stdout: "file-content\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "HEAD", "src/a.ts");
+
+    expect(out).toBe("file-content\n");
+    expect(calls[0]).toEqual({
+      args: ["show", "HEAD:src/a.ts"],
+      cwd: "/repo",
+    });
+  });
+
+  function mockExecFileFailureOnce(stderr: string) {
+    mocks.execFile.mockImplementationOnce(
+      (_file: string, args: string[], opts: any, cb: any) => {
+        cb(new Error("git failed"), "", stderr);
+      },
+    );
+  }
+
+  it("showFileAtRefOptional returns undefined when file exists on disk, but not in ref", async () => {
+    mockExecFileFailureOnce(
+      "fatal: path 'vvvvvv.txt' exists on disk, but not in 'deadbeef^'\n",
+    );
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional(
+      "/repo",
+      "deadbeef^",
+      "vvvvvv.txt",
+    );
+
+    expect(out).toBeUndefined();
+  });
+
+  it("showFileAtRefOptional returns undefined when path does not exist in ref (generic)", async () => {
+    mockExecFileFailureOnce(
+      "fatal: Path 'missing.txt' does not exist in 'HEAD'\n",
+    );
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "HEAD", "missing.txt");
+
+    expect(out).toBeUndefined();
+  });
+
+  it("showFileAtRefOptional returns undefined when error contains \"does not exist in\"", async () => {
+    mockExecFileFailureOnce("fatal: does not exist in 'HEAD'\n");
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "HEAD", "x");
+
+    expect(out).toBeUndefined();
+  });
+
+  it("showFileAtRefOptional returns undefined when ref is invalid object name", async () => {
+    mockExecFileFailureOnce("fatal: invalid object name 'EMPTY'\n");
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "EMPTY", "src/a.ts");
+
+    expect(out).toBeUndefined();
+  });
+
+  it("showFileAtRefOptional returns undefined when ref is bad object", async () => {
+    mockExecFileFailureOnce("fatal: bad object deadbeef^\n");
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "deadbeef^", "src/a.ts");
+
+    expect(out).toBeUndefined();
+  });
+
+  it("showFileAtRefOptional returns undefined when ref is not a valid object name", async () => {
+    mockExecFileFailureOnce("fatal: Not a valid object name HEAD^\n");
+
+    const git = new GitCliClient();
+    const out = await git.showFileAtRefOptional("/repo", "HEAD^", "src/a.ts");
+
+    expect(out).toBeUndefined();
+  });
+
+  it("showFileAtRefOptional rethrows unknown git errors", async () => {
+    mockExecFileFailureOnce("fatal: some other scary error\n");
+
+    const git = new GitCliClient();
+    await expect(
+      git.showFileAtRefOptional("/repo", "HEAD", "src/a.ts"),
+    ).rejects.toThrow("git show HEAD:src/a.ts failed");
+  });
 });
