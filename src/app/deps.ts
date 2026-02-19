@@ -14,8 +14,8 @@ import { MoveFilesToChangelist } from "../usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
 
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
-import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
+import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 
 import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
 import { CloseDiffTabs } from "../usecases/closeDiffTabs";
@@ -23,6 +23,7 @@ import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 
+import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { Deps } from "./types";
 
 // Note: views/commitViewProvider created later in registerCommitView.ts
@@ -76,12 +77,15 @@ export async function createDeps(
 
   const coordinator = new RefreshCoordinator(async () => {}, 200);
 
+  const pendingStageOnSave = new PendingStageOnSave();
+
   const newFileHandler = new HandleNewFilesCreated({
     repoRoot,
     moveFiles,
     coordinator,
     settings,
     prompt,
+    pendingStageOnSave,
   });
 
   // commitView set in registerCommitView.ts
@@ -109,6 +113,7 @@ export async function createDeps(
     closeDiffTabs,
     coordinator,
     newFileHandler,
+    pendingStageOnSave,
   };
 
   return deps;

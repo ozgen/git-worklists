@@ -9,6 +9,7 @@ import { registerCheckboxes } from "./registration/registerCheckboxes";
 import { registerCommands } from "./registration/registerCommands";
 import { registerStash } from "./registration/registerStash";
 import { registerEvents } from "./registration/registerEvents";
+import { PendingStageOnSave } from "./adapters/vscode/pendingStageOnSave";
 
 export async function activate(context: vscode.ExtensionContext) {
   const deps = await createDeps(context);
@@ -29,15 +30,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const { doRefresh } = registerRefresh(deps);
   await deps.coordinator.requestNow();
 
-  // newFileHandler uses coordinator; re-create with correct coordinator instance
-  // (same constructor args as your original code)
-  deps.newFileHandler = new (deps.newFileHandler.constructor as any)({
-    repoRoot: deps.repoRoot,
-    moveFiles: deps.moveFiles,
-    coordinator: deps.coordinator,
-    settings: deps.settings,
-    prompt: deps.prompt,
-  });
 
   // auto refresh
   registerAutoRefresh(deps, doRefresh);

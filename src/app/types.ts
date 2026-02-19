@@ -14,12 +14,13 @@ import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
 
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
 import { CommitViewProvider } from "../views/commitViewProvider";
-import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
+import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 
 import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
-import { CloseDiffTabs } from "../usecases/closeDiffTabs";
+import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
+import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 
 export type GroupArg = { list: { id: string; name: string; files: string[] } };
@@ -37,6 +38,7 @@ export type Deps = {
   fsStat: VsCodeFsStat;
   settings: VsCodeSettings;
   prompt: VsCodePrompt;
+  pendingStageOnSave: PendingStageOnSave;
 
   createChangelist: CreateChangelist;
   moveFiles: MoveFilesToChangelist;
