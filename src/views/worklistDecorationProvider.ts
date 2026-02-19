@@ -7,7 +7,7 @@ export class WorklistDecorationProvider
   implements vscode.FileDecorationProvider
 {
   private readonly _onDidChange = new vscode.EventEmitter<
-    vscode.Uri | vscode.Uri[]
+    vscode.Uri | vscode.Uri[] | undefined
   >();
   readonly onDidChangeFileDecorations = this._onDidChange.event;
 
@@ -17,11 +17,11 @@ export class WorklistDecorationProvider
 
   setRepoRoot(repoRootFsPath: string) {
     this.repoRootFsPath = repoRootFsPath;
-    this._onDidChange.fire([]);
+    this._onDidChange.fire(undefined);
   }
 
   refreshAll() {
-    this._onDidChange.fire([]);
+    this._onDidChange.fire(undefined);
   }
 
   async provideFileDecoration(

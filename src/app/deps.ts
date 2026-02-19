@@ -75,8 +75,20 @@ export async function createDeps(
   const loadOrInit = new LoadOrInitState(git, store);
   const reconcile = new ReconcileWithGitStatus(git, store);
 
-  const coordinator = new RefreshCoordinator(async () => {}, 200);
-
+  const coordinator = new RefreshCoordinator(async () => {
+    //  ensure state exists
+    await loadOrInit.run(repoRoot);
+  
+    //  reconcile lists with git status
+    await reconcile.run(repoRoot);
+  
+    //  refresh tree UI
+    treeProvider.refresh();
+  
+    // refresh file decorations
+    deco.refreshAll();
+  }, 200);
+  
   const pendingStageOnSave = new PendingStageOnSave();
 
   const newFileHandler = new HandleNewFilesCreated({
