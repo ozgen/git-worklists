@@ -11,6 +11,17 @@ and adheres to Semantic Versioning.
 
 - No changes yet
 
+---
+
+## [0.3.1] - 2026-02-19
+
+### Changed
+
+- Updated demo to reflect latest workflow
+- Improved Marketplace keywords and search discoverability
+
+---
+
 ## [0.3.0] - 2026-02-19
 
 ### Added
