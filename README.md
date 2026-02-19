@@ -27,35 +27,44 @@ It is designed for developers who want **explicit control over staging, commits,
 
 A structured way to organize and stage changes.
 
-- Displays **Changes** and **Unversioned** files clearly
+* Displays **Changes** and **Unversioned** files clearly
 
-- Shows **file count badges** per worklist
+* Shows **file count badges** per worklist
 
-- Unversioned files are detected via `git ls-files --others --exclude-standard`
+* Unversioned files are detected via `git ls-files --others --exclude-standard`
 
-- Untracked directories are not shown as placeholder entries
+* Untracked directories are not shown as placeholder entries
 
-- Files are displayed in Source Control style:
-  - **File name** as primary label
-  - **Folder path** shown as description
+* Files are displayed in Source Control style:
 
-- Create, move, and delete **custom changelists**
+  * **File name** as primary label
+  * **Folder path** shown as description
 
-- Move files between changelists (per file or per group)
+* Create, move, and delete **custom changelists**
 
-- Move selected files to another changelist
+* Move files between changelists (per file or per group)
 
-- File-level and group-level **checkboxes** for staging / unstaging
+* Move selected files to another changelist
 
-- State-aware inline action:
-  - Shows **Stage** when file is unstaged
-  - Shows **Unstage** when file is staged
+* File-level and group-level **checkboxes** for staging / unstaging
 
-- Stage All / Unstage All per changelist
+* State-aware inline action:
 
-- Visual file decorations (badges)
+  * Shows **Stage** when file is unstaged
+  * Shows **Unstage** when file is staged
 
-- Decorations are automatically refreshed after commit or push (no stale indicators)
+* Stage All / Unstage All per changelist
+
+* Visual file decorations (badges)
+
+* Decorations are automatically refreshed after commit or push (no stale indicators)
+
+* File context menu actions:
+
+  * **Open Diff** (HEAD ↔ Working Tree)
+  * **Open Source File** (jump directly to the working tree file)
+  * **Discard**
+  * **Move to Changelist**
 
 ---
 
@@ -294,6 +303,7 @@ Planned improvements:
   - Newly added files
   - Initial commits (no parent)
   - Missing parent references
+- Open Source File action in file context menu (jump directly to working tree file from changelist)
 
 ### Changed
 
