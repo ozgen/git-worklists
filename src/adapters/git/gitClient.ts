@@ -20,6 +20,23 @@ export type GitStashEntry = {
   changelistId?: string;
 };
 
+export type OutgoingCommit = {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  authorName?: string;
+  authorDateIso?: string;
+};
+
+export type CommitFileChange = {
+  /** repo-relative path (new path if renamed) */
+  path: string;
+  /** status code from `--name-status` */
+  status: "A" | "M" | "D" | "R" | "C" | "T" | "U" | "?";
+  /** for renames/copies */
+  oldPath?: string;
+};
+
 export interface GitClient {
   /** returns repo root absolute path */
   getRepoRoot(workspaceFsPath: string): Promise<string>;
@@ -35,10 +52,7 @@ export interface GitClient {
 
   add(repoRootFsPath: string, repoRelativePath: string): Promise<void>;
 
-  stageMany(
-    repoRootFsPath: string,
-    repoRelativePaths: string[],
-  ): Promise<void>;
+  stageMany(repoRootFsPath: string, repoRelativePaths: string[]): Promise<void>;
 
   unstageMany(
     repoRootFsPath: string,
@@ -80,4 +94,15 @@ export interface GitClient {
 
   /** `git stash drop <ref>` */
   stashDrop(repoRootFsPath: string, ref: string): Promise<void>;
+
+  /** e.g. "origin/main" (throws if no upstream configured) */
+  getUpstreamRef(repoRootFsPath: string): Promise<string>;
+
+  /** commits that would be pushed: upstream..HEAD */
+  listOutgoingCommits(repoRootFsPath: string): Promise<OutgoingCommit[]>;
+
+  getCommitFiles(
+    repoRootFsPath: string,
+    commitHash: string,
+  ): Promise<CommitFileChange[]>;
 }
