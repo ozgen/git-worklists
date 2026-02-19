@@ -13,11 +13,15 @@ export type MoveFilesPort = {
   export type RefreshPort = {
     requestNow(): Promise<void>;
   };
+  export type PendingStageOnSavePort = {
+    mark(repoRoot: string, repoRelPath: string): void;
+  };
   
   export type HandleNewFilesCreatedDeps = {
     repoRoot: string;
     moveFiles: MoveFilesPort;
     coordinator: RefreshPort;
+    pendingStageOnSave: PendingStageOnSavePort;
   
     settings: {
       getPromptOnNewFile(): boolean;
@@ -30,6 +34,7 @@ export type MoveFilesPort = {
         sampleLabel?: string,
       ): Promise<NewFileDecision>;
     };
+    
   };  
 
 export class HandleNewFilesCreated {
@@ -59,7 +64,12 @@ export class HandleNewFilesCreated {
       }
 
       // avoid weird cases
-      if (p.split("/").includes(".git")) {
+      if (p === ".git" || p.startsWith(".git/")) {
+        continue;
+      }
+      
+      // skip "fake" *.git files (your bug path pattern)
+      if (p.toLowerCase().endsWith(".git")) {
         continue;
       }
 
@@ -94,6 +104,9 @@ export class HandleNewFilesCreated {
 
     if (decision === "add") {
       await this.stagePaths(candidates);
+      for (const p of candidates) {
+        this.deps.pendingStageOnSave.mark(repoRoot, p);
+      }
       await this.moveToDefault(candidates);
       await coordinator.requestNow();
       return;
