@@ -10,10 +10,10 @@ import { fileExistsAtRef, isNewFileInRepo } from "../git/refs";
 import { getStagedPaths, stagePaths, unstagePaths } from "../git/staged";
 
 import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvider";
+import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { stageChangelistAll } from "../usecases/stageChangelistAll";
 import { unstageChangelistAll } from "../usecases/unstageChangelistAll";
 import { openPushPreviewPanel } from "../views/pushPreviewPanel";
-import { SystemChangelist } from "../core/changelist/systemChangelist";
 
 export function registerCommands(deps: Deps) {
   const { context } = deps;

@@ -21,6 +21,7 @@ and adheres to Semantic Versioning.
   - Newly added files
   - Initial commits (no parent)
   - Missing parent references
+- Open Source File action in file context menu (jump directly to working tree file from changelist)
 
 ### Changed
 
