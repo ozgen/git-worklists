@@ -176,6 +176,11 @@
       {
         "command": "gitWorklists.changelist.discardAll",
         "title": "Discard All Changes"
+      },
+      {
+        "command": "gitWorklists.file.openSource",
+        "title": "Open Source",
+        "icon": "$(go-to-file)"
       }
     ],
     "menus": {
@@ -276,6 +281,11 @@
           "command": "gitWorklists.stash.drop",
           "when": "view == gitWorklists.stashes && viewItem == gitWorklists.stashItem",
           "group": "inline@9"
+        },
+        {
+          "command": "gitWorklists.file.openSource",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
+          "group": "navigation@0"
         }
       ]
     }
