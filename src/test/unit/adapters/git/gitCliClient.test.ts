@@ -810,4 +810,91 @@ describe("GitCliClient (mocked git)", () => {
       git.showFileAtRefOptional("/repo", "HEAD", "src/a.ts"),
     ).rejects.toThrow("git show HEAD:src/a.ts failed");
   });
+
+  it("tryGetUpstreamRef returns trimmed upstream ref", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (
+        args.join(" ") === "rev-parse --abbrev-ref --symbolic-full-name @{u}"
+      ) {
+        return { stdout: "origin/main\n" };
+      }
+      return new Error("unexpected command");
+    });
+  
+    const git = new GitCliClient();
+    const upstream = await git.tryGetUpstreamRef("/repo");
+  
+    expect(upstream).toBe("origin/main");
+    expect(calls[0]).toEqual({
+      args: ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+      cwd: "/repo",
+    });
+  });
+  
+  it("tryGetUpstreamRef returns undefined when upstream is missing", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args[0] === "rev-parse" && args.includes("@{u}")) {
+        return new Error("fatal: no upstream configured");
+      }
+      return new Error("unexpected command");
+    });
+  
+    const git = new GitCliClient();
+    const upstream = await git.tryGetUpstreamRef("/repo");
+  
+    expect(upstream).toBeUndefined();
+  });
+
+  it("listOutgoingCommits uses HEAD --not --remotes when no upstream exists", async () => {
+    const sep = "\x1f";
+    const logOut =
+      [
+        [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aaaaaaa",
+          "Local commit",
+          "Mehmet",
+          "2026-02-20T10:00:00+01:00",
+        ].join(sep),
+      ].join("\n") + "\n";
+  
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+  
+      if (cmd === "rev-parse --abbrev-ref --symbolic-full-name @{u}") {
+        return new Error("fatal: no upstream configured");
+      }
+  
+      if (cmd.includes(" log ") && cmd.includes(" HEAD --not --remotes")) {
+        return { stdout: logOut };
+      }
+  
+      return new Error("unexpected command");
+    });
+  
+    const git = new GitCliClient();
+    const commits = await git.listOutgoingCommits("/repo");
+  
+    expect(commits).toEqual([
+      {
+        hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        shortHash: "aaaaaaa",
+        subject: "Local commit",
+        authorName: "Mehmet",
+        authorDateIso: "2026-02-20T10:00:00+01:00",
+      },
+    ]);
+  
+    expect(
+      calls.some((c) =>
+        c.args.join(" ").includes("rev-parse --abbrev-ref --symbolic-full-name @{u}"),
+      ),
+    ).toBe(true);
+  
+    expect(
+      calls.some((c) => c.args.join(" ").includes("log") && c.args.includes("HEAD") && c.args.includes("--not") && c.args.includes("--remotes")),
+    ).toBe(true);
+  });
+  
+  
 });

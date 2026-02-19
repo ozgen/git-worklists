@@ -60,23 +60,27 @@ export function registerCommitView(
         forceWithLease: boolean,
       ): Promise<boolean> => {
         try {
-          const upstreamRef = await deps.git.getUpstreamRef(deps.repoRoot);
+          const upstreamRef = await deps.git.tryGetUpstreamRef(deps.repoRoot);
           const commits = await deps.git.listOutgoingCommits(deps.repoRoot);
-
+      
+          const upstreamLabel = upstreamRef ?? "remote (no upstream – will set on push)";
+      
           if (commits.length === 0) {
             void vscode.window.showInformationMessage(
-              `Nothing to push (already up to date with ${upstreamRef}).`,
+              upstreamRef
+                ? `Nothing to push (already up to date with ${upstreamRef}).`
+                : "Nothing to push.",
             );
             return false;
           }
-
+      
           // If only 1 outgoing commit -> simple modal (no panel)
           if (commits.length === 1) {
             const c = commits[0];
             const ok = await vscode.window.showWarningMessage(
               forceWithLease
-                ? `Push 1 commit (force-with-lease) to ${upstreamRef}?`
-                : `Push 1 commit to ${upstreamRef}?`,
+                ? `Push 1 commit (force-with-lease) to ${upstreamLabel}?`
+                : `Push 1 commit to ${upstreamLabel}?`,
               {
                 modal: true,
                 detail: `${c.shortHash} ${c.subject}`,
@@ -85,15 +89,15 @@ export function registerCommitView(
             );
             return ok === "Push";
           }
-
-          // 2+ commits -> show panel
+      
+          // 2+ commits -> show panel (panel itself can show upstreamLabel)
           const decision = await openPushPreviewPanel(deps, {
             repoRoot: deps.repoRoot,
             forceWithLease,
           });
           return decision === "push";
         } catch (e) {
-          // Upstream missing or other preview issues -> fallback to old modal
+          // Real errors only (git failure, unexpected parsing, etc.)
           const ok = await vscode.window.showWarningMessage(
             forceWithLease
               ? "Push amended commit (force-with-lease)?"
@@ -108,7 +112,7 @@ export function registerCommitView(
           );
           return ok === "Push";
         }
-      };
+      };      
 
       // -------------------------
       // Push-only path

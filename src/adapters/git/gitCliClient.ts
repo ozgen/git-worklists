@@ -238,12 +238,16 @@ export class GitCliClient implements GitClient {
   }
 
   async listOutgoingCommits(repoRootFsPath: string): Promise<OutgoingCommit[]> {
-    const upstream = await this.getUpstreamRef(repoRootFsPath);
+    const upstream = await this.tryGetUpstreamRef(repoRootFsPath);
 
-    // Use a delimiter that won't appear in normal text
     const format = "%H%x1f%h%x1f%s%x1f%an%x1f%aI";
 
-    // --no-pager and no color => clean patch/log text for display
+    // If upstream exists: show exactly what will be pushed.
+    // If no upstream: show commits that are not on any remote (best approximation).
+    const rangeArgs = upstream
+      ? [`${upstream}..HEAD`]
+      : ["HEAD", "--not", "--remotes"];
+
     const out = await execGit(
       [
         "--no-pager",
@@ -251,7 +255,7 @@ export class GitCliClient implements GitClient {
         "color.ui=false",
         "log",
         `--format=${format}`,
-        `${upstream}..HEAD`,
+        ...rangeArgs,
       ],
       repoRootFsPath,
     );
@@ -376,6 +380,19 @@ export class GitCliClient implements GitClient {
       }
 
       throw e;
+    }
+  }
+
+  async tryGetUpstreamRef(repoRootFsPath: string): Promise<string | undefined> {
+    try {
+      const out = await execGit(
+        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        repoRootFsPath,
+      );
+      const upstream = out.trim();
+      return upstream || undefined;
+    } catch {
+      return undefined;
     }
   }
 }
