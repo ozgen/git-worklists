@@ -293,6 +293,14 @@ Planned improvements:
 
 # Release Notes
 
+## [0.3.2] - 2026-02-20
+
+### Fixed
+- Push preview panel now works on branches without an upstream (shows local-only commits)
+
+### Changed
+- Improved unit test coverage for upstream/no-upstream push preview logic
+
 ## [0.3.1] - 2026-02-19
 
 ### Changed
