@@ -13,13 +13,25 @@ and adheres to Semantic Versioning.
 
 ---
 
-## [0.3.2] - 2026-02-20
+## [0.3.3] - 2026-02-21
+
+### Changed
+
+* Refactored commit and push webview implementation for improved structure and maintainability
 
 ### Fixed
-- Push preview panel now works on branches without an upstream (shows local-only commits)
+
+* Fixed an issue where committing after modifying already staged files could result in outdated or empty content being pushed
+
+---
+
+## [0.3.2] - 2026-02-20
 
 ### Changed
 - Improved unit test coverage for upstream/no-upstream push preview logic
+
+### Fixed
+- Push preview panel now works on branches without an upstream (shows local-only commits)
 
 ---
 
