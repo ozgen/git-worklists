@@ -20,6 +20,8 @@ export function registerCommitView(
     async ({ message, amend, push }) => {
       const newMsg = message.trim();
       const staged = await getStagedPaths(deps.repoRoot);
+      // Restage staged paths to ensure the commit includes the latest content (handles AM/MM).
+      await deps.restageAlreadyStaged.run(deps.repoRoot, staged);
 
       const closeAfterCommit = async () => {
         if (deps.settings.closeDiffTabsAfterCommit()) {
@@ -62,9 +64,10 @@ export function registerCommitView(
         try {
           const upstreamRef = await deps.git.tryGetUpstreamRef(deps.repoRoot);
           const commits = await deps.git.listOutgoingCommits(deps.repoRoot);
-      
-          const upstreamLabel = upstreamRef ?? "remote (no upstream – will set on push)";
-      
+
+          const upstreamLabel =
+            upstreamRef ?? "remote (no upstream – will set on push)";
+
           if (commits.length === 0) {
             void vscode.window.showInformationMessage(
               upstreamRef
@@ -73,7 +76,7 @@ export function registerCommitView(
             );
             return false;
           }
-      
+
           // If only 1 outgoing commit -> simple modal (no panel)
           if (commits.length === 1) {
             const c = commits[0];
@@ -89,7 +92,7 @@ export function registerCommitView(
             );
             return ok === "Push";
           }
-      
+
           // 2+ commits -> show panel (panel itself can show upstreamLabel)
           const decision = await openPushPreviewPanel(deps, {
             repoRoot: deps.repoRoot,
@@ -112,7 +115,7 @@ export function registerCommitView(
           );
           return ok === "Push";
         }
-      };      
+      };
 
       // -------------------------
       // Push-only path
