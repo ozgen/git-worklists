@@ -1,0 +1,64 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  padding: 10px;
+}
+.muted {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.spacer {
+  flex: 1;
+}
+button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-button-secondaryBorder, transparent);
+}
+.error {
+  margin-top: 10px;
+  color: var(--vscode-errorForeground);
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+.footer {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+.footer button {
+  flex: 1;
+}
