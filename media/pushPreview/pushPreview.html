@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src {{cspSource}}; script-src 'nonce-{{nonce}}';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Push Preview</title>
+
+    <link rel="stylesheet" href="{{cssUri}}" />
+  </head>
+  <body>
+    <div class="bar">
+      <div>
+        <div class="title">Push Commits to {{upstreamRef}}</div>
+        <div class="hint">
+          Click a commit to see its files. Click a file to open a diff.
+        </div>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="cancelBtn">Cancel</button>
+        <button class="primary" id="pushBtn">{{pushLabel}}</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="pane" id="commitsPane"></div>
+      <div class="pane" id="filesPane"></div>
+    </div>
+
+    <script id="__data" type="application/json">
+      {{dataJson}}
+    </script>
+
+    <script nonce="{{nonce}}">
+      const vscode = acquireVsCodeApi();
+      const data = JSON.parse(
+        document.getElementById("__data").textContent || "{}",
+      );
+
+      const state = {
+        upstreamRef: data.upstreamRef,
+        forceWithLease: data.forceWithLease,
+        commits: data.commits,
+        selectedHash:
+          data.commits && data.commits[0] && data.commits[0].hash
+            ? data.commits[0].hash
+            : "",
+        filesByCommit: new Map(),
+      };
+
+      const commitsPane = document.getElementById("commitsPane");
+      const filesPane = document.getElementById("filesPane");
+
+      function renderCommits() {
+        commitsPane.innerHTML = "";
+        for (const c of state.commits) {
+          const el = document.createElement("div");
+          el.className =
+            "row" + (c.hash === state.selectedHash ? " active" : "");
+          el.onclick = () => {
+            state.selectedHash = c.hash;
+            renderCommits();
+            renderFiles();
+            vscode.postMessage({ type: "selectCommit", hash: c.hash });
+          };
+
+          el.innerHTML = `
+          <div class="commitTop">
+            <span class="hash">${c.shortHash}</span>
+            <span class="subject">${escapeHtml(c.subject)}</span>
+          </div>
+          <div class="meta">${escapeHtml(c.authorName)} ${escapeHtml(c.authorDateIso)}</div>
+        `;
+          commitsPane.appendChild(el);
+        }
+      }
+
+      function renderFiles() {
+        filesPane.innerHTML = "";
+        const hash = state.selectedHash;
+        const files = state.filesByCommit.get(hash) || [];
+
+        if (!hash) {
+          filesPane.innerHTML = '<div class="row">No commit selected.</div>';
+          return;
+        }
+
+        if (!files.length) {
+          filesPane.innerHTML = '<div class="row">Loading files…</div>';
+          return;
+        }
+
+        for (const f of files) {
+          const el = document.createElement("div");
+          el.className = "row";
+          el.onclick = () => {
+            vscode.postMessage({
+              type: "openDiff",
+              hash,
+              path: f.path,
+              status: f.status,
+              oldPath: f.oldPath,
+            });
+          };
+
+          const status = escapeHtml(f.status || "?");
+          const p = escapeHtml(f.path || "");
+          const oldP = f.oldPath ? escapeHtml(f.oldPath) : "";
+
+          el.innerHTML = `
+          <div class="fileLine">
+            <span class="badge">${status}</span>
+            <span class="path">${p}</span>
+          </div>
+          ${oldP ? '<div class="meta">from ' + oldP + "</div>" : ""}
+        `;
+          filesPane.appendChild(el);
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      window.addEventListener("message", (event) => {
+        const msg = event.data;
+        if (!msg || !msg.type) return;
+
+        if (msg.type === "commitFiles") {
+          state.filesByCommit.set(msg.commitHash, msg.files || []);
+          renderFiles();
+        }
+      });
+
+      document.getElementById("pushBtn").onclick = () =>
+        vscode.postMessage({ type: "push" });
+      document.getElementById("cancelBtn").onclick = () =>
+        vscode.postMessage({ type: "cancel" });
+
+      renderCommits();
+      renderFiles();
+    </script>
+  </body>
+</html>
