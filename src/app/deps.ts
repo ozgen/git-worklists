@@ -24,6 +24,7 @@ import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 
 import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
+import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { Deps } from "./types";
 
 // Note: views/commitViewProvider created later in registerCommitView.ts
@@ -78,17 +79,19 @@ export async function createDeps(
   const coordinator = new RefreshCoordinator(async () => {
     //  ensure state exists
     await loadOrInit.run(repoRoot);
-  
+
     //  reconcile lists with git status
     await reconcile.run(repoRoot);
-  
+
     //  refresh tree UI
     treeProvider.refresh();
-  
+
     // refresh file decorations
     deco.refreshAll();
   }, 200);
-  
+
+  const restageAlreadyStaged = new RestageAlreadyStaged(git);
+
   const pendingStageOnSave = new PendingStageOnSave();
 
   const newFileHandler = new HandleNewFilesCreated({
@@ -116,6 +119,7 @@ export async function createDeps(
     deleteChangelist,
     loadOrInit,
     reconcile,
+    restageAlreadyStaged,
     treeProvider,
     treeView,
     deco,

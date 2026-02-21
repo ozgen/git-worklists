@@ -22,6 +22,7 @@ import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
+import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 
 export type GroupArg = { list: { id: string; name: string; files: string[] } };
 
@@ -46,6 +47,7 @@ export type Deps = {
 
   loadOrInit: LoadOrInitState;
   reconcile: ReconcileWithGitStatus;
+  restageAlreadyStaged: RestageAlreadyStaged;
 
   // VS Code providers / UI
   treeProvider: ChangelistTreeProvider;
