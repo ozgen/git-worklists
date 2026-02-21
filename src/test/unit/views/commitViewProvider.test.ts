@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as path from "node:path";
+import * as fs from "node:fs/promises";
 
 const vscodeMock = vi.hoisted(() => {
   class Uri {
@@ -6,9 +8,19 @@ const vscodeMock = vi.hoisted(() => {
     static file(p: string) {
       return new Uri(p);
     }
+    static joinPath(base: Uri, ...paths: string[]) {
+      const joined = [base.fsPath, ...paths].join("/").replace(/\/+/g, "/");
+      return new Uri(joined);
+    }
   }
 
-  return { Uri };
+  const workspace = {
+    fs: {
+      readFile: vi.fn(async (_uri: any) => new Uint8Array()),
+    },
+  };
+
+  return { Uri, workspace };
 });
 
 vi.mock("vscode", () => vscodeMock);
@@ -20,7 +32,6 @@ type ReceiveHandler = (msg: any) => any;
 
 function makeWebview() {
   const postMessage = vi.fn(async (_msg: any) => true);
-
   let receiveHandler: ReceiveHandler | undefined;
 
   const webview: any = {
@@ -28,6 +39,9 @@ function makeWebview() {
     html: "",
     cspSource: "vscode-resource://csp",
     postMessage,
+
+    asWebviewUri: (uri: any) => `webview:${uri.fsPath}`,
+
     onDidReceiveMessage: (cb: ReceiveHandler) => {
       receiveHandler = cb;
       return { dispose() {} };
@@ -48,11 +62,21 @@ function makeWebviewView(webview: any) {
 }
 
 describe("CommitViewProvider (unit)", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    const templatePath = path.resolve(
+      __dirname,
+      "../../../../media/commit/commitView.html",
+    );
+    const buf = await fs.readFile(templatePath);
+
+    (vscode as any).workspace.fs.readFile.mockImplementation(
+      async (_uri: any) => buf,
+    );
   });
 
-  it("sets webview options and html, and posts initial state", () => {
+  it("sets webview options and html, and posts initial state", async () => {
     const onCommit = vi.fn(async () => {});
     const provider = new CommitViewProvider(
       vscode.Uri.file("/ext") as any,
@@ -60,11 +84,13 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    provider.resolveWebviewView(makeWebviewView(webview));
+    await provider.resolveWebviewView(makeWebviewView(webview));
 
     expect(webview.options).toEqual({
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.file("/ext")],
+      localResourceRoots: [
+        vscode.Uri.joinPath(vscode.Uri.file("/ext") as any, "media"),
+      ],
     });
 
     expect(typeof webview.html).toBe("string");
@@ -75,13 +101,22 @@ describe("CommitViewProvider (unit)", () => {
     expect(webview.html).toContain("vscode.getState()");
     expect(webview.html).toContain("vscode.setState");
 
+    expect(webview.html).toContain("style-src vscode-resource://csp;");
+    expect(webview.html).toContain("script-src 'nonce-");
+
+    expect(webview.html).toContain(
+      '<link rel="stylesheet" href="webview:/ext/media/commit/commitView.css" />',
+    );
+
+    expect((vscode as any).workspace.fs.readFile).toHaveBeenCalledTimes(1);
+
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
       state: { stagedCount: 0 },
     });
   });
 
-  it("updateState posts merged state to webview", () => {
+  it("updateState posts merged state to webview", async () => {
     const onCommit = vi.fn(async () => {});
     const provider = new CommitViewProvider(
       vscode.Uri.file("/ext") as any,
@@ -89,7 +124,7 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    provider.resolveWebviewView(makeWebviewView(webview));
+    await provider.resolveWebviewView(makeWebviewView(webview));
 
     webview.postMessage.mockClear();
 
@@ -114,17 +149,13 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    provider.resolveWebviewView(makeWebviewView(webview));
+    await provider.resolveWebviewView(makeWebviewView(webview));
 
     webview.postMessage.mockClear();
 
-    await webview.__emitReceive({
-      type: "notify",
-      kind: "no-staged",
-    });
+    await webview.__emitReceive({ type: "notify", kind: "no-staged" });
 
     expect(onCommit).not.toHaveBeenCalled();
-
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
       state: { stagedCount: 0, lastError: "No staged files." },
@@ -139,7 +170,7 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    provider.resolveWebviewView(makeWebviewView(webview));
+    await provider.resolveWebviewView(makeWebviewView(webview));
 
     provider.updateState({ lastError: "prev" });
     webview.postMessage.mockClear();
@@ -178,7 +209,7 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    provider.resolveWebviewView(makeWebviewView(webview));
+    await provider.resolveWebviewView(makeWebviewView(webview));
 
     webview.postMessage.mockClear();
 
@@ -204,7 +235,7 @@ describe("CommitViewProvider (unit)", () => {
     );
 
     const webview = makeWebview();
-    provider.resolveWebviewView(makeWebviewView(webview));
+    await provider.resolveWebviewView(makeWebviewView(webview));
 
     webview.postMessage.mockClear();
 
