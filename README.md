@@ -61,7 +61,7 @@ A structured way to organize and stage changes.
 
 * File context menu actions:
 
-  * **Open Diff** (HEAD ↔ Working Tree)
+  * **Open Diff** (HEAD <-> Working Tree)
   * **Open Source File** (jump directly to the working tree file)
   * **Discard**
   * **Move to Changelist**
@@ -282,12 +282,9 @@ This extension contributes the following settings:
 
 Planned improvements:
 
-- Include-untracked option for stash
-- Multi-repository support
-- Partial staging (hunk-based)
-- Improved visual polish
-- Extended test coverage
-- Performance optimizations
+- Include untracked files when creating stash
+- Improve refresh performance for large repositories
+- UI/UX refinements for changelist view
 
 ---
 
