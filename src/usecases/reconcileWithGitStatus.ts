@@ -1,7 +1,7 @@
 import { GitClient } from "../adapters/git/gitClient";
 import {
-  WorkspaceStateStore,
   PersistedState,
+  WorkspaceStateStore,
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { getUntrackedPaths } from "../utils/process";
@@ -30,13 +30,31 @@ function ensureSystemLists(state: PersistedState): PersistedState {
   return { ...state, lists };
 }
 
+type ListState = PersistedState["lists"][number];
+
 export class ReconcileWithGitStatus {
+  private chain: Promise<void> = Promise.resolve();
+
   constructor(
     private readonly git: GitClient,
     private readonly store: WorkspaceStateStore,
   ) {}
 
-  async run(repoRoot: string): Promise<void> {
+  /**
+   * Public API: safe to call many times quickly.
+   * Calls are serialized so state can't be overwritten by an older run.
+   */
+  run(repoRoot: string): Promise<void> {
+    this.chain = this.chain
+      .catch(() => {
+        // keep the chain alive even if a previous run failed
+      })
+      .then(() => this.runOnce(repoRoot));
+
+    return this.chain;
+  }
+
+  private async runOnce(repoRoot: string): Promise<void> {
     const state = await this.store.load(repoRoot);
     if (!state || state.version !== 1) {
       return;
@@ -46,25 +64,24 @@ export class ReconcileWithGitStatus {
 
     const status = await this.git.getStatusPorcelainZ(repoRoot);
 
+    // Untracked paths
     const untracked = new Set<string>(
       (await getUntrackedPaths(repoRoot)).map(norm),
     );
 
+    // Tracked changes (everything except ??)
     const changed = new Set<string>();
-
     for (const e of status) {
       const p = norm(e.path);
-
       if (e.x === "?" && e.y === "?") {
         continue;
-      }
-
+      } // untracked handled above
       changed.add(p);
     }
 
     const inStatus = new Set<string>([...untracked, ...changed]);
 
-    // map file -> current owner list (first match wins)
+    // file -> owner list (first match wins) based on CURRENT persisted state
     const fileOwner = new Map<string, string>();
     for (const list of fixed.lists) {
       for (const f of list.files.map(norm)) {
@@ -74,8 +91,8 @@ export class ReconcileWithGitStatus {
       }
     }
 
-    // prune: remove everything that is no longer in git status (from ALL lists)
-    const nextLists = fixed.lists.map((l) => ({
+    // Build nextLists by pruning files no longer present in git status
+    const nextLists: ListState[] = fixed.lists.map((l) => ({
       ...l,
       files: l.files.map(norm).filter((f) => inStatus.has(f)),
     }));
@@ -89,21 +106,21 @@ export class ReconcileWithGitStatus {
       return l;
     };
 
-    // helper: remove file from all lists
     const removeEverywhere = (p: string) => {
       for (const l of nextLists) {
         l.files = l.files.filter((x) => x !== p);
       }
     };
 
-    // enforce: untracked ALWAYS goes to Unversioned
+    // Rule 1: untracked ALWAYS -> Unversioned
+    const unv = mustGet(SystemChangelist.Unversioned);
     for (const f of untracked) {
       removeEverywhere(f);
-      const u = mustGet(SystemChangelist.Unversioned);
-      u.files.push(f);
+      unv.files.push(f);
     }
 
-    // tracked changes: keep owner if it's not Unversioned, else Default
+    // Rule 2: tracked changes -> keep existing owner if not Unversioned, else Default
+    const def = mustGet(SystemChangelist.Default);
     for (const f of changed) {
       removeEverywhere(f);
 
@@ -111,15 +128,16 @@ export class ReconcileWithGitStatus {
       if (owner && owner !== SystemChangelist.Unversioned) {
         mustGet(owner).files.push(f);
       } else {
-        mustGet(SystemChangelist.Default).files.push(f);
+        def.files.push(f);
       }
     }
 
-    // de-dup + stable order
+    // De-dup + stable ordering
     for (const l of nextLists) {
       l.files = Array.from(new Set(l.files.map(norm))).sort();
     }
 
+    // Save updated lists
     await this.store.save(repoRoot, { ...fixed, lists: nextLists });
   }
 }

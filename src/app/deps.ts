@@ -24,6 +24,7 @@ import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 
 import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
+import { createRepoWatchers } from "../adapters/vscode/repoWatchers";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { Deps } from "./types";
 
@@ -89,6 +90,15 @@ export async function createDeps(
     // refresh file decorations
     deco.refreshAll();
   }, 200);
+
+  const watchers = createRepoWatchers({
+    repoRoot,
+    gitDir,
+    triggerRefresh: () => coordinator.requestNow(),
+    debounceMs: 800,
+  });
+
+  context.subscriptions.push(watchers);
 
   const restageAlreadyStaged = new RestageAlreadyStaged(git);
 
