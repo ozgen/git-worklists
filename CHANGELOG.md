@@ -13,6 +13,15 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.3.4] - 2026-02-22
+
+### Fixed
+
+- Auto-refresh worklists on external file changes (terminal formatting, git CLI)
+- Prevent stale changelist state that required manual refresh
+
+---
+
 ## [0.3.3] - 2026-02-21
 
 ### Changed
