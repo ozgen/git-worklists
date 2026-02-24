@@ -37,7 +37,11 @@
     "group staging",
     "source control",
     "version control",
-    "diff preview"
+    "diff preview",
+    "conventional commits",
+    "commit message",
+    "commit generator",
+    "semantic commits"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
