@@ -19,6 +19,15 @@ It is designed for developers who want **explicit control over staging, commits,
 
 ---
 
+### Conventional Commits Integration
+
+Generate structured commit messages directly from the Commit Panel using the Conventional Commits extension.
+
+![Conventional Commits integration demo](media/demo-conventional.gif)
+
+---
+
+
 # Features
 
 ---
@@ -116,6 +125,11 @@ A focused commit experience separate from VS Code SCM.
 - Custom **Commit Message** field
 
 - Commit message draft is automatically preserved
+- **Conventional Commits integration**
+  - ◯ button next to Amend to generate structured commit messages
+  - Automatically syncs generated message into the custom commit panel
+  - Button is hidden if the extension is not installed
+  - Prevents Source Control view from stealing focus
 
 - Live staged file counter
 
@@ -143,6 +157,9 @@ A focused commit experience separate from VS Code SCM.
 - Clear and actionable error feedback
 
 Commit behavior is predictable and aligned with Git CLI behavior.
+> Conventional Commits integration works with the
+> [Conventional Commits extension](https://marketplace.visualstudio.com/items?itemName=vivaxy.vscode-conventional-commits).
+> The integration is optional and activates automatically when the extension is installed.
 
 ---
 

@@ -13,6 +13,22 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.4.0] - 2026-02-24
+
+### Added
+
+- Integration with the **Conventional Commits** extension (vivaxy.vscode-conventional-commits)
+- ◯ button in the Commit Panel (next to Amend) to generate commit messages
+- Automatic synchronization of generated commit message into the custom commit panel
+- Automatic detection of extension availability (button hidden if not installed or disabled)
+
+### Changed
+
+- Prevented Source Control view from stealing focus when generating Conventional Commit messages
+- Temporarily disable `autoCommit` and enable `silentAutoCommit` while generating message
+
+---
+
 ## [0.3.4] - 2026-02-22
 
 ### Fixed
@@ -26,24 +42,25 @@ and adheres to Semantic Versioning.
 
 ### Changed
 
-* Refactored commit and push webview implementation for improved structure and maintainability
+- Refactored commit and push webview implementation for improved structure and maintainability
 
 ### Fixed
 
-* Fixed an issue where committing after modifying already staged files could result in outdated or empty content being pushed
+- Fixed an issue where committing after modifying already staged files could result in outdated or empty content being pushed
 
 ---
 
 ## [0.3.2] - 2026-02-20
 
 ### Changed
+
 - Improved unit test coverage for upstream/no-upstream push preview logic
 
 ### Fixed
+
 - Push preview panel now works on branches without an upstream (shows local-only commits)
 
 ---
-
 
 ## [0.3.1] - 2026-02-19
 
