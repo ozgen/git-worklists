@@ -49,4 +49,12 @@ export function registerEvents(deps: Deps) {
       }
     }),
   );
+
+  deps.context.subscriptions.push(
+    vscode.extensions.onDidChange(() => {
+      deps.commitView.updateState({
+        conventionalCommitsAvailable: deps.conventionalCommits.isInstalled(),
+      });
+    }),
+  );
 }

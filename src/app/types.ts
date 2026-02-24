@@ -17,6 +17,7 @@ import { CommitViewProvider } from "../views/commitViewProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
 import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 
+import { ConventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
 import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
 import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
@@ -58,6 +59,7 @@ export type Deps = {
 
   diffTabTracker: DiffTabTracker;
   closeDiffTabs: CloseDiffTabs;
+  conventionalCommits: ConventionalCommitsAdapter;
 
   // refresh pipeline
   coordinator: RefreshCoordinator;

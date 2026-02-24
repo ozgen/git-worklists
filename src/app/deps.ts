@@ -23,6 +23,7 @@ import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 
+import { conventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
 import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { createRepoWatchers } from "../adapters/vscode/repoWatchers";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
@@ -140,6 +141,7 @@ export async function createDeps(
     coordinator,
     newFileHandler,
     pendingStageOnSave,
+    conventionalCommits: conventionalCommitsAdapter,
   };
 
   return deps;

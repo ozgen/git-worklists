@@ -2,19 +2,24 @@ import * as vscode from "vscode";
 
 export type CommitViewState = {
   stagedCount: number;
+  conventionalCommitsAvailable: boolean;
   lastError?: string;
 };
 
 type UiMessage =
   | { type: "state"; state: CommitViewState }
   | { type: "ui"; action: "setAmend"; value: boolean }
-  | { type: "ui"; action: "setMessage"; value: string };
+  | { type: "ui"; action: "setMessage"; value: string }
+  | { type: "ui"; action: "focusMessage"; value: boolean };
 
 export class CommitViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = "gitWorklists.commitPanel";
 
   private view?: vscode.WebviewView;
-  private state: CommitViewState = { stagedCount: 0 };
+  private state: CommitViewState = {
+    stagedCount: 0,
+    conventionalCommitsAvailable: false,
+  };
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -23,6 +28,7 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
       amend: boolean;
       push: boolean;
     }) => Promise<void>,
+    private readonly onConventionalCommit?: () => Promise<string | null>,
   ) {}
 
   async resolveWebviewView(view: vscode.WebviewView) {
@@ -48,6 +54,43 @@ export class CommitViewProvider implements vscode.WebviewViewProvider {
         if (msg?.type === "notify" && msg?.kind === "no-staged") {
           this.state.lastError = "No staged files.";
           this.postState();
+          return;
+        }
+
+        if (msg?.type === "conventionalCommit") {
+          if (
+            !this.state.conventionalCommitsAvailable ||
+            !this.onConventionalCommit
+          ) {
+            this.state.lastError =
+              "Conventional Commits extension is not installed or is disabled.";
+            this.postState();
+            return;
+          }
+
+          const generated = await this.onConventionalCommit();
+
+          if (generated && generated.trim()) {
+            this.setMessage(generated.trim());
+            this.state.lastError = undefined;
+          }
+
+          this.postState();
+
+          const focusCmd = `${CommitViewProvider.viewId}.focus`;
+          const delays = [0, 120, 300, 600, 1000];
+
+          for (const d of delays) {
+            setTimeout(() => {
+              void vscode.commands.executeCommand(focusCmd);
+              this.postUi({
+                type: "ui",
+                action: "focusMessage",
+                value: true,
+              });
+            }, d);
+          }
+
           return;
         }
 

@@ -226,7 +226,14 @@ export function registerCommitView(
         info("Committed and pushed.");
       }
     },
+    async () => {
+      return await deps.conventionalCommits.runAndReadMessage(deps.repoRoot);
+    },
   );
+
+  commitView.updateState({
+    conventionalCommitsAvailable: deps.conventionalCommits.isInstalled(),
+  });
 
   deps.commitView = commitView;
 

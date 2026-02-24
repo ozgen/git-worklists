@@ -27,6 +27,13 @@
         <span>Amend</span>
       </label>
       <div class="spacer"></div>
+      <button
+        id="btnConventional"
+        class="secondary"
+        title="Conventional Commits"
+      >
+        ◯
+      </button>
     </div>
 
     <div class="footer">
@@ -97,6 +104,9 @@
 
       btnCommit.addEventListener("click", () => tryCommit(false));
       btnCommitPush.addEventListener("click", () => tryCommit(true));
+      btnConventional.addEventListener("click", () => {
+        vscode.postMessage({ type: "conventionalCommit" });
+      });
 
       window.addEventListener("message", (event) => {
         const msg = event.data;
@@ -104,6 +114,9 @@
         if (msg?.type === "state") {
           const s = msg.state || {};
           stagedCount = s.stagedCount ?? 0;
+
+          const available = Boolean(s.conventionalCommitsAvailable);
+          btnConventional.style.display = available ? "" : "none";
 
           stagedLabel.textContent = "Staged: " + stagedCount;
           errorEl.textContent = s.lastError ? String(s.lastError) : "";

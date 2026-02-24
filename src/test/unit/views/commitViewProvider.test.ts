@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as path from "node:path";
 import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeMock = vi.hoisted(() => {
   class Uri {
@@ -20,7 +20,11 @@ const vscodeMock = vi.hoisted(() => {
     },
   };
 
-  return { Uri, workspace };
+  const commands = {
+    executeCommand: vi.fn(async (_cmd: string) => undefined),
+  };
+
+  return { Uri, workspace, commands };
 });
 
 vi.mock("vscode", () => vscodeMock);
@@ -112,7 +116,7 @@ describe("CommitViewProvider (unit)", () => {
 
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
-      state: { stagedCount: 0 },
+      state: { stagedCount: 0, conventionalCommitsAvailable: false },
     });
   });
 
@@ -131,13 +135,27 @@ describe("CommitViewProvider (unit)", () => {
     provider.updateState({ stagedCount: 3 });
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
-      state: { stagedCount: 3 },
+      state: { stagedCount: 3, conventionalCommitsAvailable: false },
     });
 
     provider.updateState({ lastError: "oops" });
     expect(webview.postMessage).toHaveBeenLastCalledWith({
       type: "state",
-      state: { stagedCount: 3, lastError: "oops" },
+      state: {
+        stagedCount: 3,
+        conventionalCommitsAvailable: false,
+        lastError: "oops",
+      },
+    });
+
+    provider.updateState({ conventionalCommitsAvailable: true });
+    expect(webview.postMessage).toHaveBeenLastCalledWith({
+      type: "state",
+      state: {
+        stagedCount: 3,
+        conventionalCommitsAvailable: true,
+        lastError: "oops",
+      },
     });
   });
 
@@ -158,7 +176,11 @@ describe("CommitViewProvider (unit)", () => {
     expect(onCommit).not.toHaveBeenCalled();
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
-      state: { stagedCount: 0, lastError: "No staged files." },
+      state: {
+        stagedCount: 0,
+        conventionalCommitsAvailable: false,
+        lastError: "No staged files.",
+      },
     });
   });
 
@@ -191,7 +213,11 @@ describe("CommitViewProvider (unit)", () => {
 
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
-      state: { stagedCount: 0, lastError: undefined },
+      state: {
+        stagedCount: 0,
+        conventionalCommitsAvailable: false,
+        lastError: undefined,
+      },
     });
 
     const calls = webview.postMessage.mock.calls.map((c: any[]) => c[0]);
@@ -223,7 +249,11 @@ describe("CommitViewProvider (unit)", () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(webview.postMessage).toHaveBeenCalledWith({
       type: "state",
-      state: { stagedCount: 0, lastError: "boom" },
+      state: {
+        stagedCount: 0,
+        conventionalCommitsAvailable: false,
+        lastError: "boom",
+      },
     });
   });
 
@@ -243,5 +273,123 @@ describe("CommitViewProvider (unit)", () => {
 
     expect(onCommit).not.toHaveBeenCalled();
     expect(webview.postMessage).not.toHaveBeenCalled();
+  });
+
+  it("conventionalCommit: when unavailable, posts error and does not call callback", async () => {
+    const onCommit = vi.fn(async () => {});
+    const onConventionalCommit = vi.fn(async () => "feat: x");
+
+    const provider = new CommitViewProvider(
+      vscode.Uri.file("/ext") as any,
+      onCommit,
+      onConventionalCommit,
+    );
+
+    const webview = makeWebview();
+    await provider.resolveWebviewView(makeWebviewView(webview));
+
+    webview.postMessage.mockClear();
+
+    await webview.__emitReceive({ type: "conventionalCommit" });
+
+    expect(onConventionalCommit).not.toHaveBeenCalled();
+    expect(webview.postMessage).toHaveBeenCalledWith({
+      type: "state",
+      state: {
+        stagedCount: 0,
+        conventionalCommitsAvailable: false,
+        lastError:
+          "Conventional Commits extension is not installed or is disabled.",
+      },
+    });
+  });
+
+  it("conventionalCommit: when available, sets message and triggers focus commands", async () => {
+    vi.useFakeTimers();
+
+    const onCommit = vi.fn(async () => {});
+    const onConventionalCommit = vi.fn(async () => "docs: hello");
+
+    const provider = new CommitViewProvider(
+      vscode.Uri.file("/ext") as any,
+      onCommit,
+      onConventionalCommit,
+    );
+
+    const webview = makeWebview();
+    await provider.resolveWebviewView(makeWebviewView(webview));
+
+    provider.updateState({ conventionalCommitsAvailable: true });
+
+    webview.postMessage.mockClear();
+    (vscode as any).commands.executeCommand.mockClear();
+
+    await webview.__emitReceive({ type: "conventionalCommit" });
+
+    const posted = webview.postMessage.mock.calls.map((c: any[]) => c[0]);
+    expect(
+      posted.some(
+        (m: any) =>
+          m?.type === "ui" &&
+          m?.action === "setMessage" &&
+          m?.value === "docs: hello",
+      ),
+    ).toBe(true);
+
+    await vi.runAllTimersAsync();
+
+    expect((vscode as any).commands.executeCommand).toHaveBeenCalled();
+    const focusCmd = "gitWorklists.commitPanel.focus";
+    const focusCalls = (
+      vscode as any
+    ).commands.executeCommand.mock.calls.filter(
+      (c: any[]) => c[0] === focusCmd,
+    );
+    expect(focusCalls.length).toBeGreaterThan(0);
+
+    vi.useRealTimers();
+  });
+
+  it("setMessage/setAmend before view is resolved does not throw (postUi guard)", async () => {
+    const onCommit = vi.fn(async () => {});
+    const provider = new CommitViewProvider(
+      vscode.Uri.file("/ext") as any,
+      onCommit,
+    );
+
+    expect(() => provider.setMessage("hello")).not.toThrow();
+    expect(() => provider.setAmend(true)).not.toThrow();
+  });
+
+  it("updateState before view is resolved does not throw (postState guard)", async () => {
+    const onCommit = vi.fn(async () => {});
+    const provider = new CommitViewProvider(
+      vscode.Uri.file("/ext") as any,
+      onCommit,
+    );
+
+    expect(() => provider.updateState({ stagedCount: 99 })).not.toThrow();
+    expect(() => provider.updateState({ lastError: "x" })).not.toThrow();
+  });
+
+  it("on 'ready' message posts state again", async () => {
+    const onCommit = vi.fn(async () => {});
+    const provider = new CommitViewProvider(
+      vscode.Uri.file("/ext") as any,
+      onCommit,
+    );
+
+    const webview = makeWebview();
+    await provider.resolveWebviewView(makeWebviewView(webview));
+
+    provider.updateState({ stagedCount: 7 });
+    webview.postMessage.mockClear();
+
+    await webview.__emitReceive({ type: "ready" });
+
+    expect(webview.postMessage).toHaveBeenCalledWith({
+      type: "state",
+      state: { stagedCount: 7, conventionalCommitsAvailable: false },
+    });
   });
 });
