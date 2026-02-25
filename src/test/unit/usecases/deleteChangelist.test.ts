@@ -1,16 +1,14 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { DeleteChangelist } from "../../../usecases/deleteChangelist";
-import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
-import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 import type {
   CommitFileChange,
   GitClient,
-  GitStashEntry,
-  GitStatusEntry,
-  OutgoingCommit,
+  OutgoingCommit
 } from "../../../adapters/git/gitClient";
+import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
+import { SystemChangelist } from "../../../core/changelist/systemChangelist";
 import { ChangelistStore } from "../../../usecases/changelistStore";
+import { DeleteChangelist } from "../../../usecases/deleteChangelist";
 
 function makeStore(
   initial?: PersistedState,
@@ -68,6 +66,7 @@ function makeGit(
       async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
         "",
     ),
+    tryGetUpstreamRef: vi.fn(async () => ""),
   };
 }
 
