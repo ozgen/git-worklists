@@ -13,6 +13,14 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.4.1] - 2026-02-25
+
+### Changed
+
+- Per-changelist stash names now use the **changelist name** instead of the internal changelist ID (improves readability in `git stash list`).
+
+---
+
 ## [0.4.0] - 2026-02-24
 
 ### Added
