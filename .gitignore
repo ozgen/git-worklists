@@ -9,10 +9,7 @@ out/
 dist/
 
 # VS Code
-.vscode/*
-!.vscode/extensions.json
-!.vscode/launch.json
-!.vscode/tasks.json
+.vscode/
 
 .vscode-test/
 
