@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { CreateStashForChangelist } from "../../../../usecases/stash/createStashForChangelist";
 import type { GitClient } from "../../../../adapters/git/gitClient";
 import type { PersistedState } from "../../../../adapters/storage/workspaceStateStore";
+import { CreateStashForChangelist } from "../../../../usecases/stash/createStashForChangelist";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;
@@ -35,6 +35,15 @@ function makeGit(
     showFileAtRef: vi.fn(),
     stageMany: vi.fn(async () => {}),
     unstageMany: vi.fn(async () => {}),
+    getUpstreamRef: vi.fn(async () => ""),
+    listOutgoingCommits: vi.fn(async () => []),
+
+    getCommitFiles: vi.fn(async () => []),
+    showFileAtRefOptional: vi.fn(
+      async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
+        "",
+    ),
+    tryGetUpstreamRef: vi.fn(async () => ""),
   };
 }
 
@@ -71,6 +80,22 @@ describe("CreateStashForChangelist", () => {
     expect(git.stashPushPaths).not.toHaveBeenCalled();
   });
 
+  it("throws if changelist has no valid name", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [{ id: "cl1", name: "   ", files: ["a.txt"] }],
+    } as any);
+
+    const git = makeGit([]);
+    const uc = new CreateStashForChangelist(git, store as any);
+
+    await expect(
+      uc.run({ repoRootFsPath: "/repo", changelistId: "cl1" }),
+    ).rejects.toThrow("Changelist has no valid name.");
+
+    expect(git.stashPushPaths).not.toHaveBeenCalled();
+  });
+
   it("filters out untracked files and stashes only tracked/changed ones", async () => {
     const store = makeStore({
       version: 1,
@@ -84,7 +109,6 @@ describe("CreateStashForChangelist", () => {
     } as any);
 
     const git = makeGit([{ path: "untracked.md", x: "?", y: "?" }]);
-
     const uc = new CreateStashForChangelist(git, store as any);
 
     const res = await uc.run({
@@ -94,7 +118,7 @@ describe("CreateStashForChangelist", () => {
     });
 
     expect(git.stashPushPaths).toHaveBeenCalledTimes(1);
-    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:cl1 WIP", [
+    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:CL1 WIP", [
       "tracked.txt",
       "sub/file.ts",
     ]);
@@ -142,7 +166,7 @@ describe("CreateStashForChangelist", () => {
       message: "   ",
     });
 
-    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:cl1", [
+    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:CL1", [
       "a.txt",
     ]);
     expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 0 });
@@ -162,7 +186,7 @@ describe("CreateStashForChangelist", () => {
       changelistId: "cl1",
     });
 
-    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:cl1", [
+    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:CL1", [
       "keep.txt",
     ]);
     expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 1 });

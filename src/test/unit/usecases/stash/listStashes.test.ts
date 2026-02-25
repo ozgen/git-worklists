@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { ListStashes } from "../../../../usecases/stash/listStashes";
 import type {
   GitClient,
   GitStashEntry,
 } from "../../../../adapters/git/gitClient";
+import { ListStashes } from "../../../../usecases/stash/listStashes";
 
 function makeGit(returnValue: GitStashEntry[] = []): GitClient {
   return {
@@ -23,6 +23,15 @@ function makeGit(returnValue: GitStashEntry[] = []): GitClient {
     showFileAtRef: vi.fn(),
     stageMany: vi.fn(async () => {}),
     unstageMany: vi.fn(async () => {}),
+    getUpstreamRef: vi.fn(async () => ""),
+    listOutgoingCommits: vi.fn(async () => []),
+
+    getCommitFiles: vi.fn(async () => []),
+    showFileAtRefOptional: vi.fn(
+      async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
+        "",
+    ),
+    tryGetUpstreamRef: vi.fn(async () => ""),
   };
 }
 

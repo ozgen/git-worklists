@@ -1,5 +1,5 @@
-import { WorkspaceStateStore } from "../../adapters/storage/workspaceStateStore";
 import { GitClient } from "../../adapters/git/gitClient";
+import { WorkspaceStateStore } from "../../adapters/storage/workspaceStateStore";
 import { normalizeRepoRelPath } from "../../utils/paths";
 
 export class CreateStashForChangelist {
@@ -27,6 +27,11 @@ export class CreateStashForChangelist {
     const files = (list.files ?? []).map(normalizeRepoRelPath);
     if (files.length === 0) {
       throw new Error("This changelist has no files.");
+    }
+
+    const changelistName = (list.name ?? "").trim();
+    if (!changelistName) {
+      throw new Error("Changelist has no valid name.");
     }
 
     // Filter out untracked files using status porcelain.
@@ -57,8 +62,8 @@ export class CreateStashForChangelist {
 
     const userMsg = (params.message ?? "").trim();
     const msg = userMsg
-      ? `GW:${changelistId} ${userMsg}`
-      : `GW:${changelistId}`;
+      ? `GW:${changelistName} ${userMsg}`
+      : `GW:${changelistName}`;
 
     await this.git.stashPushPaths(repoRootFsPath, msg, stashable);
 
