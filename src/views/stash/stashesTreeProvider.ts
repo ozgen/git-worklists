@@ -34,11 +34,27 @@ export class StashesTreeProvider
     if (!element) {
       return [{ kind: "root" }];
     }
+
     if (element.kind === "root") {
       const uc = new ListStashes(this.git);
       const stashes = await uc.run(this.repoRootFsPath);
       return stashes.map((s) => ({ kind: "stash", stash: s }));
     }
+
+    if (element.kind === "stash") {
+      // Load files only when expanded
+      const files = await this.git.stashListFiles(
+        this.repoRootFsPath,
+        element.stash.ref,
+      );
+      return files.map((f) => ({
+        kind: "stashFile",
+        stash: element.stash,
+        path: f.path,
+        status: f.status,
+      }));
+    }
+
     return [];
   }
 

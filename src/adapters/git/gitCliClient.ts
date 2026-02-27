@@ -1,11 +1,12 @@
 import * as cp from "child_process";
 import * as path from "path";
 import {
-  GitClient,
-  GitStatusEntry,
-  GitStashEntry,
-  OutgoingCommit,
   CommitFileChange,
+  GitClient,
+  GitStashEntry,
+  GitStatusEntry,
+  OutgoingCommit,
+  StashFileEntry,
 } from "./gitClient";
 
 function execGit(args: string[], cwd: string): Promise<string> {
@@ -13,7 +14,11 @@ function execGit(args: string[], cwd: string): Promise<string> {
     cp.execFile(
       "git",
       args,
-      { cwd, encoding: "utf8" },
+      {
+        cwd,
+        encoding: "utf8",
+        maxBuffer: 50 * 1024 * 1024, // 50MB
+      },
       (err, stdout, stderr) => {
         if (err) {
           reject(
@@ -394,5 +399,51 @@ export class GitCliClient implements GitClient {
     } catch {
       return undefined;
     }
+  }
+
+  async stashListFiles(
+    repoRootFsPath: string,
+    stashRef: string,
+  ): Promise<StashFileEntry[]> {
+    // Compare stash base commit to stash commit:
+    // stashRef^1 is "base" (commit the stash was made from)
+    // stashRef is the stash commit object (worktree changes)
+    const out = await execGit(
+      ["diff", "--name-status", `${stashRef}^1`, stashRef],
+      repoRootFsPath,
+    );
+
+    const lines = out
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const files: StashFileEntry[] = [];
+
+    for (const line of lines) {
+      const parts = line.split("\t");
+      if (parts.length < 2) {
+        continue;
+      }
+
+      const statusRaw = parts[0] ?? "?";
+      const code = (statusRaw[0] ?? "?") as StashFileEntry["status"];
+
+      if (code === "R" || code === "C") {
+        const oldPath = parts[1] ?? "";
+        const newPath = parts[2] ?? "";
+        if (newPath) {
+          files.push({ status: code, oldPath, path: newPath });
+        }
+        continue;
+      }
+
+      const p = parts[1] ?? "";
+      if (p) {
+        files.push({ status: code, path: p });
+      }
+    }
+
+    return files;
   }
 }
