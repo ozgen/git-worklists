@@ -194,6 +194,16 @@
         "command": "gitWorklists.file.openSource",
         "title": "Open Source",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "gitWorklists.moveStagedFilesToChangelist",
+        "title": "Move Staged Files to Another Changelist",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "gitWorklists.stashStagedFilesFromChangelist",
+        "title": "Move Staged Files into Stash",
+        "icon": "$(archive)"
       }
     ],
     "menus": {
@@ -299,6 +309,16 @@
           "command": "gitWorklists.file.openSource",
           "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
           "group": "navigation@0"
+        },
+        {
+          "command": "gitWorklists.moveStagedFilesToChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitWorklists.stashStagedFilesFromChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
+          "group": "navigation@3"
         }
       ]
     }

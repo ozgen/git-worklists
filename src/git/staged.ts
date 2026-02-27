@@ -52,3 +52,10 @@ export async function unstagePaths(repoRoot: string, paths: string[]) {
 
   await runGit(repoRoot, ["restore", "--staged", "--", ...toUnstage]);
 }
+
+export function getStagedFilesInGroup(
+  files: string[],
+  staged: Set<string>,
+): string[] {
+  return files.map(normalizeRepoRelPath).filter((p) => staged.has(p));
+}

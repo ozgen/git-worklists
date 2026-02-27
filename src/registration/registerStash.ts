@@ -42,6 +42,10 @@ export function registerStash(deps: Deps) {
             placeHolder: "WIP",
           });
 
+          if (message === undefined) {
+            return;
+          }
+
           const uc = new CreateStashForChangelist(deps.git, deps.store);
 
           const res = await uc.run({
