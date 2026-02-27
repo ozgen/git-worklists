@@ -13,6 +13,31 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.6.0] - 2026-02-28
+
+### Added
+
+- **Accordion-style Stashes view**
+  - Stashes are now expandable nodes instead of a flat list.
+  - Expanding a stash reveals the files contained within it.
+- **Per-file diff preview in Stashes view**
+  - Clicking a stashed file opens a diff against the stash base commit.
+  - Newly added files in a stash open as single-file preview.
+- Status-aware stash file nodes (A/M/D/R/C).
+
+### Changed
+
+- Stash nodes are now collapsible instead of non-expandable items.
+- Refactored Stashes tree provider to support hierarchical rendering.
+- Extended Git adapter with `git diff --name-status` integration for stash file enumeration.
+
+### Improved
+
+- Safer handling of very large stashed files to prevent preview crashes.
+- Increased unit test coverage for stash tree rendering and Git stash parsing logic.
+
+---
+
 ## [0.5.0] - 2026-02-27
 
 ### Added

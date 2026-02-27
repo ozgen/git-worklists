@@ -187,10 +187,23 @@ Integrated Git stash support directly inside Git Worklists.
 ### Stash List View
 
 - Dedicated **Stashes** view
+- Stashes are displayed as expandable (accordion-style) nodes
+- Expanding a stash reveals the list of files contained within it
+- Status-aware file nodes (A / M / D / R / C)
 - Clean, readable labels (no raw `stash@{0}` noise)
 - Displays originating changelist (e.g. `[CL:changes]`)
 - Shows branch context
 - Hover tooltip includes full Git reference
+
+### Stash File Preview
+
+- Click a stashed file to open a **diff preview**
+  - Compares stash base commit (`stash^1`) with stash contents
+- Newly added files in a stash open as single-file preview
+- Large files are handled safely to prevent editor crashes
+- Preview behavior is consistent with the main diff integration
+
+![Stash diff preview demo](media/demo-stash-diff.gif)
 
 ### Stash Actions
 
@@ -221,6 +234,7 @@ Supported operations:
 - `git stash apply`
 - `git stash pop`
 - `git stash drop`
+- `git diff --name-status`
 - `git ls-files --others --exclude-standard`
 
 All operations are executed per repository using repo-relative paths.
@@ -259,7 +273,9 @@ All operations are executed per repository using repo-relative paths.
 1. Right-click a changelist -> **Stash changes…**
 2. Enter an optional stash message
 3. Open the **Stashes** view
-4. Apply, Pop, or Delete stashes as needed
+4. Expand a stash to inspect its files
+5. Click a file to preview its diff
+6. Apply, Pop, or Delete stashes as needed
 
 ---
 
