@@ -633,23 +633,14 @@ export function registerCommands(deps: Deps) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "gitWorklists.moveStagedFilesToChangelist",
-      async (groupNode: any) => {
+      "gitWorklists.moveAllStagedFilesToChangelist",
+      async () => {
         try {
-          const files: string[] = Array.isArray(groupNode?.list?.files)
-            ? groupNode.list.files
-            : [];
-          if (files.length === 0) {
-            return;
-          }
-
           const staged = await getStagedPaths(deps.repoRoot);
-          const stagedInThis = getStagedFilesInGroup(files, staged);
+          const stagedPaths = [...staged].map(normalizeRepoRelPath);
 
-          if (stagedInThis.length === 0) {
-            vscode.window.showInformationMessage(
-              "No staged files in this changelist.",
-            );
+          if (stagedPaths.length === 0) {
+            vscode.window.showInformationMessage("No staged files.");
             return;
           }
 
@@ -658,7 +649,7 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
-          await deps.moveFiles.run(deps.repoRoot, stagedInThis, target.id);
+          await deps.moveFiles.run(deps.repoRoot, stagedPaths, target.id);
           await deps.coordinator.requestNow();
         } catch (e: any) {
           console.error(e);
@@ -666,30 +657,16 @@ export function registerCommands(deps: Deps) {
         }
       },
     ),
-  );
 
-  context.subscriptions.push(
     vscode.commands.registerCommand(
-      "gitWorklists.stashStagedFilesFromChangelist",
-      async (groupNode: any) => {
+      "gitWorklists.stashAllStagedFiles",
+      async () => {
         try {
-          const listName: string = String(
-            groupNode?.list?.name ?? "changelist",
-          );
-          const files: string[] = Array.isArray(groupNode?.list?.files)
-            ? groupNode.list.files
-            : [];
-          if (files.length === 0) {
-            return;
-          }
-
           const staged = await getStagedPaths(deps.repoRoot);
-          const stagedInThis = getStagedFilesInGroup(files, staged);
+          const stagedPaths = [...staged].map(normalizeRepoRelPath);
 
-          if (stagedInThis.length === 0) {
-            vscode.window.showInformationMessage(
-              "No staged files in this changelist.",
-            );
+          if (stagedPaths.length === 0) {
+            vscode.window.showInformationMessage("No staged files.");
             return;
           }
 
@@ -697,18 +674,18 @@ export function registerCommands(deps: Deps) {
             prompt: "Stash message (optional)",
             placeHolder: "WIP",
           });
-          
+
           if (message === undefined) {
             return;
           }
 
-          const userMsg = (message ?? "").trim();
-          const msg = userMsg ? `GW:${listName} ${userMsg}` : `GW:${listName}`;
+          const userMsg = message.trim();
+          const msg = userMsg ? `GW:staged ${userMsg}` : `GW:staged`;
 
-          await deps.git.stashPushPaths(deps.repoRoot, msg, stagedInThis);
+          await deps.git.stashPushPaths(deps.repoRoot, msg, stagedPaths);
 
           vscode.window.showInformationMessage(
-            `Stashed ${stagedInThis.length} staged file(s) from ${listName}.`,
+            `Stashed ${stagedPaths.length} staged file(s).`,
           );
 
           deps.coordinator.trigger();

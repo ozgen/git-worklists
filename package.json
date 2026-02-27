@@ -196,13 +196,13 @@
         "icon": "$(go-to-file)"
       },
       {
-        "command": "gitWorklists.moveStagedFilesToChangelist",
-        "title": "Move Staged Files to Another Changelist",
+        "command": "gitWorklists.moveAllStagedFilesToChangelist",
+        "title": "Move All Staged Files to Changelist…",
         "icon": "$(folder)"
       },
       {
-        "command": "gitWorklists.stashStagedFilesFromChangelist",
-        "title": "Move Staged Files into Stash",
+        "command": "gitWorklists.stashAllStagedFiles",
+        "title": "Stash All Staged Files…",
         "icon": "$(archive)"
       }
     ],
@@ -311,14 +311,14 @@
           "group": "navigation@0"
         },
         {
-          "command": "gitWorklists.moveStagedFilesToChangelist",
+          "command": "gitWorklists.moveAllStagedFilesToChangelist",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
-          "group": "navigation@2"
+          "group": "navigation@5"
         },
         {
-          "command": "gitWorklists.stashStagedFilesFromChangelist",
+          "command": "gitWorklists.stashAllStagedFiles",
           "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
-          "group": "navigation@3"
+          "group": "navigation@6"
         }
       ]
     }
