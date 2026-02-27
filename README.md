@@ -27,7 +27,6 @@ Generate structured commit messages directly from the Commit Panel using the Con
 
 ---
 
-
 # Features
 
 ---
@@ -36,44 +35,53 @@ Generate structured commit messages directly from the Commit Panel using the Con
 
 A structured way to organize and stage changes.
 
-* Displays **Changes** and **Unversioned** files clearly
+- Displays **Changes** and **Unversioned** files clearly
 
-* Shows **file count badges** per worklist
+- Shows **file count badges** per worklist
 
-* Unversioned files are detected via `git ls-files --others --exclude-standard`
+- Unversioned files are detected via `git ls-files --others --exclude-standard`
 
-* Untracked directories are not shown as placeholder entries
+- Untracked directories are not shown as placeholder entries
 
-* Files are displayed in Source Control style:
+- Files are displayed in Source Control style:
+  - **File name** as primary label
+  - **Folder path** shown as description
 
-  * **File name** as primary label
-  * **Folder path** shown as description
+- Create, move, and delete **custom changelists**
 
-* Create, move, and delete **custom changelists**
+- Move files between changelists (per file or per group)
 
-* Move files between changelists (per file or per group)
+- Move selected files to another changelist
 
-* Move selected files to another changelist
+- File-level and group-level **checkboxes** for staging / unstaging
 
-* File-level and group-level **checkboxes** for staging / unstaging
+- State-aware inline action:
+  - Shows **Stage** when file is unstaged
+  - Shows **Unstage** when file is staged
 
-* State-aware inline action:
+- Stage All / Unstage All per changelist
 
-  * Shows **Stage** when file is unstaged
-  * Shows **Unstage** when file is staged
+- Visual file decorations (badges)
 
-* Stage All / Unstage All per changelist
+- Decorations are automatically refreshed after commit or push (no stale indicators)
 
-* Visual file decorations (badges)
+- File context menu actions:
+  - **Open Diff** (HEAD <-> Working Tree)
+  - **Open Source File** (jump directly to the working tree file)
+  - **Discard**
+  - **Move to Changelist**
+  - **Move Staged Files to Another Changelist…**
+    - From a changelist: only staged files in that changelist
+    - From a staged file: all staged files
 
-* Decorations are automatically refreshed after commit or push (no stale indicators)
+  - **Move Staged Files into Stash…**
+    - From a changelist: only staged files in that changelist
+    - From a staged file: all staged files
+    - Aborts safely if the message dialog is cancelled
 
-* File context menu actions:
-
-  * **Open Diff** (HEAD <-> Working Tree)
-  * **Open Source File** (jump directly to the working tree file)
-  * **Discard**
-  * **Move to Changelist**
+- Staged-only actions:
+  - Only staged files are affected
+  - Unstaged files remain untouched
 
 ---
 
@@ -157,6 +165,7 @@ A focused commit experience separate from VS Code SCM.
 - Clear and actionable error feedback
 
 Commit behavior is predictable and aligned with Git CLI behavior.
+
 > Conventional Commits integration works with the
 > [Conventional Commits extension](https://marketplace.visualstudio.com/items?itemName=vivaxy.vscode-conventional-commits).
 > The integration is optional and activates automatically when the extension is installed.

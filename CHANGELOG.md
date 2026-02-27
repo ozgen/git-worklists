@@ -13,6 +13,29 @@ and adheres to Semantic Versioning.
 
 ---
 
+## [0.5.0] - 2026-02-27
+
+### Added
+
+- Group-level action: **Move Staged Files to Another Changelist**
+- Group-level action: **Move Staged Files into Stash**
+- File-level actions on staged files:
+  - Move all staged files to another changelist
+  - Stash all staged files
+
+### Changed
+
+- Staged-only actions now operate based on the Git index
+  - From a changelist: affects only staged files in that changelist
+  - From a staged file: affects all currently staged files
+
+### Fixed
+
+- Cancelling the stash message dialog no longer executes `git stash push`
+- Prevented unintended stash execution when the input box is dismissed
+
+---
+
 ## [0.4.1] - 2026-02-25
 
 ### Changed
