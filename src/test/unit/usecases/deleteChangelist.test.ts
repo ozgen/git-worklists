@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   CommitFileChange,
   GitClient,
-  OutgoingCommit
+  OutgoingCommit,
 } from "../../../adapters/git/gitClient";
 import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../../../core/changelist/systemChangelist";
@@ -67,6 +67,7 @@ function makeGit(
         "",
     ),
     tryGetUpstreamRef: vi.fn(async () => ""),
+    stashListFiles: vi.fn(async () => []),
   };
 }
 

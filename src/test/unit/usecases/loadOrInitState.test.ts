@@ -40,6 +40,8 @@ function makeGit(repoRoot = "/repo"): GitClient {
       async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
         "",
     ),
+    tryGetUpstreamRef: vi.fn(async () => ""),
+    stashListFiles: vi.fn(async () => []),
   };
 }
 
