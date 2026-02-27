@@ -766,7 +766,7 @@ describe("GitCliClient (mocked git)", () => {
     expect(out).toBeUndefined();
   });
 
-  it("showFileAtRefOptional returns undefined when error contains \"does not exist in\"", async () => {
+  it('showFileAtRefOptional returns undefined when error contains "does not exist in"', async () => {
     mockExecFileFailureOnce("fatal: does not exist in 'HEAD'\n");
 
     const git = new GitCliClient();
@@ -788,7 +788,11 @@ describe("GitCliClient (mocked git)", () => {
     mockExecFileFailureOnce("fatal: bad object deadbeef^\n");
 
     const git = new GitCliClient();
-    const out = await git.showFileAtRefOptional("/repo", "deadbeef^", "src/a.ts");
+    const out = await git.showFileAtRefOptional(
+      "/repo",
+      "deadbeef^",
+      "src/a.ts",
+    );
 
     expect(out).toBeUndefined();
   });
@@ -820,17 +824,17 @@ describe("GitCliClient (mocked git)", () => {
       }
       return new Error("unexpected command");
     });
-  
+
     const git = new GitCliClient();
     const upstream = await git.tryGetUpstreamRef("/repo");
-  
+
     expect(upstream).toBe("origin/main");
     expect(calls[0]).toEqual({
       args: ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
       cwd: "/repo",
     });
   });
-  
+
   it("tryGetUpstreamRef returns undefined when upstream is missing", async () => {
     mockExecFileWithRouter((args) => {
       if (args[0] === "rev-parse" && args.includes("@{u}")) {
@@ -838,10 +842,10 @@ describe("GitCliClient (mocked git)", () => {
       }
       return new Error("unexpected command");
     });
-  
+
     const git = new GitCliClient();
     const upstream = await git.tryGetUpstreamRef("/repo");
-  
+
     expect(upstream).toBeUndefined();
   });
 
@@ -857,24 +861,24 @@ describe("GitCliClient (mocked git)", () => {
           "2026-02-20T10:00:00+01:00",
         ].join(sep),
       ].join("\n") + "\n";
-  
+
     const { calls } = mockExecFileWithRouter((args) => {
       const cmd = args.join(" ");
-  
+
       if (cmd === "rev-parse --abbrev-ref --symbolic-full-name @{u}") {
         return new Error("fatal: no upstream configured");
       }
-  
+
       if (cmd.includes(" log ") && cmd.includes(" HEAD --not --remotes")) {
         return { stdout: logOut };
       }
-  
+
       return new Error("unexpected command");
     });
-  
+
     const git = new GitCliClient();
     const commits = await git.listOutgoingCommits("/repo");
-  
+
     expect(commits).toEqual([
       {
         hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -884,17 +888,149 @@ describe("GitCliClient (mocked git)", () => {
         authorDateIso: "2026-02-20T10:00:00+01:00",
       },
     ]);
-  
+
     expect(
       calls.some((c) =>
-        c.args.join(" ").includes("rev-parse --abbrev-ref --symbolic-full-name @{u}"),
+        c.args
+          .join(" ")
+          .includes("rev-parse --abbrev-ref --symbolic-full-name @{u}"),
       ),
     ).toBe(true);
-  
+
     expect(
-      calls.some((c) => c.args.join(" ").includes("log") && c.args.includes("HEAD") && c.args.includes("--not") && c.args.includes("--remotes")),
+      calls.some(
+        (c) =>
+          c.args.join(" ").includes("log") &&
+          c.args.includes("HEAD") &&
+          c.args.includes("--not") &&
+          c.args.includes("--remotes"),
+      ),
     ).toBe(true);
   });
-  
-  
+
+  it("stashListFiles runs git diff --name-status <stashRef>^1 <stashRef>", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (
+        args[0] === "diff" &&
+        args[1] === "--name-status" &&
+        args[2] === "stash@{0}^1" &&
+        args[3] === "stash@{0}"
+      ) {
+        return { stdout: "M\tsrc/a.ts\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.stashListFiles("/repo", "stash@{0}");
+
+    expect(files).toEqual([{ status: "M", path: "src/a.ts" }]);
+
+    expect(calls[0]).toEqual({
+      args: ["diff", "--name-status", "stash@{0}^1", "stash@{0}"],
+      cwd: "/repo",
+    });
+  });
+
+  it("stashListFiles parses A/M/D entries", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "diff --name-status stash@{1}^1 stash@{1}") {
+        return {
+          stdout: "A\tnew.txt\nM\tsrc/a.ts\nD\told.txt\n",
+        };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.stashListFiles("/repo", "stash@{1}");
+
+    expect(files).toEqual([
+      { status: "A", path: "new.txt" },
+      { status: "M", path: "src/a.ts" },
+      { status: "D", path: "old.txt" },
+    ]);
+  });
+
+  it("stashListFiles parses rename (R) with oldPath", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "diff --name-status stash@{2}^1 stash@{2}") {
+        return { stdout: "R100\told/name.txt\tnew/name.txt\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.stashListFiles("/repo", "stash@{2}");
+
+    expect(files).toEqual([
+      { status: "R", oldPath: "old/name.txt", path: "new/name.txt" },
+    ]);
+  });
+
+  it("stashListFiles parses copy (C) with oldPath", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "diff --name-status stash@{3}^1 stash@{3}") {
+        return { stdout: "C100\tfrom.txt\tto.txt\n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.stashListFiles("/repo", "stash@{3}");
+
+    expect(files).toEqual([
+      { status: "C", oldPath: "from.txt", path: "to.txt" },
+    ]);
+  });
+
+  it("stashListFiles ignores malformed lines", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "diff --name-status stash@{4}^1 stash@{4}") {
+        return {
+          stdout:
+            "\n" +
+            "M\n" + 
+            "A\tgood.txt\n" +
+            "\tbroken\n" +
+            "R100\toldOnly\n" +
+            "C100\tfromOnly\n", 
+        };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.stashListFiles("/repo", "stash@{4}");
+
+    expect(files).toEqual([{ status: "A", path: "good.txt" }]);
+  });
+
+  it("stashListFiles returns [] when diff output is empty", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "diff --name-status stash@{5}^1 stash@{5}") {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const files = await git.stashListFiles("/repo", "stash@{5}");
+
+    expect(files).toEqual([]);
+  });
+
+  it("stashListFiles propagates git errors", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args[0] === "diff" && args[1] === "--name-status") {
+        return new Error("fatal: bad revision");
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await expect(git.stashListFiles("/repo", "stash@{0}")).rejects.toThrow(
+      "git diff --name-status stash@{0}^1 stash@{0} failed",
+    );
+  });
 });

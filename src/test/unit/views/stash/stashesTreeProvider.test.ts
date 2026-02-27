@@ -34,11 +34,11 @@ const vscodeMock = vi.hoisted(() => {
 
 vi.mock("vscode", () => vscodeMock);
 
-
 import { StashesTreeProvider } from "../../../../views/stash/stashesTreeProvider";
 
 type FakeGitClient = {
   stashList: (repoRoot: string) => Promise<any[]>;
+  stashListFiles: (repoRoot: string, stashRef: string) => Promise<any[]>;
 };
 
 describe("StashesTreeProvider (unit)", () => {
@@ -49,6 +49,7 @@ describe("StashesTreeProvider (unit)", () => {
     vi.clearAllMocks();
     git = {
       stashList: vi.fn(),
+      stashListFiles: vi.fn(),
     };
   });
 
@@ -86,7 +87,41 @@ describe("StashesTreeProvider (unit)", () => {
     ]);
   });
 
-  it("getChildren(stash) returns []", async () => {
+  it("getChildren(stash) calls git.stashListFiles and maps to stashFile nodes", async () => {
+    (git.stashListFiles as any).mockResolvedValue([
+      { path: "src/a.ts", status: "M" },
+      { path: "README.md", status: "A" },
+    ]);
+
+    const p = new StashesTreeProvider(repoRoot, git as any);
+
+    const stashNode = {
+      kind: "stash",
+      stash: { ref: "stash@{0}", message: "m0", raw: "r0" },
+    };
+
+    const children = await p.getChildren(stashNode as any);
+
+    expect(git.stashListFiles).toHaveBeenCalledWith(repoRoot, "stash@{0}");
+    expect(children).toEqual([
+      {
+        kind: "stashFile",
+        stash: { ref: "stash@{0}", message: "m0", raw: "r0" },
+        path: "src/a.ts",
+        status: "M",
+      },
+      {
+        kind: "stashFile",
+        stash: { ref: "stash@{0}", message: "m0", raw: "r0" },
+        path: "README.md",
+        status: "A",
+      },
+    ]);
+  });
+
+  it("getChildren(stash) returns [] when stashListFiles returns empty", async () => {
+    (git.stashListFiles as any).mockResolvedValue([]);
+
     const p = new StashesTreeProvider(repoRoot, git as any);
 
     const children = await p.getChildren({
@@ -95,6 +130,7 @@ describe("StashesTreeProvider (unit)", () => {
     } as any);
 
     expect(children).toEqual([]);
+    expect(git.stashListFiles).toHaveBeenCalledWith(repoRoot, "stash@{0}");
   });
 
   it("getTreeItem returns a TreeItem (delegates to stashNodes)", () => {
@@ -103,7 +139,8 @@ describe("StashesTreeProvider (unit)", () => {
     const item = p.getTreeItem({ kind: "root" } as any);
 
     expect(item).toBeTruthy();
-    expect(item.label).toBe("Stashes");
+    expect(item.label).toBeDefined();
+    expect(item.label!).toBe("Stashes");
     expect(item.contextValue).toBe("gitWorklists.stashesRoot");
   });
 
@@ -114,6 +151,15 @@ describe("StashesTreeProvider (unit)", () => {
 
     expect(await p.getChildren()).toEqual([]);
     expect(await p.getChildren({ kind: "root" } as any)).toEqual([]);
+    expect(
+      await p.getChildren({
+        kind: "stash",
+        stash: { ref: "stash@{0}", message: "m0", raw: "r0" },
+      } as any),
+    ).toEqual([]);
+
+    expect(git.stashList).not.toHaveBeenCalled();
+    expect(git.stashListFiles).not.toHaveBeenCalled();
 
     const emitter = (p as any).onDidChangeTreeDataEmitter;
     expect(emitter.dispose).toHaveBeenCalled();
