@@ -3,7 +3,13 @@ import { GitStashEntry } from "../../adapters/git/gitClient";
 
 export type StashNode =
   | { kind: "root" }
-  | { kind: "stash"; stash: GitStashEntry };
+  | { kind: "stash"; stash: GitStashEntry }
+  | {
+      kind: "stashFile";
+      stash: GitStashEntry;
+      path: string;
+      status?: "A" | "M" | "D" | "R" | "C" | "T" | "U" | "?";
+    };
 
 function stripWorklistTag(msg: string): { changelistId?: string; msg: string } {
   const s = (msg ?? "").trim();
@@ -66,17 +72,41 @@ export function toTreeItem(node: StashNode): vscode.TreeItem {
     return item;
   }
 
-  const s = node.stash;
-  const { label, desc, tooltip } = formatLabel(s);
+  if (node.kind === "stash") {
+    const s = node.stash;
 
-  const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+    const { label, desc, tooltip } = formatLabel(s);
 
-  item.contextValue = "gitWorklists.stashItem";
+    const item = new vscode.TreeItem(
+      label,
+      vscode.TreeItemCollapsibleState.Collapsed,
+    );
+    item.contextValue = "gitWorklists.stashItem";
+    item.description = desc;
+    item.tooltip = tooltip;
+    item.iconPath = new vscode.ThemeIcon("archive");
+    return item;
+  }
 
-  item.description = desc;
+  // stash file leaf
+  const item = new vscode.TreeItem(
+    node.path,
+    vscode.TreeItemCollapsibleState.None,
+  );
+  item.contextValue = "gitWorklists.stashFile";
+  item.iconPath = new vscode.ThemeIcon("diff");
 
-  item.tooltip = tooltip;
+  // Clicking open diff
+  item.command = {
+    command: "gitWorklists.stash.openFileDiff",
+    title: "Open Stash Diff",
+    arguments: [node],
+  };
 
-  item.iconPath = new vscode.ThemeIcon("archive");
+  if (node.status) {
+    item.description = node.status;
+  }
+
+  item.tooltip = `${node.stash.ref}\n${node.path}`;
   return item;
 }

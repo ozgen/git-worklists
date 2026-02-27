@@ -37,6 +37,15 @@ export type CommitFileChange = {
   oldPath?: string;
 };
 
+export type StashFileEntry = {
+  /** repo-relative path (new path if renamed) */
+  path: string;
+  /** best effort status */
+  status: "A" | "M" | "D" | "R" | "C" | "T" | "U" | "?";
+  /** old path for rename/copy */
+  oldPath?: string;
+};
+
 export interface GitClient {
   /** returns repo root absolute path */
   getRepoRoot(workspaceFsPath: string): Promise<string>;
@@ -117,4 +126,13 @@ export interface GitClient {
     ref: string,
     repoRelativePath: string,
   ): Promise<string | undefined>;
+
+  /**
+   * Files affected by a stash.
+   * Uses name-status so we can show A/M/D and handle renames.
+   */
+  stashListFiles(
+    repoRootFsPath: string,
+    stashRef: string,
+  ): Promise<StashFileEntry[]>;
 }

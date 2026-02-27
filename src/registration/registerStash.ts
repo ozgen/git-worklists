@@ -1,6 +1,18 @@
 import * as vscode from "vscode";
+import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvider"; // adjust path
 import { Deps } from "../app/types";
 import { CreateStashForChangelist } from "../usecases/stash/createStashForChangelist";
+
+function showUri(ref: string, repoRelPath: string): vscode.Uri {
+  const p = repoRelPath
+    .split("/")
+    .map((s) => encodeURIComponent(s))
+    .join("/");
+
+  return vscode.Uri.parse(
+    `${GitShowContentProvider.scheme}:/${encodeURIComponent(ref)}/${p}`,
+  );
+}
 
 export function registerStash(deps: Deps) {
   const { context } = deps;
@@ -139,6 +151,41 @@ export function registerStash(deps: Deps) {
           console.error(e);
           vscode.window.showErrorMessage(String(e?.message ?? e));
         }
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.stash.openFileDiff",
+      async (node: any) => {
+        const stashRef =
+          typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        const repoRelPath = typeof node?.path === "string" ? node.path : "";
+        const status =
+          typeof node?.status === "string" ? node.status : undefined;
+
+        if (!stashRef || !repoRelPath) {
+          return;
+        }
+
+        const right = showUri(stashRef, repoRelPath);
+
+        if (status === "A") {
+          const doc = await vscode.workspace.openTextDocument(right);
+          await vscode.window.showTextDocument(doc, { preview: true });
+          return;
+        }
+
+        // Default left = base commit of stash
+        let leftRef = `${stashRef}^1`;
+
+        if (status === "A") {
+          leftRef = "EMPTY";
+        }
+
+        const left = showUri(leftRef, repoRelPath);
+        const title = `${repoRelPath} (${stashRef})`;
+
+        await vscode.commands.executeCommand("vscode.diff", left, right, title);
       },
     ),
   );
