@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as process from "../../../utils/process";
 import {
+  getStagedFilesInGroup,
   getStagedPaths,
   stagePaths,
   unstagePaths,
@@ -107,5 +108,36 @@ describe("git/staged", () => {
       "--",
       "a/b.txt",
     ]);
+  });
+
+  describe("getStagedFilesInGroup", () => {
+    it("returns empty array when files is empty", () => {
+      const res = getStagedFilesInGroup([], new Set(["a.txt"]));
+      expect(res).toEqual([]);
+    });
+  
+    it("returns only files that are staged (intersection)", () => {
+      const staged = new Set(["a.txt", "c.txt"]);
+      const res = getStagedFilesInGroup(["a.txt", "b.txt", "c.txt"], staged);
+      expect(res).toEqual(["a.txt", "c.txt"]);
+    });
+  
+    it("normalizes file paths before checking staged set", () => {
+      const staged = new Set(["a/b.txt", "c/d/e.ts"]);
+      const res = getStagedFilesInGroup(["a\\b.txt", "c\\d\\e.ts"], staged);
+      expect(res).toEqual(["a/b.txt", "c/d/e.ts"]);
+    });
+  
+    it("does not match when staged set contains non-normalized paths", () => {
+      const staged = new Set(["a\\b.txt"]);
+      const res = getStagedFilesInGroup(["a\\b.txt"], staged);
+      expect(res).toEqual([]);
+    });
+  
+    it("keeps duplicates if the input contains duplicates", () => {
+      const staged = new Set(["x.txt"]);
+      const res = getStagedFilesInGroup(["x.txt", "x.txt"], staged);
+      expect(res).toEqual(["x.txt", "x.txt"]);
+    });
   });
 });
