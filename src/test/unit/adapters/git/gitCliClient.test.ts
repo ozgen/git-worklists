@@ -616,7 +616,9 @@ describe("GitCliClient (mocked git)", () => {
 
     expect(
       calls.some((c) =>
-        c.args.join(" ").includes("rev-parse --abbrev-ref --symbolic-full-name @{u}"),
+        c.args
+          .join(" ")
+          .includes("rev-parse --abbrev-ref --symbolic-full-name @{u}"),
       ),
     ).toBe(true);
 
@@ -782,7 +784,7 @@ describe("GitCliClient (mocked git)", () => {
     expect(out).toBeUndefined();
   });
 
-  it("showFileAtRefOptional returns undefined when error contains \"does not exist in\"", async () => {
+  it('showFileAtRefOptional returns undefined when error contains "does not exist in"', async () => {
     mockExecFileFailureOnce("fatal: does not exist in 'HEAD'\n");
 
     const git = new GitCliClient();
@@ -804,7 +806,11 @@ describe("GitCliClient (mocked git)", () => {
     mockExecFileFailureOnce("fatal: bad object deadbeef^\n");
 
     const git = new GitCliClient();
-    const out = await git.showFileAtRefOptional("/repo", "deadbeef^", "src/a.ts");
+    const out = await git.showFileAtRefOptional(
+      "/repo",
+      "deadbeef^",
+      "src/a.ts",
+    );
 
     expect(out).toBeUndefined();
   });
@@ -1154,7 +1160,12 @@ describe("GitCliClient — getUntrackedPaths", () => {
     const res = await git.getUntrackedPaths("/repo");
 
     expect(res).toEqual(["a.txt", "dir/b.txt"]);
-    expect(calls[0].args).toEqual(["ls-files", "--others", "--exclude-standard", "-z"]);
+    expect(calls[0].args).toEqual([
+      "ls-files",
+      "--others",
+      "--exclude-standard",
+      "-z",
+    ]);
   });
 
   it("normalizes backslashes to forward slashes", async () => {
@@ -1277,7 +1288,9 @@ describe("GitCliClient — isHeadEmptyVsParent", () => {
     const res = await git.isHeadEmptyVsParent("/repo");
 
     expect(res).toBe(true);
-    expect(calls.map((c) => c.args.join(" "))).toContain("diff --quiet HEAD^ HEAD");
+    expect(calls.map((c) => c.args.join(" "))).toContain(
+      "diff --quiet HEAD^ HEAD",
+    );
   });
 
   it("returns false when diff exits with error (changes exist)", async () => {
@@ -1360,7 +1373,9 @@ describe("GitCliClient — push", () => {
   it("falls back to push -u origin <branch> when upstream missing (amend=false)", async () => {
     const { calls } = mockExecFileWithRouter((args) => {
       if (args[0] === "push" && args.length === 1) {
-        return new Error("fatal: The current branch foo has no upstream branch.");
+        return new Error(
+          "fatal: The current branch foo has no upstream branch.",
+        );
       }
       if (args.join(" ") === "rev-parse --abbrev-ref HEAD") {
         return { stdout: "feature/test-branch\n" };
@@ -1374,12 +1389,20 @@ describe("GitCliClient — push", () => {
     const git = new GitCliClient();
     await git.push("/repo", { amend: false });
 
-    expect(calls.some((c) => c.args.join(" ") === "push -u origin feature/test-branch")).toBe(true);
+    expect(
+      calls.some(
+        (c) => c.args.join(" ") === "push -u origin feature/test-branch",
+      ),
+    ).toBe(true);
   });
 
   it("falls back with --force-with-lease when upstream missing and amend=true", async () => {
     const { calls } = mockExecFileWithRouter((args) => {
-      if (args[0] === "push" && args[1] === "--force-with-lease" && args.length === 2) {
+      if (
+        args[0] === "push" &&
+        args[1] === "--force-with-lease" &&
+        args.length === 2
+      ) {
         return new Error("fatal: has no upstream branch");
       }
       if (args.join(" ") === "rev-parse --abbrev-ref HEAD") {
@@ -1395,8 +1418,8 @@ describe("GitCliClient — push", () => {
     await git.push("/repo", { amend: true });
 
     expect(
-      calls.some((c) =>
-        c.args.join(" ") === "push -u origin main --force-with-lease",
+      calls.some(
+        (c) => c.args.join(" ") === "push -u origin main --force-with-lease",
       ),
     ).toBe(true);
   });
@@ -1468,11 +1491,8 @@ describe("GitCliClient — discardFiles", () => {
   });
 });
 
-// ─── Additional edge-case / branch coverage ───────────────────────────────────
-
 describe("GitCliClient — getStatusPorcelainZ edge cases", () => {
   it("skips entry when path1 is empty (header has no path after XY+space)", async () => {
-    // "XX " → x="X", y="X", path1="" → should be skipped
     const porcelain = "XX \0 M file.txt\0";
 
     mockExecFileWithRouter((args) => {
@@ -1491,7 +1511,6 @@ describe("GitCliClient — getStatusPorcelainZ edge cases", () => {
 
 describe("GitCliClient — getStagedPaths edge cases", () => {
   it("skips entry where path portion is empty", async () => {
-    // "M  " → x="M", p="" → should be skipped; "A  a.txt" → included
     const porcelain = "M  \0A  a.txt\0";
 
     mockExecFileWithRouter((args) => {
@@ -1529,8 +1548,6 @@ describe("GitCliClient — tryGetUpstreamRef empty output", () => {
 describe("GitCliClient — listOutgoingCommits edge cases", () => {
   it("skips malformed log lines where hash or shortHash is missing", async () => {
     const sep = "\x1f";
-    // first line has empty hash → should be skipped
-    // second line is valid
     const logOut =
       ["", "short", "subject", "author", "2026-01-01T00:00:00Z"].join(sep) +
       "\n" +
@@ -1567,7 +1584,8 @@ describe("GitCliClient — stashList edge cases", () => {
     mockExecFileWithRouter((args) => {
       if (args.join(" ") === "stash list") {
         return {
-          stdout: "stash@{0}: On main: GW:cl1 WIP\n\nstash@{1}: On dev: plain\n",
+          stdout:
+            "stash@{0}: On main: GW:cl1 WIP\n\nstash@{1}: On dev: plain\n",
         };
       }
       return new Error("unexpected command");
@@ -1576,7 +1594,6 @@ describe("GitCliClient — stashList edge cases", () => {
     const git = new GitCliClient();
     const stashes = await git.stashList("/repo");
 
-    // Blank line in the middle produces null from parseStashLine → filtered
     expect(stashes).toHaveLength(2);
     expect(stashes[0].ref).toBe("stash@{0}");
     expect(stashes[1].ref).toBe("stash@{1}");
@@ -1634,7 +1651,7 @@ describe("GitCliClient — push looksLikeNoUpstream patterns", () => {
         return new Error("fatal: no upstream branch");
       }
       if (args.join(" ") === "rev-parse --abbrev-ref HEAD") {
-        return { stdout: "\n" }; // empty branch name
+        return { stdout: "\n" };
       }
       return new Error("unexpected command");
     });
