@@ -1,7 +1,6 @@
 import { PersistedState } from "../adapters/storage/workspaceStateStore";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { Deps } from "../app/types";
-import { getStagedPaths } from "../git/staged";
 
 function computeTotalWorklistCount(state: PersistedState | undefined): number {
   if (!state || state.version !== 1) {
@@ -21,7 +20,7 @@ export function registerRefresh(deps: Deps) {
   const doRefresh = async () => {
     await deps.reconcile.run(deps.repoRoot);
 
-    const staged = await getStagedPaths(deps.repoRoot);
+    const staged = await deps.git.getStagedPaths(deps.repoRoot);
     deps.treeProvider.setStagedPaths(staged);
 
     deps.treeProvider.refresh();
