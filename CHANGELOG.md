@@ -9,7 +9,12 @@ and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-- No changes yet
+### Changed
+
+- Consolidated all git operations into `GitCliClient` / `GitClient` interface and eliminated the parallel `src/git/` module (head, push, refs, staged) and `runGit`/`runGitCapture` helpers from `utils/process.ts`
+- All registration modules and use cases now invoke git via `deps.git.*` instead of calling free functions directly
+- `utils/process.ts` now only exposes generic process helpers (`runCmdCapture`, `runCmd`, `runGhCapture`)
+- Updated and extended unit tests for `GitCliClient`, `process`, and `reconcileWithGitStatus` to reflect the new structure
 
 ---
 
