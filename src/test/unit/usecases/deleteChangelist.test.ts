@@ -68,6 +68,16 @@ function makeGit(
     ),
     tryGetUpstreamRef: vi.fn(async () => ""),
     stashListFiles: vi.fn(async () => []),
+
+    getStagedPaths: vi.fn(async () => new Set<string>()),
+    getUntrackedPaths: vi.fn(async () => []),
+    isNewFileInRepo: vi.fn(async () => false),
+    fileExistsAtRef: vi.fn(async () => false),
+    getHeadMessage: vi.fn(async () => ""),
+    isHeadEmptyVsParent: vi.fn(async () => false),
+    commit: vi.fn(async () => {}),
+    push: vi.fn(async () => {}),
+    discardFiles: vi.fn(async () => {}),
   };
 }
 
