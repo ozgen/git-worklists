@@ -1467,3 +1467,181 @@ describe("GitCliClient — discardFiles", () => {
     expect(calls[0].cwd).toBe("/repo");
   });
 });
+
+// ─── Additional edge-case / branch coverage ───────────────────────────────────
+
+describe("GitCliClient — getStatusPorcelainZ edge cases", () => {
+  it("skips entry when path1 is empty (header has no path after XY+space)", async () => {
+    // "XX " → x="X", y="X", path1="" → should be skipped
+    const porcelain = "XX \0 M file.txt\0";
+
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: porcelain };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const entries = await git.getStatusPorcelainZ("/repo");
+
+    expect(entries).toEqual([{ path: "file.txt", x: " ", y: "M" }]);
+  });
+});
+
+describe("GitCliClient — getStagedPaths edge cases", () => {
+  it("skips entry where path portion is empty", async () => {
+    // "M  " → x="M", p="" → should be skipped; "A  a.txt" → included
+    const porcelain = "M  \0A  a.txt\0";
+
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: porcelain };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getStagedPaths("/repo");
+
+    expect([...res]).toEqual(["a.txt"]);
+  });
+});
+
+describe("GitCliClient — tryGetUpstreamRef empty output", () => {
+  it("returns undefined when git output is empty/whitespace", async () => {
+    mockExecFileWithRouter((args) => {
+      if (
+        args.join(" ") === "rev-parse --abbrev-ref --symbolic-full-name @{u}"
+      ) {
+        return { stdout: "   \n" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const upstream = await git.tryGetUpstreamRef("/repo");
+
+    expect(upstream).toBeUndefined();
+  });
+});
+
+describe("GitCliClient — listOutgoingCommits edge cases", () => {
+  it("skips malformed log lines where hash or shortHash is missing", async () => {
+    const sep = "\x1f";
+    // first line has empty hash → should be skipped
+    // second line is valid
+    const logOut =
+      ["", "short", "subject", "author", "2026-01-01T00:00:00Z"].join(sep) +
+      "\n" +
+      [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbb",
+        "Good commit",
+        "Dev",
+        "2026-01-02T00:00:00Z",
+      ].join(sep) +
+      "\n";
+
+    mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "rev-parse --abbrev-ref --symbolic-full-name @{u}") {
+        return { stdout: "origin/main\n" };
+      }
+      if (cmd.includes(" log ") && cmd.includes("origin/main..HEAD")) {
+        return { stdout: logOut };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const commits = await git.listOutgoingCommits("/repo");
+
+    expect(commits).toHaveLength(1);
+    expect(commits[0].shortHash).toBe("bbbbbbb");
+  });
+});
+
+describe("GitCliClient — stashList edge cases", () => {
+  it("filters out null entries from blank lines", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "stash list") {
+        return {
+          stdout: "stash@{0}: On main: GW:cl1 WIP\n\nstash@{1}: On dev: plain\n",
+        };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const stashes = await git.stashList("/repo");
+
+    // Blank line in the middle produces null from parseStashLine → filtered
+    expect(stashes).toHaveLength(2);
+    expect(stashes[0].ref).toBe("stash@{0}");
+    expect(stashes[1].ref).toBe("stash@{1}");
+  });
+
+  it("returns empty array when stash list is empty", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "stash list") {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const stashes = await git.stashList("/repo");
+
+    expect(stashes).toEqual([]);
+  });
+});
+
+describe("GitCliClient — push looksLikeNoUpstream patterns", () => {
+  const noUpstreamPatterns = [
+    "fatal: no upstream branch",
+    "fatal: The current branch foo has no upstream",
+    "error: set the remote as upstream via --set-upstream-to",
+  ];
+
+  for (const errorMsg of noUpstreamPatterns) {
+    it(`falls back to -u origin when error contains: "${errorMsg.slice(0, 50)}"`, async () => {
+      const { calls } = mockExecFileWithRouter((args) => {
+        if (args[0] === "push" && args.length <= 2) {
+          return new Error(errorMsg);
+        }
+        if (args.join(" ") === "rev-parse --abbrev-ref HEAD") {
+          return { stdout: "my-branch\n" };
+        }
+        if (args[0] === "push" && args.includes("-u")) {
+          return { stdout: "" };
+        }
+        return new Error("unexpected command");
+      });
+
+      const git = new GitCliClient();
+      await git.push("/repo", { amend: false });
+
+      expect(
+        calls.some((c) => c.args.join(" ") === "push -u origin my-branch"),
+      ).toBe(true);
+    });
+  }
+
+  it("throws on empty branch name during upstream fallback", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args[0] === "push" && args.length === 1) {
+        return new Error("fatal: no upstream branch");
+      }
+      if (args.join(" ") === "rev-parse --abbrev-ref HEAD") {
+        return { stdout: "\n" }; // empty branch name
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await expect(git.push("/repo", { amend: false })).rejects.toThrow(
+      "Detached HEAD: cannot push without a branch.",
+    );
+  });
+});
