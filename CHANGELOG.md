@@ -9,6 +9,12 @@ and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+No changes yet.
+
+---
+
+## [0.6.1] - 2026-03-01
+
 ### Changed
 
 - Consolidated all git operations into `GitCliClient` / `GitClient` interface and eliminated the parallel `src/git/` module (head, push, refs, staged) and `runGit`/`runGitCapture` helpers from `utils/process.ts`
