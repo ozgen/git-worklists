@@ -3,11 +3,7 @@ import * as vscode from "vscode";
 import { Deps } from "../app/types";
 import { CommitViewProvider } from "../views/commitViewProvider";
 
-import { getHeadMessage, isHeadEmptyVsParent } from "../git/head";
-import { pushWithUpstreamFallback } from "../git/push";
-import { getStagedPaths } from "../git/staged";
 import { info } from "../ui/info";
-import { runGit } from "../utils/process";
 
 import { openPushPreviewPanel } from "../views/pushPreviewPanel";
 
@@ -19,7 +15,7 @@ export function registerCommitView(
     context.extensionUri,
     async ({ message, amend, push }) => {
       const newMsg = message.trim();
-      const staged = await getStagedPaths(deps.repoRoot);
+      const staged = await deps.git.getStagedPaths(deps.repoRoot);
       // Restage staged paths to ensure the commit includes the latest content (handles AM/MM).
       await deps.restageAlreadyStaged.run(deps.repoRoot, staged);
 
@@ -35,26 +31,8 @@ export function registerCommitView(
         }
       };
 
-      // TODO: this func is now legacy, currenty the extention
-      // used openPushPreviewPanel webview panel
-      const confirmPushFallbackModal = async (forceWithLease: boolean) => {
-        const ok = await vscode.window.showWarningMessage(
-          forceWithLease
-            ? "Push amended commit (force-with-lease)?"
-            : "Push commits to remote?",
-          {
-            modal: true,
-            detail: forceWithLease
-              ? "This will run: git push --force-with-lease"
-              : "This will run: git push",
-          },
-          "Push",
-        );
-        return ok === "Push";
-      };
-
       const doPush = async (amendForPush: boolean) => {
-        await pushWithUpstreamFallback(deps.repoRoot, { amend: amendForPush });
+        await deps.git.push(deps.repoRoot, { amend: amendForPush });
         await closeAfterPush();
       };
 
@@ -142,12 +120,12 @@ export function registerCommitView(
       // Amend / Commit
       // -------------------------
       if (amend) {
-        const oldMsg = await getHeadMessage(deps.repoRoot);
+        const oldMsg = await deps.git.getHeadMessage(deps.repoRoot);
         info(oldMsg);
 
         if (staged.size === 0) {
           if (newMsg === oldMsg) {
-            const headEmpty = await isHeadEmptyVsParent(deps.repoRoot);
+            const headEmpty = await deps.git.isHeadEmptyVsParent(deps.repoRoot);
             throw new Error(
               headEmpty
                 ? "Nothing to amend: last commit is empty and message is unchanged."
@@ -155,8 +133,7 @@ export function registerCommitView(
             );
           }
 
-          await runGit(deps.repoRoot, [
-            "commit",
+          await deps.git.commit(deps.repoRoot, [
             "--amend",
             "--only",
             "-m",
@@ -165,12 +142,11 @@ export function registerCommitView(
           messageOnlyAmend = true;
         } else {
           try {
-            await runGit(deps.repoRoot, ["commit", "--amend", "-m", newMsg]);
+            await deps.git.commit(deps.repoRoot, ["--amend", "-m", newMsg]);
           } catch (e) {
             const msg = String((e as any)?.message ?? e);
             if (msg.includes("would make it empty")) {
-              await runGit(deps.repoRoot, [
-                "commit",
+              await deps.git.commit(deps.repoRoot, [
                 "--amend",
                 "--allow-empty",
                 "-m",
@@ -185,7 +161,7 @@ export function registerCommitView(
         if (staged.size === 0) {
           throw new Error("No staged files. Stage files first.");
         }
-        await runGit(deps.repoRoot, ["commit", "-m", newMsg]);
+        await deps.git.commit(deps.repoRoot, ["-m", newMsg]);
       }
 
       await closeAfterCommit();

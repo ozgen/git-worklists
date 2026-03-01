@@ -4,15 +4,6 @@ import * as vscode from "vscode";
 
 import { Deps } from "../app/types";
 import { normalizeRepoRelPath, toRepoRelPath } from "../utils/paths";
-import { runGit } from "../utils/process";
-
-import { fileExistsAtRef, isNewFileInRepo } from "../git/refs";
-import {
-  getStagedFilesInGroup,
-  getStagedPaths,
-  stagePaths,
-  unstagePaths,
-} from "../git/staged";
 
 import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvider";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
@@ -43,7 +34,7 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
-          await stagePaths(deps.repoRoot, [rel]);
+          await deps.git.stageMany(deps.repoRoot, [rel]);
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -73,7 +64,7 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
-          await unstagePaths(deps.repoRoot, [rel]);
+          await deps.git.unstageMany(deps.repoRoot, [rel]);
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -96,13 +87,13 @@ export function registerCommands(deps: Deps) {
           }
 
           const normalized = files.map(normalizeRepoRelPath);
-          const staged = await getStagedPaths(deps.repoRoot);
+          const staged = await deps.git.getStagedPaths(deps.repoRoot);
           const allStaged = normalized.every((p) => staged.has(p));
 
           if (!allStaged) {
-            await stagePaths(deps.repoRoot, normalized);
+            await deps.git.stageMany(deps.repoRoot, normalized);
           } else {
-            await unstagePaths(deps.repoRoot, normalized);
+            await deps.git.unstageMany(deps.repoRoot, normalized);
           }
 
           await deps.coordinator.requestNow();
@@ -136,7 +127,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await runGit(deps.repoRoot, ["add", "--", normalizeRepoRelPath(rel)]);
+        await deps.git.stageMany(deps.repoRoot, [normalizeRepoRelPath(rel)]);
         await deps.coordinator.requestNow();
         await vscode.commands.executeCommand("gitWorklists.openDiff", uri);
       },
@@ -150,13 +141,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await runGit(deps.repoRoot, [
-          "restore",
-          "--staged",
-          "--",
-          normalizeRepoRelPath(rel),
-        ]);
-
+        await deps.git.unstageMany(deps.repoRoot, [normalizeRepoRelPath(rel)]);
         await deps.coordinator.requestNow();
         await vscode.commands.executeCommand("gitWorklists.openDiff", uri);
       },
@@ -302,7 +287,7 @@ export function registerCommands(deps: Deps) {
             | "unversioned"
             | "tracked"
             | undefined;
-          const isNew = await isNewFileInRepo(deps.repoRoot, rel);
+          const isNew = await deps.git.isNewFileInRepo(deps.repoRoot, rel);
 
           if (status === "unversioned") {
             const ok = await vscode.window.showWarningMessage(
@@ -332,24 +317,12 @@ export function registerCommands(deps: Deps) {
               return;
             }
 
-            await runGit(deps.repoRoot, [
-              "restore",
-              "--staged",
-              "--worktree",
-              "--",
-              rel,
-            ]);
+            await deps.git.discardFiles(deps.repoRoot, [rel]);
             await deps.coordinator.requestNow();
             return;
           }
 
-          await runGit(deps.repoRoot, [
-            "restore",
-            "--staged",
-            "--worktree",
-            "--",
-            rel,
-          ]);
+          await deps.git.discardFiles(deps.repoRoot, [rel]);
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -388,7 +361,7 @@ export function registerCommands(deps: Deps) {
           const normalTracked: string[] = [];
 
           for (const rel of tracked) {
-            const isNew = await isNewFileInRepo(deps.repoRoot, rel);
+            const isNew = await deps.git.isNewFileInRepo(deps.repoRoot, rel);
             if (isNew) {
               newlyAdded.push(rel);
             } else {
@@ -458,13 +431,7 @@ export function registerCommands(deps: Deps) {
 
           const toRestore = [...newlyAdded, ...normalTracked];
           if (toRestore.length > 0) {
-            await runGit(deps.repoRoot, [
-              "restore",
-              "--staged",
-              "--worktree",
-              "--",
-              ...toRestore,
-            ]);
+            await deps.git.discardFiles(deps.repoRoot, toRestore);
           }
 
           await deps.coordinator.requestNow();
@@ -495,7 +462,7 @@ export function registerCommands(deps: Deps) {
         const repoRel = normalizeRepoRelPath(rel);
         const ref = "HEAD";
 
-        const existsInHead = await fileExistsAtRef(deps.repoRoot, ref, repoRel);
+        const existsInHead = await deps.git.fileExistsAtRef(deps.repoRoot, ref, repoRel);
         if (!existsInHead) {
           await vscode.commands.executeCommand("vscode.open", uri);
           return;
@@ -599,7 +566,7 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
-          await runGit(repoRoot, ["push"]);
+          await deps.git.push(repoRoot, { amend: false });
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -636,7 +603,7 @@ export function registerCommands(deps: Deps) {
       "gitWorklists.moveAllStagedFilesToChangelist",
       async () => {
         try {
-          const staged = await getStagedPaths(deps.repoRoot);
+          const staged = await deps.git.getStagedPaths(deps.repoRoot);
           const stagedPaths = [...staged].map(normalizeRepoRelPath);
 
           if (stagedPaths.length === 0) {
@@ -662,7 +629,7 @@ export function registerCommands(deps: Deps) {
       "gitWorklists.stashAllStagedFiles",
       async () => {
         try {
-          const staged = await getStagedPaths(deps.repoRoot);
+          const staged = await deps.git.getStagedPaths(deps.repoRoot);
           const stagedPaths = [...staged].map(normalizeRepoRelPath);
 
           if (stagedPaths.length === 0) {
@@ -697,4 +664,5 @@ export function registerCommands(deps: Deps) {
       },
     ),
   );
+
 }
