@@ -4,7 +4,6 @@ import {
   WorkspaceStateStore,
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
-import { getUntrackedPaths } from "../utils/process";
 
 function norm(p: string): string {
   return p.replace(/\\/g, "/");
@@ -66,7 +65,7 @@ export class ReconcileWithGitStatus {
 
     // Untracked paths
     const untracked = new Set<string>(
-      (await getUntrackedPaths(repoRoot)).map(norm),
+      (await this.git.getUntrackedPaths(repoRoot)).map(norm),
     );
 
     // Tracked changes (everything except ??)

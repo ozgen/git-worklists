@@ -107,6 +107,7 @@ export async function createDeps(
 
   const newFileHandler = new HandleNewFilesCreated({
     repoRoot,
+    git,
     moveFiles,
     coordinator,
     settings,

@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { normalizeRepoRelPath, toRepoRelPath } from "../utils/paths";
-import { runGit } from "../utils/process";
 
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 
@@ -9,33 +8,39 @@ export type NewFileDecision = "add" | "keep" | "disable" | "dismiss";
 export type MoveFilesPort = {
     run(repoRoot: string, paths: string[], targetListId: string): Promise<void>;
   };
-  
+
   export type RefreshPort = {
     requestNow(): Promise<void>;
   };
   export type PendingStageOnSavePort = {
     mark(repoRoot: string, repoRelPath: string): void;
   };
-  
+
+  export type GitPort = {
+    stageMany(repoRoot: string, paths: string[]): Promise<void>;
+    isIgnored(repoRoot: string, repoRelativePath: string): Promise<boolean>;
+  };
+
   export type HandleNewFilesCreatedDeps = {
     repoRoot: string;
+    git: GitPort;
     moveFiles: MoveFilesPort;
     coordinator: RefreshPort;
     pendingStageOnSave: PendingStageOnSavePort;
-  
+
     settings: {
       getPromptOnNewFile(): boolean;
       setPromptOnNewFile(enabled: boolean): Promise<void>;
     };
-  
+
     prompt: {
       confirmAddNewFiles(
         count: number,
         sampleLabel?: string,
       ): Promise<NewFileDecision>;
     };
-    
-  };  
+
+  };
 
 export class HandleNewFilesCreated {
   constructor(private readonly deps: HandleNewFilesCreatedDeps) {}
@@ -67,7 +72,7 @@ export class HandleNewFilesCreated {
       if (p === ".git" || p.startsWith(".git/")) {
         continue;
       }
-      
+
       // skip "fake" *.git files (your bug path pattern)
       if (p.toLowerCase().endsWith(".git")) {
         continue;
@@ -83,7 +88,7 @@ export class HandleNewFilesCreated {
     // Skip ignored files
     const candidates: string[] = [];
     for (const p of relPaths) {
-      if (!(await this.isIgnored(repoRoot, p))) {
+      if (!(await this.deps.git.isIgnored(repoRoot, p))) {
         candidates.push(p);
       }
     }
@@ -103,7 +108,7 @@ export class HandleNewFilesCreated {
     }
 
     if (decision === "add") {
-      await this.stagePaths(candidates);
+      await this.deps.git.stageMany(repoRoot, candidates);
       for (const p of candidates) {
         this.deps.pendingStageOnSave.mark(repoRoot, p);
       }
@@ -115,13 +120,6 @@ export class HandleNewFilesCreated {
     // keep/dismiss
     await this.moveToUnversioned(candidates);
     await coordinator.requestNow();
-  }
-
-  private async stagePaths(paths: string[]): Promise<void> {
-    if (paths.length === 0) {
-      return;
-    }
-    await runGit(this.deps.repoRoot, ["add", "--", ...paths]);
   }
 
   private async moveToDefault(paths: string[]): Promise<void> {
@@ -138,19 +136,5 @@ export class HandleNewFilesCreated {
       paths,
       SystemChangelist.Unversioned,
     );
-  }
-
-  private async isIgnored(
-    repoRoot: string,
-    repoRelPath: string,
-  ): Promise<boolean> {
-    try {
-      // exit 0 => ignored
-      await runGit(repoRoot, ["check-ignore", "-q", "--", repoRelPath]);
-      return true;
-    } catch {
-      // non-zero => not ignored
-      return false;
-    }
   }
 }
