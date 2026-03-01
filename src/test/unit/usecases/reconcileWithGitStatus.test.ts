@@ -1,12 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("../../../utils/process", () => {
-  return {
-    getUntrackedPaths: vi.fn(async () => [] as string[]),
-  };
-});
-
-import { getUntrackedPaths } from "../../../utils/process";
 import { ReconcileWithGitStatus } from "../../../usecases/reconcileWithGitStatus";
 import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
 import type { GitClient } from "../../../adapters/git/gitClient";
@@ -26,10 +19,12 @@ function makeStore(initial?: PersistedState) {
 
 function makeGit(
   status: Array<{ path: string; x: string; y: string }>,
+  untracked: string[] = [],
 ): GitClient {
   return {
     getRepoRoot: vi.fn(async () => "/repo"),
     getStatusPorcelainZ: vi.fn(async () => status as any),
+    getUntrackedPaths: vi.fn(async () => untracked),
     add: vi.fn(async () => {}),
     getGitDir: vi.fn(async () => "/repo/.git"),
     stashList: vi.fn(async () => []),
@@ -69,9 +64,7 @@ describe("ReconcileWithGitStatus", () => {
       lists: [{ id: "cl_x", name: "X", files: ["a.txt"] }],
     };
 
-    vi.mocked(getUntrackedPaths).mockResolvedValueOnce([]);
-
-    const git = makeGit([{ path: "a.txt", x: " ", y: "M" }]);
+    const git = makeGit([{ path: "a.txt", x: " ", y: "M" }], []);
     const store = makeStore(initial);
 
     const uc = new ReconcileWithGitStatus(git, store as any);
@@ -105,12 +98,13 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
-    vi.mocked(getUntrackedPaths).mockResolvedValueOnce(["keep-u.txt"]);
-
-    const git = makeGit([
-      { path: "keep-d.txt", x: " ", y: "M" },
-      { path: "keep-x.txt", x: "M", y: " " },
-    ]);
+    const git = makeGit(
+      [
+        { path: "keep-d.txt", x: " ", y: "M" },
+        { path: "keep-x.txt", x: "M", y: " " },
+      ],
+      ["keep-u.txt"],
+    );
 
     const store = makeStore(initial);
     const uc = new ReconcileWithGitStatus(git, store as any);
@@ -136,9 +130,7 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
-    vi.mocked(getUntrackedPaths).mockResolvedValueOnce(["u.txt"]);
-
-    const git = makeGit([]);
+    const git = makeGit([], ["u.txt"]);
     const store = makeStore(initial);
 
     const uc = new ReconcileWithGitStatus(git, store as any);
@@ -168,12 +160,10 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
-    vi.mocked(getUntrackedPaths).mockResolvedValueOnce([]);
-
     const git = makeGit([
       { path: "a.txt", x: " ", y: "M" },
       { path: "b.txt", x: "M", y: " " },
-    ]);
+    ], []);
 
     const store = makeStore(initial);
     const uc = new ReconcileWithGitStatus(git, store as any);
@@ -204,13 +194,14 @@ describe("ReconcileWithGitStatus", () => {
       ],
     };
 
-    vi.mocked(getUntrackedPaths).mockResolvedValueOnce(["b/u.txt"]);
-
-    const git = makeGit([
-      { path: "c/d.txt", x: " ", y: "M" },
-      { path: "a.txt", x: " ", y: "M" },
-      { path: "b/u.txt", x: "?", y: "?" },
-    ]);
+    const git = makeGit(
+      [
+        { path: "c/d.txt", x: " ", y: "M" },
+        { path: "a.txt", x: " ", y: "M" },
+        { path: "b/u.txt", x: "?", y: "?" },
+      ],
+      ["b/u.txt"],
+    );
 
     const store = makeStore(initial);
     const uc = new ReconcileWithGitStatus(git, store as any);
