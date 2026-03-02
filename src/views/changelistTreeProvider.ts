@@ -16,7 +16,7 @@ abstract class Node extends vscode.TreeItem {
 type GroupStageState = "all" | "none" | "mixed";
 type FileWorkStatus = "unversioned" | "tracked";
 
-class GroupNode extends Node {
+export class GroupNode extends Node {
   readonly kind = "group" as const;
 
   constructor(
@@ -41,7 +41,7 @@ class GroupNode extends Node {
   }
 }
 
-class FileNode extends Node {
+export class FileNode extends Node {
   readonly kind = "file" as const;
 
   constructor(
