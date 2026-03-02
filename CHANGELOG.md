@@ -13,6 +13,23 @@ No changes yet.
 
 ---
 
+## [0.7.0] - 2026-03-02
+
+### Added
+
+- **Rename Changelist** right-click any custom changelist to rename it inline; reserved system names (Changes, Unversioned) and duplicates are rejected
+- **Drag and drop between changelists** drag files or entire changelist groups onto another changelist to move them
+- **Activity bar badge** the Git Worklists icon now shows the total number of tracked changed files
+- **Stash for Unversioned files** the Unversioned changelist can now be stashed directly; uses `git stash push --include-untracked` so new (untracked) files are included
+- **Stash restore round-trip** applying or popping a Git Worklists stash now restores files back to their originating changelist instead of always landing in Changes
+
+### Fixed
+
+- Renamed or moved files on disk are now recognized and kept in their original changelist (resolved via `git status` R/C entries)
+- Apply, Pop, and Delete stash actions now show the stash message in notifications and confirmation dialogs instead of the raw `stash@{N}` reference
+
+---
+
 ## [0.6.1] - 2026-03-01
 
 ### Changed

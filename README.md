@@ -37,7 +37,7 @@ A structured way to organize and stage changes.
 
 - Displays **Changes** and **Unversioned** files clearly
 
-- Shows **file count badges** per worklist
+- Shows **file count badges** per worklist and a total badge on the Activity Bar icon
 
 - Unversioned files are detected via `git ls-files --others --exclude-standard`
 
@@ -47,9 +47,11 @@ A structured way to organize and stage changes.
   - **File name** as primary label
   - **Folder path** shown as description
 
-- Create, move, and delete **custom changelists**
+- Create, move, **rename**, and delete **custom changelists**
 
 - Move files between changelists (per file or per group)
+
+- **Drag and drop** files or entire changelist groups onto another changelist
 
 - Move selected files to another changelist
 
@@ -179,9 +181,9 @@ Integrated Git stash support directly inside Git Worklists.
 ### Create Stash (Per Changelist)
 
 - Stash all tracked changes from a selected changelist
+- Stash the **Unversioned changelist** directly new (untracked) files are included via `--include-untracked`
 - Automatically tags stashes with their originating changelist
 - Optional custom stash message
-- Safe handling of untracked files (skipped unless explicitly supported)
 - Immediate UI refresh after stash
 
 ### Stash List View
@@ -209,8 +211,8 @@ Integrated Git stash support directly inside Git Worklists.
 
 Per-stash context actions:
 
-- **Apply Stash** – restore changes without removing stash
-- **Pop Stash** – restore changes and remove stash
+- **Apply Stash** restore changes without removing stash; files are returned to their originating changelist
+- **Pop Stash** restore changes and remove stash; files are returned to their originating changelist
 - **Delete Stash** – drop stash with confirmation
 - Refresh support
 
@@ -230,6 +232,7 @@ Supported operations:
 - `git push`
 - `git push --force-with-lease`
 - `git stash push`
+- `git stash push --include-untracked`
 - `git stash list`
 - `git stash apply`
 - `git stash pop`
@@ -315,7 +318,6 @@ This extension contributes the following settings:
 - No partial staging (no hunk / line staging)
 - No multi-repository support
 - Merge conflicts must be resolved manually
-- Untracked files are not included in per-changelist stash by default
 - GitHub / GitLab PR features are not included
 
 ---
@@ -324,7 +326,6 @@ This extension contributes the following settings:
 
 Planned improvements:
 
-- Include untracked files when creating stash
 - Improve refresh performance for large repositories
 - UI/UX refinements for changelist view
 
