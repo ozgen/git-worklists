@@ -241,6 +241,35 @@ export function registerCommands(deps: Deps) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
+      "gitWorklists.renameChangelist",
+      async (node: any) => {
+        const listId = typeof node?.list?.id === "string" ? node.list.id : "";
+        const currentName =
+          typeof node?.list?.name === "string" ? node.list.name : "";
+        if (!listId) {
+          return;
+        }
+
+        const name = await vscode.window.showInputBox({
+          prompt: "New changelist name",
+          value: currentName,
+        });
+        if (!name) {
+          return;
+        }
+
+        try {
+          await deps.renameChangelist.run(deps.repoRoot, listId, name);
+          await deps.coordinator.requestNow();
+        } catch (e: any) {
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
       "gitWorklists.deleteChangelist",
       async (node: any) => {
         const listId = typeof node?.list?.id === "string" ? node.list.id : "";

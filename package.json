@@ -3,7 +3,7 @@
   "displayName": "Git Worklists",
   "description": "IntelliJ-like changelists, explicit Git staging, commits, and stash management inside VS Code.",
   "publisher": "ozgen",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.109.0"
@@ -115,6 +115,11 @@
         "command": "gitWorklists.moveGroupToChangelist",
         "title": "Move All Files to Changelist…",
         "icon": "$(folder)"
+      },
+      {
+        "command": "gitWorklists.renameChangelist",
+        "title": "Rename Changelist…",
+        "icon": "$(edit)"
       },
       {
         "command": "gitWorklists.deleteChangelist",
@@ -244,6 +249,11 @@
           "command": "gitWorklists.changelist.discardAll",
           "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.group.custom || viewItem == gitWorklists.group.system)",
           "group": "navigation@1"
+        },
+        {
+          "command": "gitWorklists.renameChangelist",
+          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.group.custom",
+          "group": "navigation@8"
         },
         {
           "command": "gitWorklists.deleteChangelist",
