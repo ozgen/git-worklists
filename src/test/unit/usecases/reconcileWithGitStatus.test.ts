@@ -18,7 +18,7 @@ function makeStore(initial?: PersistedState) {
 }
 
 function makeGit(
-  status: Array<{ path: string; x: string; y: string }>,
+  status: Array<{ path: string; x: string; y: string; oldPath?: string }>,
   untracked: string[] = [],
 ): GitClient {
   return {
@@ -213,5 +213,85 @@ describe("ReconcileWithGitStatus", () => {
 
     expect(u.files).toEqual(["b/u.txt"]);
     expect(d.files).toEqual(["a.txt", "c/d.txt"]);
+  });
+
+  it("forwards changelist membership when a file is renamed", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "cl_x", name: "X", files: ["old.ts"] },
+      ],
+    };
+
+    const git = makeGit(
+      [{ path: "new.ts", x: "R", y: " ", oldPath: "old.ts" }],
+      [],
+    );
+
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const x = getList(saved, "cl_x");
+    const d = getList(saved, SystemChangelist.Default);
+
+    expect(x.files).toContain("new.ts");
+    expect(x.files).not.toContain("old.ts");
+    expect(d.files).not.toContain("new.ts");
+  });
+
+  it("forwards membership for a rename in the Default list", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["old.ts"] },
+      ],
+    };
+
+    const git = makeGit(
+      [{ path: "new.ts", x: "R", y: " ", oldPath: "old.ts" }],
+      [],
+    );
+
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const d = getList(saved, SystemChangelist.Default);
+
+    expect(d.files).toContain("new.ts");
+    expect(d.files).not.toContain("old.ts");
+  });
+
+  it("normalizes slashes in oldPath when matching rename", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "cl_x", name: "X", files: ["src\\old.ts"] },
+      ],
+    };
+
+    const git = makeGit(
+      [{ path: "src/new.ts", x: "R", y: " ", oldPath: "src\\old.ts" }],
+      [],
+    );
+
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const x = getList(saved, "cl_x");
+
+    expect(x.files).toContain("src/new.ts");
+    expect(x.files).not.toContain("src/old.ts");
+    expect(x.files).not.toContain("src\\old.ts");
   });
 });

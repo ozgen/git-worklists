@@ -123,16 +123,17 @@ export class GitCliClient implements GitClient {
         continue;
       }
 
-      // Rename/copy: old path then new path
       let finalPath = path1;
+      let oldPath: string | undefined;
       if (x === "R" || x === "C") {
         const path2 = parts[i++] ?? "";
         if (path2) {
+          oldPath = path1.trim();
           finalPath = path2;
         }
       }
 
-      entries.push({ path: finalPath.trim(), x, y });
+      entries.push({ path: finalPath.trim(), x, y, oldPath });
     }
 
     return entries;
@@ -493,16 +494,17 @@ export class GitCliClient implements GitClient {
     repoRootFsPath: string,
     message: string,
     repoRelativePaths: string[],
+    opts?: { includeUntracked?: boolean },
   ): Promise<void> {
     if (repoRelativePaths.length === 0) {
       throw new Error("No files provided to stash.");
     }
-    // Note: `git stash push -- <paths>` silently ignores untracked files.
-    // Only tracked (modified/staged) files will be stashed.
-    await execGit(
-      ["stash", "push", "-m", message, "--", ...repoRelativePaths],
-      repoRootFsPath,
-    );
+    const args = ["stash", "push", "-m", message];
+    if (opts?.includeUntracked) {
+      args.push("--include-untracked");
+    }
+    args.push("--", ...repoRelativePaths);
+    await execGit(args, repoRootFsPath);
   }
 
   async stashApply(repoRootFsPath: string, ref: string): Promise<void> {

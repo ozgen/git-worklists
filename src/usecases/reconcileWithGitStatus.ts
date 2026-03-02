@@ -68,24 +68,30 @@ export class ReconcileWithGitStatus {
       (await this.git.getUntrackedPaths(repoRoot)).map(norm),
     );
 
-    // Tracked changes (everything except ??)
     const changed = new Set<string>();
+    const renamedFrom = new Map<string, string>(); // oldPath -> newPath
     for (const e of status) {
       const p = norm(e.path);
       if (e.x === "?" && e.y === "?") {
         continue;
-      } // untracked handled above
+      }
       changed.add(p);
+      if ((e.x === "R" || e.x === "C") && e.oldPath) {
+        renamedFrom.set(norm(e.oldPath), p);
+      }
     }
 
     const inStatus = new Set<string>([...untracked, ...changed]);
 
-    // file -> owner list (first match wins) based on CURRENT persisted state
     const fileOwner = new Map<string, string>();
     for (const list of fixed.lists) {
       for (const f of list.files.map(norm)) {
         if (!fileOwner.has(f)) {
           fileOwner.set(f, list.id);
+        }
+        const newPath = renamedFrom.get(f);
+        if (newPath && !fileOwner.has(newPath)) {
+          fileOwner.set(newPath, list.id);
         }
       }
     }

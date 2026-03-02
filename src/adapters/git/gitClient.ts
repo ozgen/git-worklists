@@ -7,6 +7,8 @@ export type GitStatusEntry = {
   x: string;
   /** second status char in porcelain (worktree status) */
   y: string;
+  /** previous path before a rename or copy */
+  oldPath?: string;
 };
 
 export type GitStashEntry = {
@@ -184,13 +186,13 @@ export interface GitClient {
 
   /**
    * Stash only the provided repo-relative paths.
-   * Uses: `git stash push -m <message> -- <paths...>`
-   * Note: untracked files are silently ignored by Git — only tracked files are stashed.
+   * Pass `includeUntracked: true` to also stash new (untracked) files among those paths.
    */
   stashPushPaths(
     repoRootFsPath: string,
     message: string,
     repoRelativePaths: string[],
+    opts?: { includeUntracked?: boolean },
   ): Promise<void>;
 
   /** `git stash apply <ref>` */
