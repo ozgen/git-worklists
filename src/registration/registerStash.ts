@@ -89,15 +89,32 @@ export function registerStash(deps: Deps) {
       "gitWorklists.stash.apply",
       async (node: any) => {
         const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        const changelistName =
+          typeof node?.stash?.changelistId === "string"
+            ? node.stash.changelistId
+            : "";
+        const stashLabel =
+          typeof node?.stash?.message === "string" && node.stash.message
+            ? node.stash.message
+            : ref;
         if (!ref) {
           return;
         }
 
         try {
+          const files = await deps.git.stashListFiles(deps.repoRoot, ref);
           await deps.git.stashApply(deps.repoRoot, ref);
-          deps.coordinator.trigger();
+          await deps.coordinator.requestNow();
+          if (changelistName) {
+            await deps.restoreFilesToChangelist.run(
+              deps.repoRoot,
+              changelistName,
+              files.map((f) => f.path),
+            );
+            await deps.coordinator.requestNow();
+          }
           deps.stashesProvider.refresh();
-          vscode.window.showInformationMessage(`Applied ${ref}.`);
+          vscode.window.showInformationMessage(`Applied "${stashLabel}".`);
         } catch (e: any) {
           console.error(e);
           vscode.window.showErrorMessage(String(e?.message ?? e));
@@ -109,15 +126,32 @@ export function registerStash(deps: Deps) {
       "gitWorklists.stash.pop",
       async (node: any) => {
         const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        const changelistName =
+          typeof node?.stash?.changelistId === "string"
+            ? node.stash.changelistId
+            : "";
+        const stashLabel =
+          typeof node?.stash?.message === "string" && node.stash.message
+            ? node.stash.message
+            : ref;
         if (!ref) {
           return;
         }
 
         try {
+          const files = await deps.git.stashListFiles(deps.repoRoot, ref);
           await deps.git.stashPop(deps.repoRoot, ref);
-          deps.coordinator.trigger();
+          await deps.coordinator.requestNow();
+          if (changelistName) {
+            await deps.restoreFilesToChangelist.run(
+              deps.repoRoot,
+              changelistName,
+              files.map((f) => f.path),
+            );
+            await deps.coordinator.requestNow();
+          }
           deps.stashesProvider.refresh();
-          vscode.window.showInformationMessage(`Popped ${ref}.`);
+          vscode.window.showInformationMessage(`Popped "${stashLabel}".`);
         } catch (e: any) {
           console.error(e);
           vscode.window.showErrorMessage(String(e?.message ?? e));
@@ -129,12 +163,16 @@ export function registerStash(deps: Deps) {
       "gitWorklists.stash.drop",
       async (node: any) => {
         const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
+        const stashLabel =
+          typeof node?.stash?.message === "string" && node.stash.message
+            ? node.stash.message
+            : ref;
         if (!ref) {
           return;
         }
 
         const ok = await vscode.window.showWarningMessage(
-          `Delete ${ref}?`,
+          `Delete "${stashLabel}"?`,
           { modal: true, detail: "This will run: git stash drop" },
           "Delete",
         );
@@ -146,7 +184,7 @@ export function registerStash(deps: Deps) {
           await deps.git.stashDrop(deps.repoRoot, ref);
           deps.coordinator.trigger();
           deps.stashesProvider.refresh();
-          vscode.window.showInformationMessage(`Deleted ${ref}.`);
+          vscode.window.showInformationMessage(`Deleted "${stashLabel}".`);
         } catch (e: any) {
           console.error(e);
           vscode.window.showErrorMessage(String(e?.message ?? e));
