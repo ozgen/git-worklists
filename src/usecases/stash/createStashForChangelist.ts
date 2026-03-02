@@ -1,6 +1,7 @@
 import { GitClient } from "../../adapters/git/gitClient";
 import { WorkspaceStateStore } from "../../adapters/storage/workspaceStateStore";
 import { normalizeRepoRelPath } from "../../utils/paths";
+import { SystemChangelist } from "../../core/changelist/systemChangelist";
 
 export class CreateStashForChangelist {
   constructor(
@@ -34,42 +35,38 @@ export class CreateStashForChangelist {
       throw new Error("Changelist has no valid name.");
     }
 
-    // Filter out untracked files using status porcelain.
-    // Untracked entries are "??".
-    const status = await this.git.getStatusPorcelainZ(repoRootFsPath);
-    const untracked = new Set(
-      status
-        .filter((e) => e.x === "?" && e.y === "?")
-        .map((e) => normalizeRepoRelPath(e.path)),
-    );
-
-    const stashable: string[] = [];
-    let skippedUntrackedCount = 0;
-
-    for (const p of files) {
-      if (untracked.has(p)) {
-        skippedUntrackedCount++;
-        continue;
-      }
-      stashable.push(p);
-    }
-
-    if (stashable.length === 0) {
-      throw new Error(
-        "Nothing to stash (this changelist contains only untracked files).",
-      );
-    }
-
     const userMsg = (params.message ?? "").trim();
     const msg = userMsg
       ? `GW:${changelistName} ${userMsg}`
       : `GW:${changelistName}`;
 
-    await this.git.stashPushPaths(repoRootFsPath, msg, stashable);
+    if (changelistId === SystemChangelist.Unversioned) {
+      await this.git.stashPushPaths(repoRootFsPath, msg, files, {
+        includeUntracked: true,
+      });
+      return { stashedCount: files.length, skippedUntrackedCount: 0 };
+    }
 
-    return {
-      stashedCount: stashable.length,
-      skippedUntrackedCount,
-    };
+    const status = await this.git.getStatusPorcelainZ(repoRootFsPath);
+    const untrackedInStatus = new Set(
+      status
+        .filter((e) => e.x === "?" && e.y === "?")
+        .map((e) => normalizeRepoRelPath(e.path)),
+    );
+
+    const trackedFiles = files.filter((p) => !untrackedInStatus.has(p));
+    const skippedUntrackedCount = files.length - trackedFiles.length;
+
+    if (trackedFiles.length === 0) {
+      throw new Error(
+        "Nothing to stash (this changelist contains only untracked files).",
+      );
+    }
+
+    await this.git.stashPushPaths(repoRootFsPath, msg, trackedFiles, {
+      includeUntracked: false,
+    });
+
+    return { stashedCount: trackedFiles.length, skippedUntrackedCount };
   }
 }
