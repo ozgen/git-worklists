@@ -8,6 +8,7 @@ import { VsCodeSettings } from "../adapters/vscode/settings";
 
 import { CreateChangelist } from "../usecases/createChangelist";
 import { DeleteChangelist } from "../usecases/deleteChangelist";
+import { RenameChangelist } from "../usecases/renameChangelist";
 import { LoadOrInitState } from "../usecases/loadOrInitState";
 import { MoveFilesToChangelist } from "../usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
@@ -24,6 +25,7 @@ import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
+import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
 
 export type GroupArg = { list: { id: string; name: string; files: string[] } };
 
@@ -43,6 +45,8 @@ export type Deps = {
   pendingStageOnSave: PendingStageOnSave;
 
   createChangelist: CreateChangelist;
+  renameChangelist: RenameChangelist;
+  restoreFilesToChangelist: RestoreFilesToChangelist;
   moveFiles: MoveFilesToChangelist;
   deleteChangelist: DeleteChangelist;
 

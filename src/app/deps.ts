@@ -9,11 +9,13 @@ import { VsCodeSettings } from "../adapters/vscode/settings";
 
 import { CreateChangelist } from "../usecases/createChangelist";
 import { DeleteChangelist } from "../usecases/deleteChangelist";
+import { RenameChangelist } from "../usecases/renameChangelist";
 import { LoadOrInitState } from "../usecases/loadOrInitState";
 import { MoveFilesToChangelist } from "../usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
 
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
+import { ChangelistDragDrop } from "../views/changelistDragDrop";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
 import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 
@@ -27,6 +29,7 @@ import { conventionalCommitsAdapter } from "../adapters/vscode/conventionalCommi
 import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { createRepoWatchers } from "../adapters/vscode/repoWatchers";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
+import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
 import { Deps } from "./types";
 
 // Note: views/commitViewProvider created later in registerCommitView.ts
@@ -42,6 +45,8 @@ export async function createDeps(
   const store = new WorkspaceStateStore(context.workspaceState);
 
   const createChangelist = new CreateChangelist(store);
+  const renameChangelist = new RenameChangelist(store);
+  const restoreFilesToChangelist = new RestoreFilesToChangelist(store);
   const moveFiles = new MoveFilesToChangelist(store);
   const deleteChangelist = new DeleteChangelist(git, store);
 
@@ -65,8 +70,12 @@ export async function createDeps(
   const treeProvider = new ChangelistTreeProvider(store);
   treeProvider.setRepoRoot(repoRoot);
 
+  let onDndDrop: () => Promise<void> = async () => {};
+  const dnd = new ChangelistDragDrop(moveFiles, () => repoRoot, () => onDndDrop());
+
   const treeView = vscode.window.createTreeView("gitWorklists.changelists", {
     treeDataProvider: treeProvider,
+    dragAndDropController: dnd,
   });
 
   const deco = new WorklistDecorationProvider(store);
@@ -79,18 +88,23 @@ export async function createDeps(
   const reconcile = new ReconcileWithGitStatus(git, store);
 
   const coordinator = new RefreshCoordinator(async () => {
-    //  ensure state exists
     await loadOrInit.run(repoRoot);
-
-    //  reconcile lists with git status
     await reconcile.run(repoRoot);
-
-    //  refresh tree UI
     treeProvider.refresh();
-
-    // refresh file decorations
     deco.refreshAll();
+
+    const state = await store.load(repoRoot);
+    const totalFiles =
+      state?.version === 1
+        ? state.lists.reduce((sum, l) => sum + l.files.length, 0)
+        : 0;
+    treeView.badge =
+      totalFiles > 0
+        ? { value: totalFiles, tooltip: `${totalFiles} changed file(s)` }
+        : undefined;
   }, 200);
+
+  onDndDrop = () => coordinator.requestNow();
 
   const watchers = createRepoWatchers({
     repoRoot,
@@ -127,6 +141,8 @@ export async function createDeps(
     settings,
     prompt,
     createChangelist,
+    renameChangelist,
+    restoreFilesToChangelist,
     moveFiles,
     deleteChangelist,
     loadOrInit,
