@@ -13,6 +13,12 @@ No changes yet.
 
 ---
 
+## [0.8.0] - 2026-03-02
+
+- Version number bumped unintentionally; no functional changes vs 0.7.0.
+
+---
+
 ## [0.7.0] - 2026-03-02
 
 ### Added
