@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GitClient } from "../../../../adapters/git/gitClient";
 import type { PersistedState } from "../../../../adapters/storage/workspaceStateStore";
 import { CreateStashForChangelist } from "../../../../usecases/stash/createStashForChangelist";
+import { SystemChangelist } from "../../../../core/changelist/systemChangelist";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;
@@ -129,10 +130,12 @@ describe("CreateStashForChangelist", () => {
     });
 
     expect(git.stashPushPaths).toHaveBeenCalledTimes(1);
-    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:CL1 WIP", [
-      "tracked.txt",
-      "sub/file.ts",
-    ]);
+    expect(git.stashPushPaths).toHaveBeenCalledWith(
+      "/repo",
+      "GW:CL1 WIP",
+      ["tracked.txt", "sub/file.ts"],
+      { includeUntracked: false },
+    );
 
     expect(res).toEqual({
       stashedCount: 2,
@@ -177,9 +180,12 @@ describe("CreateStashForChangelist", () => {
       message: "   ",
     });
 
-    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:CL1", [
-      "a.txt",
-    ]);
+    expect(git.stashPushPaths).toHaveBeenCalledWith(
+      "/repo",
+      "GW:CL1",
+      ["a.txt"],
+      { includeUntracked: false },
+    );
     expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 0 });
   });
 
@@ -197,9 +203,42 @@ describe("CreateStashForChangelist", () => {
       changelistId: "cl1",
     });
 
-    expect(git.stashPushPaths).toHaveBeenCalledWith("/repo", "GW:CL1", [
-      "keep.txt",
-    ]);
+    expect(git.stashPushPaths).toHaveBeenCalledWith(
+      "/repo",
+      "GW:CL1",
+      ["keep.txt"],
+      { includeUntracked: false },
+    );
     expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 1 });
+  });
+
+  it("stashes Unversioned changelist files with --include-untracked", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned Files",
+          files: ["new-a.ts", "new-b.ts"],
+        },
+      ],
+    } as any);
+
+    const git = makeGit([]);
+    const uc = new CreateStashForChangelist(git, store as any);
+
+    const res = await uc.run({
+      repoRootFsPath: "/repo",
+      changelistId: SystemChangelist.Unversioned,
+    });
+
+    expect(git.getStatusPorcelainZ).not.toHaveBeenCalled();
+    expect(git.stashPushPaths).toHaveBeenCalledWith(
+      "/repo",
+      "GW:Unversioned Files",
+      ["new-a.ts", "new-b.ts"],
+      { includeUntracked: true },
+    );
+    expect(res).toEqual({ stashedCount: 2, skippedUntrackedCount: 0 });
   });
 });
