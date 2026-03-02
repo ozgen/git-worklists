@@ -148,10 +148,10 @@ describe("GitCliClient (mocked git)", () => {
     const entries = await git.getStatusPorcelainZ("/repo");
 
     expect(entries).toEqual([
-      { path: "file1.txt", x: " ", y: "M" },
-      { path: "staged.ts", x: "A", y: " " },
-      { path: "new.txt", x: "R", y: " " },
-      { path: "untracked.md", x: "?", y: "?" },
+      { path: "file1.txt", x: " ", y: "M", oldPath: undefined },
+      { path: "staged.ts", x: "A", y: " ", oldPath: undefined },
+      { path: "new.txt", x: "R", y: " ", oldPath: "old.txt" },
+      { path: "untracked.md", x: "?", y: "?", oldPath: undefined },
     ]);
   });
 
@@ -431,7 +431,7 @@ describe("GitCliClient (mocked git)", () => {
     const git = new GitCliClient();
     const entries = await git.getStatusPorcelainZ("/repo");
 
-    expect(entries).toEqual([{ path: "new.txt", x: "C", y: " " }]);
+    expect(entries).toEqual([{ path: "new.txt", x: "C", y: " ", oldPath: "old.txt" }]);
   });
 
   it("showFileAtRef runs git show REF:path", async () => {
