@@ -19,6 +19,12 @@ It is designed for developers who want **explicit control over staging, commits,
 
 ---
 
+### Rename, Drag & Drop, Activity Badge, Stash Improvements
+
+![v0.7.0 new features demo](media/demo_dnd.gif)
+
+---
+
 ### Conventional Commits Integration
 
 Generate structured commit messages directly from the Commit Panel using the Conventional Commits extension.
