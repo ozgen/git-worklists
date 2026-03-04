@@ -10,7 +10,7 @@ export function registerViews(context: vscode.ExtensionContext, deps: Deps) {
     vscode.window.registerFileDecorationProvider(deps.deco),
   );
 
-  const showProvider = new GitShowContentProvider(deps.git, deps.repoRoot);
+  const showProvider = new GitShowContentProvider(deps.git, () => deps.repoRoot);
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
       GitShowContentProvider.scheme,

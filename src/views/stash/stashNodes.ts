@@ -15,7 +15,7 @@ function stripWorklistTag(msg: string): { changelistId?: string; msg: string } {
   const s = (msg ?? "").trim();
 
   const m = s.match(/\b(?:GW|CL):([^\s]+)\b/);
-  const changelistId = m?.[1];
+  const changelistId = m?.[1] ? decodeURIComponent(m[1]) : undefined;
 
   const cleaned = s.replace(/\b(?:GW|CL):[^\s]+\b\s*/g, "").trim();
 

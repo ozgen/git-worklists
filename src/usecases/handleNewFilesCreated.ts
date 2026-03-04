@@ -22,7 +22,7 @@ export type MoveFilesPort = {
   };
 
   export type HandleNewFilesCreatedDeps = {
-    repoRoot: string;
+    getRepoRoot: () => string;
     git: GitPort;
     moveFiles: MoveFilesPort;
     coordinator: RefreshPort;
@@ -46,7 +46,8 @@ export class HandleNewFilesCreated {
   constructor(private readonly deps: HandleNewFilesCreatedDeps) {}
 
   async run(createdFileUris: vscode.Uri[]): Promise<void> {
-    const { repoRoot, settings, prompt, coordinator } = this.deps;
+    const repoRoot = this.deps.getRepoRoot();
+    const { settings, prompt, coordinator } = this.deps;
 
     if (!settings.getPromptOnNewFile()) {
       return;
@@ -124,7 +125,7 @@ export class HandleNewFilesCreated {
 
   private async moveToDefault(paths: string[]): Promise<void> {
     await this.deps.moveFiles.run(
-      this.deps.repoRoot,
+      this.deps.getRepoRoot(),
       paths,
       SystemChangelist.Default,
     );
@@ -132,7 +133,7 @@ export class HandleNewFilesCreated {
 
   private async moveToUnversioned(paths: string[]): Promise<void> {
     await this.deps.moveFiles.run(
-      this.deps.repoRoot,
+      this.deps.getRepoRoot(),
       paths,
       SystemChangelist.Unversioned,
     );

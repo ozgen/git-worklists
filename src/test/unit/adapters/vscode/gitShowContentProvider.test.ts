@@ -47,7 +47,7 @@ describe("GitShowContentProvider", () => {
       showFileAtRefOptional: vi.fn().mockResolvedValue("content"),
     };
 
-    const provider = new GitShowContentProvider(git as any, "/repo");
+    const provider = new GitShowContentProvider(git as any, () => "/repo");
 
     const uri = { path: "/HEAD/src/a.ts" } as any;
 
@@ -66,7 +66,7 @@ describe("GitShowContentProvider", () => {
       showFileAtRefOptional: vi.fn().mockResolvedValue("x"),
     };
 
-    const provider = new GitShowContentProvider(git as any, "/repo");
+    const provider = new GitShowContentProvider(git as any, () => "/repo");
 
     const uri = { path: "/stash%40%7B2%7D/a%20b.txt" } as any;
 
@@ -84,7 +84,7 @@ describe("GitShowContentProvider", () => {
       showFileAtRefOptional: vi.fn().mockResolvedValue("x"),
     };
 
-    const provider = new GitShowContentProvider(git as any, "/repo");
+    const provider = new GitShowContentProvider(git as any, () => "/repo");
 
     const uri = { path: "" } as any;
 
@@ -98,7 +98,7 @@ describe("GitShowContentProvider", () => {
       showFileAtRefOptional: vi.fn(),
     };
 
-    const provider = new GitShowContentProvider(git as any, "/repo");
+    const provider = new GitShowContentProvider(git as any, () => "/repo");
 
     const uri = { path: "/EMPTY/src/a.ts" } as any;
 
@@ -110,7 +110,7 @@ describe("GitShowContentProvider", () => {
 
   it("refresh fires onDidChange event with the same uri", () => {
     const git: GitClientMock = { showFileAtRefOptional: vi.fn() };
-    const provider = new GitShowContentProvider(git as any, "/repo");
+    const provider = new GitShowContentProvider(git as any, () => "/repo");
 
     const uri = { path: "/HEAD/src/a.ts" } as any;
 
@@ -122,7 +122,7 @@ describe("GitShowContentProvider", () => {
 
   it("exposes onDidChange event (smoke test)", () => {
     const git: GitClientMock = { showFileAtRefOptional: vi.fn() };
-    const provider = new GitShowContentProvider(git as any, "/repo");
+    const provider = new GitShowContentProvider(git as any, () => "/repo");
 
     expect(provider.onDidChange).toBeDefined();
   });

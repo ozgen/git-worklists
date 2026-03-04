@@ -8,8 +8,8 @@ export function registerAutoRefresh(
 ) {
   const auto = new AutoRefreshController(
     { workspace: vscode.workspace, RelativePattern: vscode.RelativePattern },
-    deps.repoRoot,
-    deps.gitDir,
+    () => deps.repoRoot,
+    () => deps.gitDir,
     doRefresh,
   );
 

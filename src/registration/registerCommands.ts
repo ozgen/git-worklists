@@ -527,14 +527,6 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        const repoRoot = await deps.git.tryGetRepoRoot(
-          vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
-        );
-        if (!repoRoot) {
-          vscode.window.showErrorMessage("No Git repository found.");
-          return;
-        }
-
         const ok = await vscode.window.showWarningMessage(
           `Stage all files in "${group.list.name}"?`,
           { modal: true },
@@ -544,7 +536,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await stageChangelistAll(deps.git, repoRoot, group.list.files);
+        await stageChangelistAll(deps.git, deps.repoRoot, group.list.files);
         await vscode.commands.executeCommand("gitWorklists.refresh");
       },
     ),
@@ -553,14 +545,6 @@ export function registerCommands(deps: Deps) {
       "gitWorklists.unstageChangelistAll",
       async (group: any) => {
         if (!group?.list?.files) {
-          return;
-        }
-
-        const repoRoot = await deps.git.tryGetRepoRoot(
-          vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
-        );
-        if (!repoRoot) {
-          vscode.window.showErrorMessage("No Git repository found.");
           return;
         }
 
@@ -573,7 +557,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await unstageChangelistAll(deps.git, repoRoot, group.list.files);
+        await unstageChangelistAll(deps.git, deps.repoRoot, group.list.files);
         await vscode.commands.executeCommand("gitWorklists.refresh");
       },
     ),

@@ -36,9 +36,10 @@ export class CreateStashForChangelist {
     }
 
     const userMsg = (params.message ?? "").trim();
+    const encoded = encodeURIComponent(changelistName);
     const msg = userMsg
-      ? `GW:${changelistName} ${userMsg}`
-      : `GW:${changelistName}`;
+      ? `GW:${encoded} ${userMsg}`
+      : `GW:${encoded}`;
 
     if (changelistId === SystemChangelist.Unversioned) {
       await this.git.stashPushPaths(repoRootFsPath, msg, files, {

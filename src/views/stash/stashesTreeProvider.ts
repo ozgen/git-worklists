@@ -14,9 +14,13 @@ export class StashesTreeProvider
   private disposed = false;
 
   constructor(
-    private readonly repoRootFsPath: string,
+    private repoRootFsPath: string,
     private readonly git: GitClient,
   ) {}
+
+  setRepoRoot(repoRootFsPath: string): void {
+    this.repoRootFsPath = repoRootFsPath;
+  }
 
   refresh(): void {
     this.onDidChangeTreeDataEmitter.fire(undefined);
