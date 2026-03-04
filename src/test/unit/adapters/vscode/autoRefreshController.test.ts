@@ -103,7 +103,7 @@ describe("AutoRefreshController", () => {
     const { vs, createdPatterns, watchers } = makeVscodeStub();
     const onSignal = vi.fn();
 
-    const c = new AutoRefreshController(vs, "/repo", "/repo/.git", onSignal);
+    const c = new AutoRefreshController(vs, () => "/repo", () => "/repo/.git", onSignal);
     c.start();
 
     expect(watchers.length).toBe(2);
@@ -117,7 +117,7 @@ describe("AutoRefreshController", () => {
     const { vs, watchers } = makeVscodeStub();
     const onSignal = vi.fn();
 
-    const c = new AutoRefreshController(vs, "/repo", "/repo/.git", onSignal);
+    const c = new AutoRefreshController(vs, () => "/repo", () => "/repo/.git", onSignal);
     c.start();
 
     // fire watcher events
@@ -132,7 +132,7 @@ describe("AutoRefreshController", () => {
     const { vs, fire } = makeVscodeStub();
     const onSignal = vi.fn();
 
-    const c = new AutoRefreshController(vs, "/repo", "/repo/.git", onSignal);
+    const c = new AutoRefreshController(vs, () => "/repo", () => "/repo/.git", onSignal);
     c.start();
 
     fire.createFiles({
@@ -161,7 +161,7 @@ describe("AutoRefreshController", () => {
     const { vs, watchers } = makeVscodeStub();
     const onSignal = vi.fn();
 
-    const c = new AutoRefreshController(vs, "/repo", "/repo/.git", onSignal);
+    const c = new AutoRefreshController(vs, () => "/repo", () => "/repo/.git", onSignal);
     c.start();
     c.dispose();
 

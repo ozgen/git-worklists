@@ -11,7 +11,7 @@ export class GitShowContentProvider
 
   constructor(
     private readonly git: GitClient,
-    private readonly repoRoot: string,
+    private readonly getRepoRoot: () => string,
   ) {}
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
@@ -19,14 +19,12 @@ export class GitShowContentProvider
     const ref = decodeURIComponent(parts[0] ?? "HEAD");
     const repoRel = decodeURIComponent(parts.slice(1).join("/"));
 
-    // Special ref for “no left content” (added files / first commit)
     if (ref === "EMPTY") {
       return "";
     }
 
-    // Use optional show to avoid crashing when file doesn not exist at ref
     const txt = await this.git.showFileAtRefOptional(
-      this.repoRoot,
+      this.getRepoRoot(),
       ref,
       repoRel,
     );

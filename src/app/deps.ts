@@ -70,8 +70,12 @@ export async function createDeps(
   const treeProvider = new ChangelistTreeProvider(store);
   treeProvider.setRepoRoot(repoRoot);
 
+  // Forward ref: deps is assigned below. All closures capture `deps` and read
+  // deps.repoRoot at call-time so a future switchRepo() mutation is picked up.
+  let deps!: Deps;
+
   let onDndDrop: () => Promise<void> = async () => {};
-  const dnd = new ChangelistDragDrop(moveFiles, () => repoRoot, () => onDndDrop());
+  const dnd = new ChangelistDragDrop(moveFiles, () => deps.repoRoot, () => onDndDrop());
 
   const treeView = vscode.window.createTreeView("gitWorklists.changelists", {
     treeDataProvider: treeProvider,
@@ -88,12 +92,12 @@ export async function createDeps(
   const reconcile = new ReconcileWithGitStatus(git, store);
 
   const coordinator = new RefreshCoordinator(async () => {
-    await loadOrInit.run(repoRoot);
-    await reconcile.run(repoRoot);
+    await loadOrInit.run(deps.repoRoot);
+    await reconcile.run(deps.repoRoot);
     treeProvider.refresh();
     deco.refreshAll();
 
-    const state = await store.load(repoRoot);
+    const state = await store.load(deps.repoRoot);
     const totalFiles =
       state?.version === 1
         ? state.lists.reduce((sum, l) => sum + l.files.length, 0)
@@ -120,7 +124,7 @@ export async function createDeps(
   const pendingStageOnSave = new PendingStageOnSave();
 
   const newFileHandler = new HandleNewFilesCreated({
-    repoRoot,
+    getRepoRoot: () => deps.repoRoot,
     git,
     moveFiles,
     coordinator,
@@ -130,7 +134,7 @@ export async function createDeps(
   });
 
   // commitView set in registerCommitView.ts
-  const deps: Deps = {
+  deps = {
     context,
     workspaceFolder,
     repoRoot,

@@ -235,7 +235,7 @@ describe("CreateStashForChangelist", () => {
     expect(git.getStatusPorcelainZ).not.toHaveBeenCalled();
     expect(git.stashPushPaths).toHaveBeenCalledWith(
       "/repo",
-      "GW:Unversioned Files",
+      "GW:Unversioned%20Files",
       ["new-a.ts", "new-b.ts"],
       { includeUntracked: true },
     );

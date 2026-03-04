@@ -6,8 +6,8 @@ export class AutoRefreshController implements DisposableLike {
 
   constructor(
     private readonly vs: VscodeFacade,
-    private readonly repoRoot: string,
-    private readonly gitDir: string,
+    private readonly getRepoRoot: () => string,
+    private readonly getGitDir: () => string,
     private readonly onSignal: () => void,
   ) {}
 
@@ -17,7 +17,7 @@ export class AutoRefreshController implements DisposableLike {
 
     const isInRepo = (uri: UriLike) => {
       const fsPath = uri.fsPath;
-      const rel = path.relative(this.repoRoot, fsPath);
+      const rel = path.relative(this.getRepoRoot(), fsPath);
       return !!rel && !rel.startsWith("..") && !path.isAbsolute(rel);
     };
 
@@ -46,7 +46,7 @@ export class AutoRefreshController implements DisposableLike {
   }
 
   private watchGitFile(relativePath: string) {
-    const pattern = new this.vs.RelativePattern(this.gitDir, relativePath);
+    const pattern = new this.vs.RelativePattern(this.getGitDir(), relativePath);
     const w = this.vs.workspace.createFileSystemWatcher(pattern);
 
     this.disposables.push(

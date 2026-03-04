@@ -78,7 +78,7 @@ export function parseStashLine(line: string): GitStashEntry | null {
     message: msg,
     raw: trimmed,
     isGitWorklists: !!gw,
-    changelistId: gw?.[1],
+    changelistId: gw?.[1] ? decodeURIComponent(gw[1]) : undefined,
   };
 }
 

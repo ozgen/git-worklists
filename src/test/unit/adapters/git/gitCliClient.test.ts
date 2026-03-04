@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as path from "path";
 
 const mocks = vi.hoisted(() => {
   return {
@@ -109,6 +108,24 @@ describe("parseStashLine", () => {
       changelistId: undefined,
     });
   });
+
+  it("decodes URL-encoded changelist name with spaces", () => {
+    const e = parseStashLine("stash@{0}: On main: GW:My%20Feature WIP");
+    expect(e).toMatchObject({
+      ref: "stash@{0}",
+      isGitWorklists: true,
+      changelistId: "My Feature",
+    });
+  });
+
+  it("decodes URL-encoded Unversioned Files name", () => {
+    const e = parseStashLine("stash@{1}: On main: GW:Unversioned%20Files");
+    expect(e).toMatchObject({
+      ref: "stash@{1}",
+      isGitWorklists: true,
+      changelistId: "Unversioned Files",
+    });
+  });
 });
 
 describe("GitCliClient (mocked git)", () => {
@@ -183,7 +200,7 @@ describe("GitCliClient (mocked git)", () => {
     const git = new GitCliClient();
     const gitDir = await git.getGitDir("/repo");
 
-    expect(gitDir).toBe(path.join("/repo", ".git"));
+    expect(gitDir).toBe("/repo/.git");
   });
 
   it("getGitDir returns absolute path unchanged", async () => {
