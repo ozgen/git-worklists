@@ -13,6 +13,20 @@ No changes yet.
 
 ---
 
+## [0.8.2] - 2026-03-04
+
+### Fixed
+
+- `stageChangelistAll` / `unstageChangelistAll` commands now correctly use the active repo root instead of always reading from `workspaceFolders[0]`
+- Stash restore round-trip now works correctly for changelist names containing spaces — names are URL-encoded in the stash message and decoded on apply/pop
+
+### Changed
+
+- Refactored all components to read `repoRoot` at call-time via getter functions instead of capturing it once at startup — groundwork for multi-repo switching
+- `StashesTreeProvider` now exposes `setRepoRoot()` to allow switching repos without recreating the provider
+
+---
+
 ## [0.8.1] - 2026-03-02
 
 - Version number bumped unintentionally; no functional changes vs 0.7.0.
