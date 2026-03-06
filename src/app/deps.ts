@@ -1,36 +1,37 @@
 import * as vscode from "vscode";
-
 import { GitCliClient } from "../adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
-
+import { conventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
+import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
+import { findWorkspaceRepoRoots } from "../adapters/vscode/findWorkspaceRepoRoots";
 import { VsCodeFsStat } from "../adapters/vscode/fsStat";
+import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { VsCodePrompt } from "../adapters/vscode/prompt";
+import {
+  createRepoWatchers,
+  RepoWatchers,
+} from "../adapters/vscode/repoWatchers";
 import { VsCodeSettings } from "../adapters/vscode/settings";
-
+import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
+import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { CreateChangelist } from "../usecases/createChangelist";
 import { DeleteChangelist } from "../usecases/deleteChangelist";
-import { RenameChangelist } from "../usecases/renameChangelist";
+import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 import { LoadOrInitState } from "../usecases/loadOrInitState";
 import { MoveFilesToChangelist } from "../usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
-
-import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
-import { ChangelistDragDrop } from "../views/changelistDragDrop";
-import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
-import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
-
-import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
-import { CloseDiffTabs } from "../usecases/closeDiffTabs";
-
-import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
-import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
-
-import { conventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
-import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
-import { createRepoWatchers } from "../adapters/vscode/repoWatchers";
+import { RenameChangelist } from "../usecases/renameChangelist";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
+import { ChangelistDragDrop } from "../views/changelistDragDrop";
+import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
+import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
+import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 import { Deps } from "./types";
+
+function sortRepoRoots(repoRoots: string[]): string[] {
+  return [...new Set(repoRoots)].sort((a, b) => a.localeCompare(b));
+}
 
 // Note: views/commitViewProvider created later in registerCommitView.ts
 export async function createDeps(
@@ -50,14 +51,16 @@ export async function createDeps(
   const moveFiles = new MoveFilesToChangelist(store);
   const deleteChangelist = new DeleteChangelist(git, store);
 
-  let repoRoot: string;
-  try {
-    repoRoot = await git.getRepoRoot(workspaceFolder.uri.fsPath);
-  } catch (e) {
-    console.error("Git Worklists: not a git repo?", e);
+  let repoRoots = sortRepoRoots(
+    await findWorkspaceRepoRoots(workspaceFolder, git),
+  );
+
+  if (repoRoots.length === 0) {
+    console.error("Git Worklists: no git repositories found in workspace");
     return;
   }
 
+  const repoRoot = repoRoots[0];
   const gitDir = await git.getGitDir(repoRoot);
 
   const fsStat = new VsCodeFsStat();
@@ -70,30 +73,35 @@ export async function createDeps(
   const treeProvider = new ChangelistTreeProvider(store);
   treeProvider.setRepoRoot(repoRoot);
 
-  // Forward ref: deps is assigned below. All closures capture `deps` and read
-  // deps.repoRoot at call-time so a future switchRepo() mutation is picked up.
-  let deps!: Deps;
+  const deco = new WorklistDecorationProvider(store);
+  deco.setRepoRoot(repoRoot);
 
+  const stashesProvider = new StashesTreeProvider(repoRoot, git);
+
+  let deps!: Deps;
   let onDndDrop: () => Promise<void> = async () => {};
-  const dnd = new ChangelistDragDrop(moveFiles, () => deps.repoRoot, () => onDndDrop());
+
+  const repoRootChanged = new vscode.EventEmitter<string>();
+  context.subscriptions.push(repoRootChanged);
+
+  const dnd = new ChangelistDragDrop(
+    moveFiles,
+    () => deps.repoRoot,
+    () => onDndDrop(),
+  );
 
   const treeView = vscode.window.createTreeView("gitWorklists.changelists", {
     treeDataProvider: treeProvider,
     dragAndDropController: dnd,
   });
 
-  const deco = new WorklistDecorationProvider(store);
-  deco.setRepoRoot(repoRoot);
-
-  const stashesProvider = new StashesTreeProvider(repoRoot, git);
-
-  // Use cases
   const loadOrInit = new LoadOrInitState(git, store);
   const reconcile = new ReconcileWithGitStatus(git, store);
 
   const coordinator = new RefreshCoordinator(async () => {
     await loadOrInit.run(deps.repoRoot);
     await reconcile.run(deps.repoRoot);
+
     treeProvider.refresh();
     deco.refreshAll();
 
@@ -102,6 +110,7 @@ export async function createDeps(
       state?.version === 1
         ? state.lists.reduce((sum, l) => sum + l.files.length, 0)
         : 0;
+
     treeView.badge =
       totalFiles > 0
         ? { value: totalFiles, tooltip: `${totalFiles} changed file(s)` }
@@ -110,17 +119,18 @@ export async function createDeps(
 
   onDndDrop = () => coordinator.requestNow();
 
-  const watchers = createRepoWatchers({
+  let currentWatchers: RepoWatchers = createRepoWatchers({
     repoRoot,
     gitDir,
     triggerRefresh: () => coordinator.requestNow(),
     debounceMs: 800,
   });
 
-  context.subscriptions.push(watchers);
+  context.subscriptions.push({
+    dispose: () => currentWatchers.dispose(),
+  });
 
   const restageAlreadyStaged = new RestageAlreadyStaged(git);
-
   const pendingStageOnSave = new PendingStageOnSave();
 
   const newFileHandler = new HandleNewFilesCreated({
@@ -133,7 +143,6 @@ export async function createDeps(
     pendingStageOnSave,
   });
 
-  // commitView set in registerCommitView.ts
   deps = {
     context,
     workspaceFolder,
@@ -156,13 +165,50 @@ export async function createDeps(
     treeView,
     deco,
     stashesProvider,
-    commitView: undefined as any, // assigned later
+    commitView: undefined as any,
     diffTabTracker,
     closeDiffTabs,
     coordinator,
     newFileHandler,
     pendingStageOnSave,
     conventionalCommits: conventionalCommitsAdapter,
+
+    async listRepoRoots(): Promise<string[]> {
+      return [...repoRoots];
+    },
+
+    async switchRepoRoot(nextRepoRoot: string): Promise<void> {
+      const normalized = nextRepoRoot.trim();
+      if (!normalized || normalized === deps.repoRoot) {
+        return;
+      }
+
+      if (!repoRoots.includes(normalized)) {
+        repoRoots = sortRepoRoots([...repoRoots, normalized]);
+      }
+
+      const nextGitDir = await git.getGitDir(normalized);
+
+      currentWatchers.dispose();
+      currentWatchers = createRepoWatchers({
+        repoRoot: normalized,
+        gitDir: nextGitDir,
+        triggerRefresh: () => coordinator.requestNow(),
+        debounceMs: 800,
+      });
+
+      deps.repoRoot = normalized;
+      deps.gitDir = nextGitDir;
+
+      treeProvider.setRepoRoot(normalized);
+      deco.setRepoRoot(normalized);
+      stashesProvider.setRepoRoot(normalized);
+
+      repoRootChanged.fire(normalized);
+      await coordinator.requestNow();
+    },
+
+    onDidChangeRepoRoot: repoRootChanged.event,
   };
 
   return deps;

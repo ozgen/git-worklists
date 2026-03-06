@@ -491,7 +491,11 @@ export function registerCommands(deps: Deps) {
         const repoRel = normalizeRepoRelPath(rel);
         const ref = "HEAD";
 
-        const existsInHead = await deps.git.fileExistsAtRef(deps.repoRoot, ref, repoRel);
+        const existsInHead = await deps.git.fileExistsAtRef(
+          deps.repoRoot,
+          ref,
+          repoRel,
+        );
         if (!existsInHead) {
           await vscode.commands.executeCommand("vscode.open", uri);
           return;
@@ -678,4 +682,41 @@ export function registerCommands(deps: Deps) {
     ),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("gitWorklists.switchRepoRoot", async () => {
+      try {
+        const roots = await deps.listRepoRoots();
+
+        if (roots.length <= 1) {
+          vscode.window.showInformationMessage(
+            "Git Worklists: no additional Git roots found in this workspace.",
+          );
+          return;
+        }
+
+        const items = roots.map((root) => ({
+          label: path.basename(root),
+          description: root === deps.repoRoot ? "current" : undefined,
+          detail: root,
+          root,
+        }));
+
+        const picked = await vscode.window.showQuickPick(items, {
+          title: "Switch Git Root",
+          placeHolder: "Select the active Git root for Git Worklists",
+        });
+
+        if (!picked || picked.root === deps.repoRoot) {
+          return;
+        }
+
+        await deps.switchRepoRoot(picked.root);
+      } catch (e) {
+        console.error(e);
+        vscode.window.showErrorMessage(
+          "Git Worklists: failed to switch Git root (see console)",
+        );
+      }
+    }),
+  );
 }

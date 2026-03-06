@@ -209,6 +209,11 @@
         "command": "gitWorklists.stashAllStagedFiles",
         "title": "Stash All Staged Files…",
         "icon": "$(archive)"
+      },
+      {
+        "command": "gitWorklists.switchRepoRoot",
+        "title": "Switch Git Root…",
+        "icon": "$(list-tree)"
       }
     ],
     "menus": {
@@ -351,7 +356,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.19.11",
+    "@types/node": "^22.19.15",
     "@types/vscode": "^1.109.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vscode/test-cli": "^0.0.11",
