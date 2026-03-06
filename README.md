@@ -19,6 +19,14 @@ It is designed for developers who want **explicit control over staging, commits,
 
 ---
 
+### Multi-Repository Workspace Support
+
+Switch between repositories directly from the status bar when working inside a workspace that contains multiple Git repositories.
+
+![Multi repo demo](media/demo_multi_repo.gif)
+
+---
+
 ### Rename, Drag & Drop, Activity Badge, Stash Improvements
 
 ![v0.7.0 new features demo](media/demo_dnd.gif)
@@ -36,6 +44,18 @@ Generate structured commit messages directly from the Commit Panel using the Con
 # Features
 
 ---
+
+## Workspace Support
+
+Git Worklists supports workspaces that contain multiple Git repositories.
+
+- Supports workspaces containing multiple Git repositories
+- Active repository can be switched from the status bar
+- Repository discovery is cached for faster switching
+- Only one repository is active in the UI at a time
+
+---
+
 
 ## Changelists View
 
@@ -321,8 +341,8 @@ This extension contributes the following settings:
 
 # Known Limitations
 
-- No partial staging (no hunk / line staging)
-- No multi-repository support
+- Only one active repository is shown at a time in the UI
+- In workspaces containing multiple Git repositories, use the status bar to switch the active repository
 - Merge conflicts must be resolved manually
 - GitHub / GitLab PR features are not included
 
