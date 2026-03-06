@@ -1,23 +1,19 @@
 import * as vscode from "vscode";
-
 import { GitCliClient } from "../adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { VsCodeFsStat } from "../adapters/vscode/fsStat";
 import { VsCodePrompt } from "../adapters/vscode/prompt";
 import { VsCodeSettings } from "../adapters/vscode/settings";
-
 import { CreateChangelist } from "../usecases/createChangelist";
 import { DeleteChangelist } from "../usecases/deleteChangelist";
 import { RenameChangelist } from "../usecases/renameChangelist";
 import { LoadOrInitState } from "../usecases/loadOrInitState";
 import { MoveFilesToChangelist } from "../usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
-
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
 import { CommitViewProvider } from "../views/commitViewProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
 import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
-
 import { ConventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
 import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
 import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
@@ -27,7 +23,9 @@ import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
 
-export type GroupArg = { list: { id: string; name: string; files: string[] } };
+export type GroupArg = {
+  list: { id: string; name: string; files: string[] };
+};
 
 export type Deps = {
   context: vscode.ExtensionContext;
@@ -38,7 +36,6 @@ export type Deps = {
 
   git: GitCliClient;
   store: WorkspaceStateStore;
-
   fsStat: VsCodeFsStat;
   settings: VsCodeSettings;
   prompt: VsCodePrompt;
@@ -49,25 +46,23 @@ export type Deps = {
   restoreFilesToChangelist: RestoreFilesToChangelist;
   moveFiles: MoveFilesToChangelist;
   deleteChangelist: DeleteChangelist;
-
   loadOrInit: LoadOrInitState;
   reconcile: ReconcileWithGitStatus;
   restageAlreadyStaged: RestageAlreadyStaged;
 
-  // VS Code providers / UI
   treeProvider: ChangelistTreeProvider;
   treeView: vscode.TreeView<any>;
   deco: WorklistDecorationProvider;
   stashesProvider: StashesTreeProvider;
   commitView: CommitViewProvider;
-
   diffTabTracker: DiffTabTracker;
   closeDiffTabs: CloseDiffTabs;
   conventionalCommits: ConventionalCommitsAdapter;
 
-  // refresh pipeline
   coordinator: RefreshCoordinator;
-
-  // file creation handler
   newFileHandler: HandleNewFilesCreated;
+
+  listRepoRoots(): Promise<string[]>;
+  switchRepoRoot(nextRepoRoot: string): Promise<void>;
+  onDidChangeRepoRoot: vscode.Event<string>;
 };
