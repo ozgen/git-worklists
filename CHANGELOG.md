@@ -13,16 +13,35 @@ No changes yet.
 
 ---
 
+## [0.9.0] - 2026-03-06
+
+### Added
+
+- Support for workspaces containing multiple Git repositories by allowing users to switch the active repository from the status bar
+
+### Changed
+
+- Initial repository selection now discovers Git repositories inside the opened workspace folder and selects the first discovered repository by default
+- Repository discovery results are cached in memory to make active-repository switching faster
+- Status bar now shows the active Git Worklists repository using a dedicated worklists-oriented icon
+
+### Fixed
+
+- Extension activation no longer fails when the opened workspace folder is a parent folder that contains Git repositories but is not itself a Git repository
+- `loadOrInit` now initializes against the active repository root instead of the workspace folder path
+
+---
+
 ## [0.8.2] - 2026-03-04
 
 ### Fixed
 
 - `stageChangelistAll` / `unstageChangelistAll` commands now correctly use the active repo root instead of always reading from `workspaceFolders[0]`
-- Stash restore round-trip now works correctly for changelist names containing spaces — names are URL-encoded in the stash message and decoded on apply/pop
+- Stash restore round-trip now works correctly for changelist names containing spaces, names are URL-encoded in the stash message and decoded on apply/pop
 
 ### Changed
 
-- Refactored all components to read `repoRoot` at call-time via getter functions instead of capturing it once at startup — groundwork for multi-repo switching
+- Refactored all components to read `repoRoot` at call-time via getter functions instead of capturing it once at startup, groundwork for multi-repo switching
 - `StashesTreeProvider` now exposes `setRepoRoot()` to allow switching repos without recreating the provider
 
 ---
