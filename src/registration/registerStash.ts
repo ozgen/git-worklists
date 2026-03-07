@@ -106,8 +106,8 @@ export function registerStash(deps: Deps) {
       async (node: any) => {
         const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
         const changelistName =
-          typeof node?.stash?.changelistId === "string"
-            ? node.stash.changelistId
+          typeof node?.stash?.changelistName === "string"
+            ? node.stash.changelistName
             : "";
         const stashLabel =
           typeof node?.stash?.message === "string" && node.stash.message
@@ -143,8 +143,8 @@ export function registerStash(deps: Deps) {
       async (node: any) => {
         const ref = typeof node?.stash?.ref === "string" ? node.stash.ref : "";
         const changelistName =
-          typeof node?.stash?.changelistId === "string"
-            ? node.stash.changelistId
+          typeof node?.stash?.changelistName === "string"
+            ? node.stash.changelistName
             : "";
         const stashLabel =
           typeof node?.stash?.message === "string" && node.stash.message

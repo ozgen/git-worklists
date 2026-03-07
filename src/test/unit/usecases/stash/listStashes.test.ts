@@ -59,7 +59,7 @@ describe("ListStashes", () => {
         message: "On dev: GW:abc WIP",
         raw: "stash@{1}: On dev: GW:abc WIP",
         isGitWorklists: true,
-        changelistId: "abc",
+        changelistName: "abc",
       },
     ];
 

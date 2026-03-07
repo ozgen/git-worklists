@@ -69,8 +69,8 @@ export function parseStashLine(line: string): GitStashEntry | null {
   const ref = m[1];
   const msg = m[2] ?? "";
 
-  // Stash messages are tagged as: "GW:<changelistId> <user message>"
-  // Look for "GW:<id>" token anywhere in the message
+  // Stash messages are tagged as: "GW:<encodedChangelistName> <user message>"
+  // Look for "GW:<name>" token anywhere in the message
   const gw = msg.match(/\bGW:([^\s]+)/);
 
   return {
@@ -78,7 +78,7 @@ export function parseStashLine(line: string): GitStashEntry | null {
     message: msg,
     raw: trimmed,
     isGitWorklists: !!gw,
-    changelistId: gw?.[1] ? decodeURIComponent(gw[1]) : undefined,
+    changelistName: gw?.[1] ? decodeURIComponent(gw[1]) : undefined,
   };
 }
 

@@ -11,15 +11,15 @@ export type StashNode =
       status?: "A" | "M" | "D" | "R" | "C" | "T" | "U" | "?";
     };
 
-function stripWorklistTag(msg: string): { changelistId?: string; msg: string } {
+function stripWorklistTag(msg: string): { changelistName?: string; msg: string } {
   const s = (msg ?? "").trim();
 
   const m = s.match(/\b(?:GW|CL):([^\s]+)\b/);
-  const changelistId = m?.[1] ? decodeURIComponent(m[1]) : undefined;
+  const changelistName = m?.[1] ? decodeURIComponent(m[1]) : undefined;
 
   const cleaned = s.replace(/\b(?:GW|CL):[^\s]+\b\s*/g, "").trim();
 
-  return { changelistId, msg: cleaned };
+  return { changelistName, msg: cleaned };
 }
 
 function normalizeMsgForLabel(rawMsg: string): {
@@ -49,11 +49,11 @@ function formatLabel(stash: GitStashEntry): {
   desc?: string;
   tooltip: string;
 } {
-  const { changelistId, msg: noTag } = stripWorklistTag(stash.message);
+  const { changelistName, msg: noTag } = stripWorklistTag(stash.message);
 
   const { branch, msg } = normalizeMsgForLabel(noTag);
 
-  const tag = changelistId ? `[CL:${shortId(changelistId)}] ` : "";
+  const tag = changelistName ? `[CL:${shortId(changelistName)}] ` : "";
   const label = `${tag}${msg || "Stash"}`;
 
   const tooltip = `${stash.ref}\n${stash.raw || stash.message}`;
