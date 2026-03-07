@@ -1,14 +1,15 @@
 import * as cp from "child_process";
 import * as path from "path";
+import { normalizeRepoRelPath } from "../../utils/paths";
 import {
   CommitFileChange,
+  FileStageState,
   GitClient,
   GitStashEntry,
   GitStatusEntry,
   OutgoingCommit,
   StashFileEntry,
 } from "./gitClient";
-import { normalizeRepoRelPath } from "../../utils/paths";
 
 const GIT_TIMEOUT_MS = 10_000;
 
@@ -37,7 +38,9 @@ function execGit(args: string[], cwd: string): Promise<string> {
 
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error(`git ${args.join(" ")} timed out after ${GIT_TIMEOUT_MS}ms`));
+      reject(
+        new Error(`git ${args.join(" ")} timed out after ${GIT_TIMEOUT_MS}ms`),
+      );
     }, GIT_TIMEOUT_MS);
 
     // Clear the timer if the process finishes before timeout
@@ -215,6 +218,28 @@ export class GitCliClient implements GitClient {
     return staged;
   }
 
+  async getFileStageStates(
+    repoRootFsPath: string,
+  ): Promise<Map<string, FileStageState>> {
+    const out = await execGit(
+      ["status", "--porcelain=v1", "-z"],
+      repoRootFsPath,
+    );
+
+    const states = new Map<string, FileStageState>();
+    for (const e of out.split("\0").filter(Boolean)) {
+      const x = e[0];
+      const y = e[1];
+      const p = e.slice(3);
+      if (!p || x === " " || x === "?") {
+        continue;
+      }
+      const state: FileStageState = y !== " " && y !== "?" ? "partial" : "all";
+      states.set(normalizeRepoRelPath(p), state);
+    }
+    return states;
+  }
+
   async getUntrackedPaths(repoRootFsPath: string): Promise<string[]> {
     const out = await execGit(
       ["ls-files", "--others", "--exclude-standard", "-z"],
@@ -357,7 +382,14 @@ export class GitCliClient implements GitClient {
       : ["HEAD", "--not", "--remotes"];
 
     const out = await execGit(
-      ["--no-pager", "-c", "color.ui=false", "log", `--format=${format}`, ...rangeArgs],
+      [
+        "--no-pager",
+        "-c",
+        "color.ui=false",
+        "log",
+        `--format=${format}`,
+        ...rangeArgs,
+      ],
       repoRootFsPath,
     );
 
@@ -372,13 +404,15 @@ export class GitCliClient implements GitClient {
       if (!hash || !shortHash) {
         return [];
       }
-      return [{
-        hash,
-        shortHash,
-        subject: subject ?? "",
-        authorName: authorName || undefined,
-        authorDateIso: authorDateIso || undefined,
-      }];
+      return [
+        {
+          hash,
+          shortHash,
+          subject: subject ?? "",
+          authorName: authorName || undefined,
+          authorDateIso: authorDateIso || undefined,
+        },
+      ];
     });
   }
 
@@ -387,11 +421,22 @@ export class GitCliClient implements GitClient {
     commitHash: string,
   ): Promise<CommitFileChange[]> {
     const out = await execGit(
-      ["--no-pager", "-c", "color.ui=false", "show", "--name-status", "--format=", commitHash],
+      [
+        "--no-pager",
+        "-c",
+        "color.ui=false",
+        "show",
+        "--name-status",
+        "--format=",
+        commitHash,
+      ],
       repoRootFsPath,
     );
 
-    const lines = out.split("\n").map((l) => l.trim()).filter(Boolean);
+    const lines = out
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
     const changes: CommitFileChange[] = [];
 
     for (const line of lines) {

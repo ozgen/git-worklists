@@ -1544,6 +1544,89 @@ describe("GitCliClient — getStagedPaths edge cases", () => {
   });
 });
 
+describe("GitCliClient — getFileStageStates", () => {
+  it("returns empty map when nothing is staged", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: " M file.txt\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect(res.size).toBe(0);
+  });
+
+  it("returns 'all' for fully staged file (X changed, Y clean)", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "M  staged.txt\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect(res.get("staged.txt")).toBe("all");
+  });
+
+  it("returns 'partial' for file with both staged and unstaged changes (MM)", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "MM partial.txt\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect(res.get("partial.txt")).toBe("partial");
+  });
+
+  it("handles mixed entries: staged, partial, and unstaged files", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "M  fully.txt\0MM both.txt\0 M only-wt.txt\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect(res.get("fully.txt")).toBe("all");
+    expect(res.get("both.txt")).toBe("partial");
+    expect(res.has("only-wt.txt")).toBe(false);
+    expect(res.size).toBe(2);
+  });
+
+  it("skips entries with empty path", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "M  \0M  real.txt\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect([...res.keys()]).toEqual(["real.txt"]);
+  });
+
+  it("normalizes backslash paths", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "M  dir\\sub\\file.txt\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect(res.has("dir/sub/file.txt")).toBe(true);
+  });
+});
+
 describe("GitCliClient — tryGetUpstreamRef empty output", () => {
   it("returns undefined when git output is empty/whitespace", async () => {
     mockExecFileWithRouter((args) => {
