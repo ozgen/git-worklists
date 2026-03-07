@@ -56,7 +56,6 @@ Git Worklists supports workspaces that contain multiple Git repositories.
 
 ---
 
-
 ## Changelists View
 
 A structured way to organize and stage changes.
@@ -207,8 +206,12 @@ Integrated Git stash support directly inside Git Worklists.
 ### Create Stash (Per Changelist)
 
 - Stash all tracked changes from a selected changelist
-- Stash the **Unversioned changelist** directly new (untracked) files are included via `--include-untracked`
-- Automatically tags stashes with their originating changelist
+- Stash the **Unversioned changelist**
+  Untracked files are stashed using `git stash push --include-untracked`.
+
+  **Note:** Git may include additional untracked files in the repository when creating the stash.  A confirmation warning is shown before executing this operation.
+  Automatically tags stashes with their originating changelist
+
 - Optional custom stash message
 - Immediate UI refresh after stash
 
