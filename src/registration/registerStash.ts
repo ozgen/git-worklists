@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvider"; // adjust path
 import { Deps } from "../app/types";
 import { CreateStashForChangelist } from "../usecases/stash/createStashForChangelist";
+import { SystemChangelist } from "../core/changelist/systemChangelist";
 
 function showUri(ref: string, repoRelPath: string): vscode.Uri {
   const p = repoRelPath
@@ -47,6 +48,18 @@ export function registerStash(deps: Deps) {
               "Git Worklists: could not determine changelist id from selection.",
             );
             return;
+          }
+
+          if (changelistId === SystemChangelist.Unversioned) {
+            const choice = await vscode.window.showWarningMessage(
+              "Git may stash all untracked files in the repository, not only the files shown in the Unversioned list.",
+              { modal: true },
+              "Stash all untracked files",
+            );
+
+            if (choice !== "Stash all untracked files") {
+              return;
+            }
           }
 
           const message = await vscode.window.showInputBox({
