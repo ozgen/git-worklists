@@ -9,7 +9,9 @@ and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-No changes yet.
+### Changed
+
+- Progress indicators now appear in the status bar during long-running operations: repository switching, Git status reconciliation, stash creation, and discard all changes
 
 ---
 
