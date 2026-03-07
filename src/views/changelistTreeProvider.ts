@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { FileStageState } from "../adapters/git/gitClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { normalizeRepoRelPath } from "../utils/paths";
@@ -47,7 +48,7 @@ export class FileNode extends Node {
   constructor(
     repoRoot: vscode.Uri,
     public readonly repoRelativePath: string,
-    public readonly isStaged: boolean,
+    public readonly stageState: FileStageState,
     public readonly workStatus: FileWorkStatus,
   ) {
     const norm = normalizeRepoRelPath(repoRelativePath);
@@ -58,14 +59,12 @@ export class FileNode extends Node {
 
     super(label, vscode.TreeItemCollapsibleState.None);
 
-    this.contextValue = isStaged
-    ? "gitWorklists.file.staged"
-    : "gitWorklists.file.unstaged";
-  
+    this.contextValue = fileContextValue(stageState);
+
     const abs = vscode.Uri.joinPath(repoRoot, norm);
     this.resourceUri = abs;
 
-    this.iconPath = new vscode.ThemeIcon(isStaged ? "check" : "square");
+    this.iconPath = new vscode.ThemeIcon(fileIcon(stageState));
 
     this.description = folder;
     this.tooltip = norm;
@@ -74,7 +73,7 @@ export class FileNode extends Node {
       command: "gitWorklists.openDiff",
       title: "Open Diff",
       arguments: [abs],
-    };    
+    };
   }
 }
 
@@ -83,7 +82,7 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private repoRootFsPath?: string;
-  private stagedPaths = new Set<string>(); // repo-relative, normalized
+  private fileStageStates = new Map<string, FileStageState>();
 
   constructor(private readonly store: WorkspaceStateStore) {}
 
@@ -92,8 +91,12 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
     this.refresh();
   }
 
-  setStagedPaths(staged: Set<string>) {
-    this.stagedPaths = new Set(Array.from(staged).map(normalizeRepoRelPath));
+  setFileStageStates(states: Map<string, FileStageState>) {
+    const normalized = new Map<string, FileStageState>();
+    for (const [p, s] of states) {
+      normalized.set(normalizeRepoRelPath(p), s);
+    }
+    this.fileStageStates = normalized;
   }
 
   refresh() {
@@ -128,14 +131,14 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
       const def = byId.get(SystemChangelist.Default);
       if (def) {
         result.push(
-          new GroupNode(def, groupStageState(this.stagedPaths, def.files)),
+          new GroupNode(def, groupStageState(this.fileStageStates, def.files)),
         );
       }
 
       const unv = byId.get(SystemChangelist.Unversioned);
       if (unv) {
         result.push(
-          new GroupNode(unv, groupStageState(this.stagedPaths, unv.files)),
+          new GroupNode(unv, groupStageState(this.fileStageStates, unv.files)),
         );
       }
 
@@ -146,7 +149,7 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
 
       for (const l of custom) {
         result.push(
-          new GroupNode(l, groupStageState(this.stagedPaths, l.files)),
+          new GroupNode(l, groupStageState(this.fileStageStates, l.files)),
         );
       }
 
@@ -159,13 +162,13 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
 
       return files.map((p) => {
         const norm = normalizeRepoRelPath(p);
-        const staged = this.stagedPaths.has(norm);
+        const stageState = this.fileStageStates.get(norm) ?? "none";
         const workStatus: FileWorkStatus =
           element.list.id === SystemChangelist.Unversioned
             ? "unversioned"
             : "tracked";
 
-        return new FileNode(repoRoot, norm, staged, workStatus);
+        return new FileNode(repoRoot, norm, stageState, workStatus);
       });
     }
 
@@ -174,27 +177,52 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
 }
 
 function groupStageState(
-  staged: Set<string>,
+  states: Map<string, FileStageState>,
   files: string[],
 ): GroupStageState {
   if (files.length === 0) {
     return "none";
   }
 
-  let count = 0;
+  let allCount = 0;
+  let hasAnyStaged = false;
   for (const f of files) {
-    if (staged.has(normalizeRepoRelPath(f))) {
-      count++;
+    const s = states.get(normalizeRepoRelPath(f)) ?? "none";
+    if (s !== "none") {
+      hasAnyStaged = true;
+    }
+    if (s === "all") {
+      allCount++;
     }
   }
 
-  if (count === 0) {
+  if (!hasAnyStaged) {
     return "none";
   }
-  if (count === files.length) {
+  if (allCount === files.length) {
     return "all";
   }
   return "mixed";
+}
+
+function fileIcon(state: FileStageState): string {
+  if (state === "all") {
+    return "check";
+  }
+  if (state === "partial") {
+    return "remove";
+  }
+  return "square";
+}
+
+function fileContextValue(state: FileStageState): string {
+  if (state === "all") {
+    return "gitWorklists.file.staged";
+  }
+  if (state === "partial") {
+    return "gitWorklists.file.partial";
+  }
+  return "gitWorklists.file.unstaged";
 }
 
 function groupTitle(list: PersistedChangelist): string {

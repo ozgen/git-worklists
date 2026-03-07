@@ -109,7 +109,7 @@ describe("ChangelistTreeProvider (unit)", () => {
     const tp = new ChangelistTreeProvider(store as any);
 
     tp.setRepoRoot("/repo");
-    tp.setStagedPaths(new Set());
+    tp.setFileStageStates(new Map());
 
     const root = await tp.getChildren(undefined as any);
 
@@ -150,7 +150,7 @@ describe("ChangelistTreeProvider (unit)", () => {
     const tp = new ChangelistTreeProvider(store as any);
     tp.setRepoRoot("/repo");
 
-    tp.setStagedPaths(new Set(["a.txt", "c.txt", "u.txt"]));
+    tp.setFileStageStates(new Map([["a.txt", "all"], ["c.txt", "all"], ["u.txt", "all"]]));
 
     const root = await tp.getChildren(undefined as any);
     const changes = root[0] as any;
@@ -181,7 +181,7 @@ describe("ChangelistTreeProvider (unit)", () => {
     const tp = new ChangelistTreeProvider(store as any);
     tp.setRepoRoot("/repo");
 
-    tp.setStagedPaths(new Set(["dir/a.txt", "u/x.txt"]));
+    tp.setFileStageStates(new Map([["dir/a.txt", "all"], ["u/x.txt", "all"]]));
 
     const root = await tp.getChildren(undefined as any);
 
@@ -194,7 +194,7 @@ describe("ChangelistTreeProvider (unit)", () => {
 
     const f0 = changesFiles[0] as any; 
     expect(f0.workStatus).toBe("tracked");
-    expect(f0.isStaged).toBe(true);
+    expect(f0.stageState).toBe("all");
     expect(f0.contextValue).toBe("gitWorklists.file.staged");
     expect(f0.description).toBe("dir");
     expect(f0.resourceUri.fsPath).toBe("/repo/dir/a.txt");
@@ -204,7 +204,7 @@ describe("ChangelistTreeProvider (unit)", () => {
 
     const f1 = changesFiles[1] as any;
     expect(f1.workStatus).toBe("tracked");
-    expect(f1.isStaged).toBe(false);
+    expect(f1.stageState).toBe("none");
     expect(f1.contextValue).toBe("gitWorklists.file.unstaged");
 
     expect(f1.description === "" || typeof f1.description === "undefined").toBe(
@@ -220,9 +220,94 @@ describe("ChangelistTreeProvider (unit)", () => {
     expect(u0.label).toBe("x.txt");
     expect(u0.description).toBe("u");
     expect(u0.workStatus).toBe("unversioned");
-    expect(u0.isStaged).toBe(true);
+    expect(u0.stageState).toBe("all");
     expect(u0.contextValue).toBe("gitWorklists.file.staged");
     expect(u0.resourceUri.fsPath).toBe("/repo/u/x.txt");
+  });
+
+  it("file node stageState: partial shows 'remove' icon and gitWorklists.file.partial contextValue", async () => {
+    const state: PersistedState = {
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["a.txt", "b.txt", "c.txt"],
+        },
+      ],
+    };
+
+    const store = makeStore(state);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(
+      new Map([
+        ["a.txt", "all"],
+        ["b.txt", "partial"],
+      ]),
+    );
+
+    const root = await tp.getChildren(undefined as any);
+    const files = await tp.getChildren(root[0] as any);
+
+    const fa = files[0] as any; // a.txt — all
+    expect(fa.stageState).toBe("all");
+    expect((fa.iconPath as any).id).toBe("check");
+    expect(fa.contextValue).toBe("gitWorklists.file.staged");
+
+    const fb = files[1] as any; // b.txt — partial
+    expect(fb.stageState).toBe("partial");
+    expect((fb.iconPath as any).id).toBe("remove");
+    expect(fb.contextValue).toBe("gitWorklists.file.partial");
+
+    const fc = files[2] as any; // c.txt — none
+    expect(fc.stageState).toBe("none");
+    expect((fc.iconPath as any).id).toBe("square");
+    expect(fc.contextValue).toBe("gitWorklists.file.unstaged");
+  });
+
+  it("group icon is mixed when any file is partial even if none are fully staged", async () => {
+    const state: PersistedState = {
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["a.txt", "b.txt"],
+        },
+      ],
+    };
+
+    const store = makeStore(state);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map([["a.txt", "partial"]]));
+
+    const root = await tp.getChildren(undefined as any);
+    expect((root[0] as any).stageState).toBe("mixed");
+    expect(((root[0] as any).iconPath as any).id).toBe("remove");
+  });
+
+  it("group icon is all only when every file has stageState 'all'", async () => {
+    const state: PersistedState = {
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["a.txt", "b.txt"],
+        },
+      ],
+    };
+
+    const store = makeStore(state);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map([["a.txt", "all"], ["b.txt", "all"]]));
+
+    const root = await tp.getChildren(undefined as any);
+    expect((root[0] as any).stageState).toBe("all");
+    expect(((root[0] as any).iconPath as any).id).toBe("check");
   });
 
   it("refresh fires onDidChangeTreeData", async () => {

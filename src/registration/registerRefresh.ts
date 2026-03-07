@@ -27,14 +27,14 @@ export function registerRefresh(deps: Deps) {
       async () => {
         await deps.reconcile.run(deps.repoRoot);
 
-        const staged = await deps.git.getStagedPaths(deps.repoRoot);
-        deps.treeProvider.setStagedPaths(staged);
+        const fileStageStates = await deps.git.getFileStageStates(deps.repoRoot);
+        deps.treeProvider.setFileStageStates(fileStageStates);
 
         deps.treeProvider.refresh();
         deps.deco.refreshAll();
 
         deps.commitView.updateState({
-          stagedCount: staged.size,
+          stagedCount: fileStageStates.size,
           lastError: undefined,
         });
 

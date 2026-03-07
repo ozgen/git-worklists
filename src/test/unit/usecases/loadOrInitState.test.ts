@@ -44,6 +44,7 @@ function makeGit(repoRoot = "/repo"): GitClient {
     stashListFiles: vi.fn(async () => []),
 
     getStagedPaths: vi.fn(async () => new Set<string>()),
+    getFileStageStates: vi.fn(async () => new Map()),
     getUntrackedPaths: vi.fn(async () => []),
     isNewFileInRepo: vi.fn(async () => false),
     fileExistsAtRef: vi.fn(async () => false),

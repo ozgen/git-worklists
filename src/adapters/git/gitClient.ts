@@ -58,6 +58,8 @@ export function getStagedFilesInGroup(
   return files.map(normalizeRepoRelPath).filter((p) => staged.has(p));
 }
 
+export type FileStageState = "none" | "partial" | "all";
+
 export interface GitClient {
   /** returns repo root absolute path */
   getRepoRoot(workspaceFsPath: string): Promise<string>;
@@ -87,6 +89,14 @@ export interface GitClient {
    * Derived from `git status --porcelain=v1 -z`.
    */
   getStagedPaths(repoRootFsPath: string): Promise<Set<string>>;
+
+  /**
+   * Returns per-file stage state derived from `git status --porcelain=v1 -z`.
+   * Only files with at least one staged change appear in the map.
+   */
+  getFileStageStates(
+    repoRootFsPath: string,
+  ): Promise<Map<string, FileStageState>>;
 
   /** Returns repo-relative paths of untracked files (`git ls-files --others`). */
   getUntrackedPaths(repoRootFsPath: string): Promise<string[]>;
