@@ -98,6 +98,15 @@ export interface GitClient {
     repoRootFsPath: string,
   ): Promise<Map<string, FileStageState>>;
 
+  /** Returns raw output of `git diff -- <repoRelPath>` (unstaged changes: index → worktree). */
+  getDiffUnstaged(
+    repoRootFsPath: string,
+    repoRelPath: string,
+  ): Promise<string>;
+
+  /** Applies a unified diff patch to the git index via `git apply --cached`. */
+  applyPatchStaged(repoRootFsPath: string, patch: string): Promise<void>;
+
   /** Returns repo-relative paths of untracked files (`git ls-files --others`). */
   getUntrackedPaths(repoRootFsPath: string): Promise<string[]>;
 

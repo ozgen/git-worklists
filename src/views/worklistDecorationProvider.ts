@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { FileStageState } from "../adapters/git/gitClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { normalizeRepoRelPath } from "../utils/paths";
@@ -12,8 +13,14 @@ export class WorklistDecorationProvider
   readonly onDidChangeFileDecorations = this._onDidChange.event;
 
   private repoRootFsPath?: string;
+  private fileStageStates = new Map<string, FileStageState>();
 
   constructor(private readonly store: WorkspaceStateStore) {}
+
+  setFileStageStates(states: Map<string, FileStageState>) {
+    this.fileStageStates = states;
+    this._onDidChange.fire(undefined);
+  }
 
   setRepoRoot(repoRootFsPath: string) {
     this.repoRootFsPath = repoRootFsPath;
@@ -41,10 +48,13 @@ export class WorklistDecorationProvider
       return;
     }
 
-    // Build lookup: path -> list (first match wins)
+    const stageState = this.fileStageStates.get(rel) ?? "none";
+
     // Priority: Unversioned > Default > Custom
-    const unv = state.lists.find((l) => l.id === SystemChangelist.Unversioned);
-    if (unv?.files.includes(rel)) {
+    const unversioned = state.lists.find(
+      (l) => l.id === SystemChangelist.Unversioned,
+    );
+    if (unversioned?.files.includes(rel)) {
       return new vscode.FileDecoration(
         "U",
         "Unversioned",
@@ -52,34 +62,57 @@ export class WorklistDecorationProvider
       );
     }
 
-    const def = state.lists.find((l) => l.id === SystemChangelist.Default);
-    if (def?.files.includes(rel)) {
-      return new vscode.FileDecoration(
-        "D",
-        "In Changes",
-        new vscode.ThemeColor("gitDecoration.modifiedResourceForeground"),
-      );
+    const defaultList = state.lists.find(
+      (l) => l.id === SystemChangelist.Default,
+    );
+    if (defaultList?.files.includes(rel)) {
+      return decorationForList("D", "Default", stageState);
     }
 
-    // Custom lists
-    const custom = state.lists.find(
+    const customList = state.lists.find(
       (l) =>
         l.id !== SystemChangelist.Unversioned &&
         l.id !== SystemChangelist.Default &&
         l.files.includes(rel),
     );
 
-    if (custom) {
-      const badge = badgeFromName(custom.name); // e.g. first letter, or "L"
-      return new vscode.FileDecoration(
-        badge,
-        `In ${custom.name}`,
-        new vscode.ThemeColor("gitDecoration.addedResourceForeground"),
-      );
+    if (customList) {
+      const badge = badgeFromName(customList.name);
+      return decorationForList(badge, customList.name, stageState);
     }
 
     return;
   }
+}
+
+function decorationForList(
+  badge: string,
+  listName: string,
+  stageState: FileStageState,
+): vscode.FileDecoration {
+  if (stageState === "all") {
+    return new vscode.FileDecoration(
+      badge,
+      listName === "Default" ? "Staged" : `Staged in ${listName}`,
+      new vscode.ThemeColor("gitDecoration.stagedModifiedResourceForeground"),
+    );
+  }
+
+  if (stageState === "partial") {
+    return new vscode.FileDecoration(
+      badge,
+      listName === "Default"
+        ? "Partially Staged"
+        : `Partially Staged in ${listName}`,
+      new vscode.ThemeColor("gitDecoration.stagedModifiedResourceForeground"),
+    );
+  }
+
+  return new vscode.FileDecoration(
+    badge,
+    listName === "Default" ? "In Changes" : `In ${listName}`,
+    new vscode.ThemeColor("gitDecoration.modifiedResourceForeground"),
+  );
 }
 
 function toRepoRelPath(repoRootFsPath: string, uri: vscode.Uri): string {
@@ -101,7 +134,7 @@ function badgeFromName(name: string): string {
   if (!trimmed) {
     return "L";
   }
-  const ch = trimmed[0]?.toUpperCase();
-  // badge must be short; 1 char is safest
+
+  const ch = trimmed[0]?.toUpperCase() ?? "L";
   return /^[A-Z0-9]$/.test(ch) ? ch : "L";
 }

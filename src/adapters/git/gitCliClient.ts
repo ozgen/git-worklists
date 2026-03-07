@@ -1,4 +1,6 @@
 import * as cp from "child_process";
+import * as fsPromises from "fs/promises";
+import * as os from "os";
 import * as path from "path";
 import { normalizeRepoRelPath } from "../../utils/paths";
 import {
@@ -238,6 +240,26 @@ export class GitCliClient implements GitClient {
       states.set(normalizeRepoRelPath(p), state);
     }
     return states;
+  }
+
+  async getDiffUnstaged(
+    repoRootFsPath: string,
+    repoRelPath: string,
+  ): Promise<string> {
+    return execGit(["diff", "--", repoRelPath], repoRootFsPath);
+  }
+
+  async applyPatchStaged(
+    repoRootFsPath: string,
+    patch: string,
+  ): Promise<void> {
+    const tmp = path.join(os.tmpdir(), `gw-${Date.now()}.patch`);
+    try {
+      await fsPromises.writeFile(tmp, patch, "utf8");
+      await execGit(["apply", "--cached", tmp], repoRootFsPath);
+    } finally {
+      await fsPromises.unlink(tmp).catch(() => {});
+    }
   }
 
   async getUntrackedPaths(repoRootFsPath: string): Promise<string[]> {
