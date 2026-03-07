@@ -7,7 +7,7 @@
 
 ---
 
-**Git Worklists** is a Visual Studio Code extension that provides a lightweight, Git-focused workflow for organizing changes, staging files, committing, pushing, and managing stashes, all through a dedicated, predictable UI.
+**Git Worklists** is a Visual Studio Code extension that provides a lightweight, Git-focused workflow for organizing changes, staging files, **partially staging selected lines**, committing, pushing, and managing stashes, all through a dedicated, predictable UI.
 
 It is designed for developers who want **explicit control over staging, commits, amend, push, and stash workflows**, without relying on VS Code’s built-in Source Control view.
 
@@ -85,6 +85,9 @@ A structured way to organize and stage changes.
 - State-aware inline action:
   - Shows **Stage** when file is unstaged
   - Shows **Unstage** when file is staged
+  - **Partial staging support**
+    - Stage only selected lines directly from the editor or diff view
+    - Files with partially staged changes are visually indicated
 
 - Stage All / Unstage All per changelist
 
@@ -151,6 +154,21 @@ A structured way to organize and stage changes.
 
 All staging state reflects the actual Git index.
 
+### Partial Line Staging
+
+![Partial line staging demo](media/demo_partial_stage.gif)
+
+
+Git Worklists supports staging individual lines directly from the editor or diff view.
+
+1. Open a file diff or source file
+2. Select the lines you want to stage
+3. Right-click → **GW: Stage Selected Lines**
+
+Only the selected changes are staged. The rest of the file remains unstaged.
+
+Files that contain both staged and unstaged changes are automatically marked as **Partially Staged** in the changelist view.
+
 ---
 
 ## Commit Panel
@@ -209,7 +227,7 @@ Integrated Git stash support directly inside Git Worklists.
 - Stash the **Unversioned changelist**
   Untracked files are stashed using `git stash push --include-untracked`.
 
-  **Note:** Git may include additional untracked files in the repository when creating the stash.  A confirmation warning is shown before executing this operation.
+  **Note:** Git may include additional untracked files in the repository when creating the stash. A confirmation warning is shown before executing this operation.
   Automatically tags stashes with their originating changelist
 
 - Optional custom stash message
@@ -254,6 +272,7 @@ Uses **Git CLI directly** (no VS Code SCM provider).
 Supported operations:
 
 - `git add`
+- `git apply --cached`
 - `git restore --staged`
 - `git restore --staged --worktree`
 - `git commit`
