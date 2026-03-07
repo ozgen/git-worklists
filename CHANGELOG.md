@@ -9,9 +9,14 @@ and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Confirmation warning when stashing the **Unversioned** changelist to explain that Git may include additional untracked files in the repository when using `git stash push --include-untracked`.
+
 ### Changed
 
 - Progress indicators now appear in the status bar during long-running operations: repository switching, Git status reconciliation, stash creation, and discard all changes
+- Improved handling of stashing the **Unversioned** changelist. Only files currently reported as untracked by Git are considered before creating the stash.
 
 ---
 
