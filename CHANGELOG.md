@@ -9,18 +9,27 @@ and adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+No changes yet.
+
+---
+
+## [1.0.0] - 2026-03-08
+
 ### Added
 
+- **Partial line staging** support. Selected lines can now be staged directly from the editor or diff view using **GW: Stage Selected Lines**.
 - Confirmation warning when stashing the **Unversioned** changelist to explain that Git may include additional untracked files in the repository when using `git stash push --include-untracked`.
 
 ### Changed
 
-- Progress indicators now appear in the status bar during long-running operations: repository switching, Git status reconciliation, stash creation, and discard all changes
+- Progress indicators now appear in the status bar during long-running operations: repository switching, Git status reconciliation, stash creation, and discard all changes.
 - Improved handling of stashing the **Unversioned** changelist. Only files currently reported as untracked by Git are considered before creating the stash.
 - Renamed `changelistId` to `changelistName` in `GitStashEntry` and related parsing/view code to accurately reflect that the value embedded in the stash message tag (`GW:<encodedName>`) is the changelist name, not an ID.
-- File nodes now track a tri-state stage state (`"none"` | `"partial"` | `"all"`) instead of a boolean, enabling correct representation of files with both staged and unstaged changes. Files with only staged changes show a check icon, files with partial staging show a dash icon, and unstaged files show a square icon.
-
----
+- File nodes now track a tri-state stage state (`"none"` | `"partial"` | `"all"`) instead of a boolean, enabling correct representation of files with both staged and unstaged changes.
+  - Fully staged files show a **check icon**
+  - Partially staged files show a **dash icon**
+  - Unstaged files show a **square icon**
+- Commit preparation now preserves partial staging by avoiding blanket restaging of tracked files. Newly added files modified after staging are refreshed automatically before commit.
 
 ## [0.9.0] - 2026-03-06
 
