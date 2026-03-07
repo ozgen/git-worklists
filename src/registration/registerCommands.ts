@@ -10,6 +10,7 @@ import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { stageChangelistAll } from "../usecases/stageChangelistAll";
 import { unstageChangelistAll } from "../usecases/unstageChangelistAll";
 import { openPushPreviewPanel } from "../views/pushPreviewPanel";
+import { buildPatchForLineRange } from "../utils/patchBuilder";
 
 export function registerCommands(deps: Deps) {
   const { context } = deps;
@@ -529,6 +530,66 @@ export function registerCommands(deps: Deps) {
     vscode.commands.registerCommand("gitWorklists.closeDiffTabs", async () => {
       await deps.closeDiffTabs.run();
     }),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.stageSelectedLines",
+      async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.selection.isEmpty) {
+          vscode.window.showWarningMessage(
+            "Select lines in the diff editor first.",
+          );
+          return;
+        }
+
+        const uri = editor.document.uri;
+        if (uri.scheme !== "file") {
+          vscode.window.showWarningMessage(
+            "Open a diff from the Git Worklists tree view and select lines in the right pane.",
+          );
+          return;
+        }
+
+        const rel = toRepoRelPath(deps.repoRoot, uri);
+        if (!rel) {
+          vscode.window.showWarningMessage(
+            "File is not in the current repository.",
+          );
+          return;
+        }
+
+        const selStart = editor.selection.start.line + 1;
+        const selEnd =
+          editor.selection.end.character === 0
+            ? editor.selection.end.line
+            : editor.selection.end.line + 1;
+
+        const fullDiff = await deps.git.getDiffUnstaged(deps.repoRoot, rel);
+        if (!fullDiff.trim()) {
+          vscode.window.showInformationMessage(
+            "No unstaged changes for this file.",
+          );
+          return;
+        }
+
+        const patch = buildPatchForLineRange(fullDiff, selStart, selEnd);
+        if (!patch) {
+          vscode.window.showInformationMessage(
+            "No changes in the selected range.",
+          );
+          return;
+        }
+
+        try {
+          await deps.git.applyPatchStaged(deps.repoRoot, patch);
+          deps.coordinator.trigger();
+        } catch (e: any) {
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
   );
 
   context.subscriptions.push(

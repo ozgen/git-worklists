@@ -26,6 +26,9 @@
     "changelist",
     "changelists",
     "staging",
+    "partial staging",
+    "stage selected lines",
+    "git staging",
     "stash",
     "commit",
     "push",
@@ -214,6 +217,11 @@
         "command": "gitWorklists.switchRepoRoot",
         "title": "Switch Git Root…",
         "icon": "$(list-tree)"
+      },
+      {
+        "command": "gitWorklists.stageSelectedLines",
+        "title": "GW: Stage Selected Lines",
+        "category": "Git Worklists"
       }
     ],
     "menus": {
@@ -242,7 +250,7 @@
       "view/item/context": [
         {
           "command": "gitWorklists.moveFileToChangelist",
-          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.partial || viewItem == gitWorklists.file.unstaged)",
           "group": "navigation@0"
         },
         {
@@ -277,12 +285,12 @@
         },
         {
           "command": "gitWorklists.unselectFile",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.partial)",
           "group": "inline@2"
         },
         {
           "command": "gitWorklists.file.discard",
-          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.partial || viewItem == gitWorklists.file.unstaged)",
           "group": "inline@3"
         },
         {
@@ -322,18 +330,25 @@
         },
         {
           "command": "gitWorklists.file.openSource",
-          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.unstaged)",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.partial || viewItem == gitWorklists.file.unstaged)",
           "group": "navigation@0"
         },
         {
           "command": "gitWorklists.moveAllStagedFilesToChangelist",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.partial)",
           "group": "navigation@5"
         },
         {
           "command": "gitWorklists.stashAllStagedFiles",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.staged",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.staged || viewItem == gitWorklists.file.partial)",
           "group": "navigation@6"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "gitWorklists.stageSelectedLines",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "gitWorklists@1"
         }
       ]
     }

@@ -29,6 +29,7 @@ export function registerRefresh(deps: Deps) {
 
         const fileStageStates = await deps.git.getFileStageStates(deps.repoRoot);
         deps.treeProvider.setFileStageStates(fileStageStates);
+        deps.deco.setFileStageStates(fileStageStates);
 
         deps.treeProvider.refresh();
         deps.deco.refreshAll();
