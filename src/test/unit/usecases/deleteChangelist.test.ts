@@ -71,6 +71,8 @@ function makeGit(
 
     getStagedPaths: vi.fn(async () => new Set<string>()),
     getFileStageStates: vi.fn(async () => new Map()),
+    getDiffUnstaged: vi.fn(async () => ""),
+    applyPatchStaged: vi.fn(async () => {}),
     getUntrackedPaths: vi.fn(async () => []),
     isNewFileInRepo: vi.fn(async () => false),
     fileExistsAtRef: vi.fn(async () => false),
