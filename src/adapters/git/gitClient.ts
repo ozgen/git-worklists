@@ -21,7 +21,7 @@ export type GitStashEntry = {
 
   /** best-effort parsing */
   isGitWorklists?: boolean;
-  changelistId?: string;
+  changelistName?: string;
 };
 
 export type OutgoingCommit = {

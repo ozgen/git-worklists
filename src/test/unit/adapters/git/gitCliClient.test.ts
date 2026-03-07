@@ -68,7 +68,7 @@ describe("parseStashLine", () => {
       ref: "stash@{0}",
       message: "On main: GW:abc123 WIP message",
       isGitWorklists: true,
-      changelistId: "abc123",
+      changelistName: "abc123",
     });
   });
 
@@ -87,7 +87,7 @@ describe("parseStashLine", () => {
       ref: "stash@{3}",
       message: "On main: plain message",
       isGitWorklists: false,
-      changelistId: undefined,
+      changelistName: undefined,
     });
   });
 
@@ -96,7 +96,7 @@ describe("parseStashLine", () => {
     expect(e).toMatchObject({
       ref: "stash@{0}",
       isGitWorklists: true,
-      changelistId: "xyz_99",
+      changelistName: "xyz_99",
     });
   });
 
@@ -105,7 +105,7 @@ describe("parseStashLine", () => {
     expect(e).toMatchObject({
       ref: "stash@{0}",
       isGitWorklists: false,
-      changelistId: undefined,
+      changelistName: undefined,
     });
   });
 
@@ -114,7 +114,7 @@ describe("parseStashLine", () => {
     expect(e).toMatchObject({
       ref: "stash@{0}",
       isGitWorklists: true,
-      changelistId: "My Feature",
+      changelistName: "My Feature",
     });
   });
 
@@ -123,7 +123,7 @@ describe("parseStashLine", () => {
     expect(e).toMatchObject({
       ref: "stash@{1}",
       isGitWorklists: true,
-      changelistId: "Unversioned Files",
+      changelistName: "Unversioned Files",
     });
   });
 });
@@ -236,7 +236,7 @@ describe("GitCliClient (mocked git)", () => {
     expect(stashes[0]).toMatchObject({
       ref: "stash@{0}",
       isGitWorklists: true,
-      changelistId: "list1",
+      changelistName: "list1",
     });
     expect(stashes[1]).toMatchObject({
       ref: "stash@{1}",

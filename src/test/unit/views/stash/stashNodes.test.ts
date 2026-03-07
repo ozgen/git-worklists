@@ -51,7 +51,7 @@ describe("stashNodes.toTreeItem", () => {
         message: "On main: GW:abc123456789 WIP message",
         raw: "stash@{0}: On main: GW:abc123456789 WIP message",
         isGitWorklists: true,
-        changelistId: "abc123456789",
+        changelistName: "abc123456789",
       },
     };
 
