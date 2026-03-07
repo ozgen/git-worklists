@@ -41,8 +41,11 @@ function makeGit(
 
     getCommitFiles: vi.fn(async () => []),
     showFileAtRefOptional: vi.fn(
-      async (repoRootFsPath: string, ref: string, repoRelativePath: string) =>
-        "",
+      async (
+        _repoRootFsPath: string,
+        _ref: string,
+        _repoRelativePath: string,
+      ) => "",
     ),
     tryGetUpstreamRef: vi.fn(async () => ""),
     stashListFiles: vi.fn(async () => []),
@@ -212,7 +215,7 @@ describe("CreateStashForChangelist", () => {
     expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 1 });
   });
 
-  it("stashes Unversioned changelist files with --include-untracked", async () => {
+  it("stashes only currently untracked files from the Unversioned changelist", async () => {
     const store = makeStore({
       version: 1,
       lists: [
@@ -224,7 +227,10 @@ describe("CreateStashForChangelist", () => {
       ],
     } as any);
 
-    const git = makeGit([]);
+    const git = makeGit([
+      { path: "new-a.ts", x: "?", y: "?" },
+      { path: "new-b.ts", x: "?", y: "?" },
+    ]);
     const uc = new CreateStashForChangelist(git, store as any);
 
     const res = await uc.run({
@@ -232,7 +238,7 @@ describe("CreateStashForChangelist", () => {
       changelistId: SystemChangelist.Unversioned,
     });
 
-    expect(git.getStatusPorcelainZ).not.toHaveBeenCalled();
+    expect(git.getStatusPorcelainZ).toHaveBeenCalledTimes(1);
     expect(git.stashPushPaths).toHaveBeenCalledWith(
       "/repo",
       "GW:Unversioned%20Files",
@@ -240,5 +246,101 @@ describe("CreateStashForChangelist", () => {
       { includeUntracked: true },
     );
     expect(res).toEqual({ stashedCount: 2, skippedUntrackedCount: 0 });
+  });
+
+  it("filters out files in Unversioned that are no longer currently untracked", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned Files",
+          files: ["already-staged.ts", "still-untracked.ts"],
+        },
+      ],
+    } as any);
+
+    const git = makeGit([
+      { path: "already-staged.ts", x: "A", y: " " },
+      { path: "still-untracked.ts", x: "?", y: "?" },
+    ]);
+    const uc = new CreateStashForChangelist(git, store as any);
+
+    const res = await uc.run({
+      repoRootFsPath: "/repo",
+      changelistId: SystemChangelist.Unversioned,
+      message: "WIP",
+    });
+
+    expect(git.stashPushPaths).toHaveBeenCalledTimes(1);
+    expect(git.stashPushPaths).toHaveBeenCalledWith(
+      "/repo",
+      "GW:Unversioned%20Files WIP",
+      ["still-untracked.ts"],
+      { includeUntracked: true },
+    );
+    expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 1 });
+  });
+
+  it("throws if Unversioned changelist contains no currently untracked files", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned Files",
+          files: ["staged.ts", "tracked.ts"],
+        },
+      ],
+    } as any);
+
+    const git = makeGit([
+      { path: "staged.ts", x: "A", y: " " },
+      { path: "tracked.ts", x: "M", y: " " },
+    ]);
+    const uc = new CreateStashForChangelist(git, store as any);
+
+    await expect(
+      uc.run({
+        repoRootFsPath: "/repo",
+        changelistId: SystemChangelist.Unversioned,
+      }),
+    ).rejects.toThrow(
+      "Nothing to stash (this changelist contains no untracked files).",
+    );
+
+    expect(git.stashPushPaths).not.toHaveBeenCalled();
+  });
+
+  it("normalizes paths when matching current untracked files in Unversioned", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned Files",
+          files: ["dir\\new-file.ts", "keep\\staged.ts"],
+        },
+      ],
+    } as any);
+
+    const git = makeGit([
+      { path: "dir/new-file.ts", x: "?", y: "?" },
+      { path: "keep/staged.ts", x: "A", y: " " },
+    ]);
+    const uc = new CreateStashForChangelist(git, store as any);
+
+    const res = await uc.run({
+      repoRootFsPath: "/repo",
+      changelistId: SystemChangelist.Unversioned,
+    });
+
+    expect(git.stashPushPaths).toHaveBeenCalledWith(
+      "/repo",
+      "GW:Unversioned%20Files",
+      ["dir/new-file.ts"],
+      { includeUntracked: true },
+    );
+    expect(res).toEqual({ stashedCount: 1, skippedUntrackedCount: 1 });
   });
 });

@@ -1,7 +1,7 @@
 import { GitClient } from "../../adapters/git/gitClient";
 import { WorkspaceStateStore } from "../../adapters/storage/workspaceStateStore";
-import { normalizeRepoRelPath } from "../../utils/paths";
 import { SystemChangelist } from "../../core/changelist/systemChangelist";
+import { normalizeRepoRelPath } from "../../utils/paths";
 
 export class CreateStashForChangelist {
   constructor(
@@ -36,16 +36,38 @@ export class CreateStashForChangelist {
     }
 
     const userMsg = (params.message ?? "").trim();
-    const encoded = encodeURIComponent(changelistName);
+    const encodedChangelistName = encodeURIComponent(changelistName);
     const msg = userMsg
-      ? `GW:${encoded} ${userMsg}`
-      : `GW:${encoded}`;
+      ? `GW:${encodedChangelistName} ${userMsg}`
+      : `GW:${encodedChangelistName}`;
 
     if (changelistId === SystemChangelist.Unversioned) {
-      await this.git.stashPushPaths(repoRootFsPath, msg, files, {
+      const status = await this.git.getStatusPorcelainZ(repoRootFsPath);
+
+      const untrackedNow = new Set(
+        status
+          .filter((e) => e.x === "?" && e.y === "?")
+          .map((e) => normalizeRepoRelPath(e.path)),
+      );
+
+      const filesStillUntracked = files.filter((path) =>
+        untrackedNow.has(path),
+      );
+
+      if (filesStillUntracked.length === 0) {
+        throw new Error(
+          "Nothing to stash (this changelist contains no untracked files).",
+        );
+      }
+
+      await this.git.stashPushPaths(repoRootFsPath, msg, filesStillUntracked, {
         includeUntracked: true,
       });
-      return { stashedCount: files.length, skippedUntrackedCount: 0 };
+
+      return {
+        stashedCount: filesStillUntracked.length,
+        skippedUntrackedCount: files.length - filesStillUntracked.length,
+      };
     }
 
     const status = await this.git.getStatusPorcelainZ(repoRootFsPath);
