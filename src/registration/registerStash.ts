@@ -60,11 +60,14 @@ export function registerStash(deps: Deps) {
 
           const uc = new CreateStashForChangelist(deps.git, deps.store);
 
-          const res = await uc.run({
-            repoRootFsPath: deps.repoRoot,
-            changelistId,
-            message,
-          });
+          const res = await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Window,
+              title: "Git Worklists: creating stash…",
+            },
+            () =>
+              uc.run({ repoRootFsPath: deps.repoRoot, changelistId, message }),
+          );
 
           const extra = res.skippedUntrackedCount
             ? ` (skipped ${res.skippedUntrackedCount} untracked)`

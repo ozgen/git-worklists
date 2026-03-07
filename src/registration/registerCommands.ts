@@ -447,23 +447,31 @@ export function registerCommands(deps: Deps) {
           }
 
           // --- Execute ---
-          if (unversioned.length > 0) {
-            await Promise.all(
-              unversioned.map((rel) =>
-                fs.rm(path.join(deps.repoRoot, rel), {
-                  recursive: true,
-                  force: true,
-                }),
-              ),
-            );
-          }
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Window,
+              title: "Git Worklists: discarding changes…",
+            },
+            async () => {
+              if (unversioned.length > 0) {
+                await Promise.all(
+                  unversioned.map((rel) =>
+                    fs.rm(path.join(deps.repoRoot, rel), {
+                      recursive: true,
+                      force: true,
+                    }),
+                  ),
+                );
+              }
 
-          const toRestore = [...newlyAdded, ...normalTracked];
-          if (toRestore.length > 0) {
-            await deps.git.discardFiles(deps.repoRoot, toRestore);
-          }
+              const toRestore = [...newlyAdded, ...normalTracked];
+              if (toRestore.length > 0) {
+                await deps.git.discardFiles(deps.repoRoot, toRestore);
+              }
 
-          await deps.coordinator.requestNow();
+              await deps.coordinator.requestNow();
+            },
+          );
         } catch (e) {
           console.error(e);
           void vscode.window.showErrorMessage(
@@ -710,7 +718,13 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await deps.switchRepoRoot(picked.root);
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Window,
+            title: "Git Worklists: switching repository…",
+          },
+          () => deps.switchRepoRoot(picked.root),
+        );
       } catch (e) {
         console.error(e);
         vscode.window.showErrorMessage(

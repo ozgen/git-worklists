@@ -1,6 +1,7 @@
+import * as vscode from "vscode";
 import { PersistedState } from "../adapters/storage/workspaceStateStore";
-import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 import { Deps } from "../app/types";
+import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
 
 function computeTotalWorklistCount(state: PersistedState | undefined): number {
   if (!state || state.version !== 1) {
@@ -18,28 +19,36 @@ function computeTotalWorklistCount(state: PersistedState | undefined): number {
 
 export function registerRefresh(deps: Deps) {
   const doRefresh = async () => {
-    await deps.reconcile.run(deps.repoRoot);
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Window,
+        title: "Git Worklists: syncing with Git…",
+      },
+      async () => {
+        await deps.reconcile.run(deps.repoRoot);
 
-    const staged = await deps.git.getStagedPaths(deps.repoRoot);
-    deps.treeProvider.setStagedPaths(staged);
+        const staged = await deps.git.getStagedPaths(deps.repoRoot);
+        deps.treeProvider.setStagedPaths(staged);
 
-    deps.treeProvider.refresh();
-    deps.deco.refreshAll();
+        deps.treeProvider.refresh();
+        deps.deco.refreshAll();
 
-    deps.commitView.updateState({
-      stagedCount: staged.size,
-      lastError: undefined,
-    });
+        deps.commitView.updateState({
+          stagedCount: staged.size,
+          lastError: undefined,
+        });
 
-    const state = await deps.store.load(deps.repoRoot);
-    const count = computeTotalWorklistCount(
-      state as PersistedState | undefined,
+        const state = await deps.store.load(deps.repoRoot);
+        const count = computeTotalWorklistCount(
+          state as PersistedState | undefined,
+        );
+
+        deps.treeView.badge =
+          count > 0
+            ? { value: count, tooltip: "Files in Git Worklists" }
+            : undefined;
+      },
     );
-
-    deps.treeView.badge =
-      count > 0
-        ? { value: count, tooltip: "Files in Git Worklists" }
-        : undefined;
   };
 
   // replace the placeholder coordinator created in createDeps
