@@ -13,6 +13,14 @@ No changes yet.
 
 ---
 
+## [1.0.1] - 2026-03-15
+
+### Fixed
+
+- The **Select File** inline action now also appears for partially staged files, not just fully unstaged ones.
+
+---
+
 ## [1.0.0] - 2026-03-08
 
 ### Added

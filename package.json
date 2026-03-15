@@ -280,7 +280,7 @@
         },
         {
           "command": "gitWorklists.selectFile",
-          "when": "view == gitWorklists.changelists && viewItem == gitWorklists.file.unstaged",
+          "when": "view == gitWorklists.changelists && (viewItem == gitWorklists.file.unstaged || viewItem == gitWorklists.file.partial)",
           "group": "inline@1"
         },
         {

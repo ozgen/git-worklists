@@ -158,12 +158,11 @@ All staging state reflects the actual Git index.
 
 ![Partial line staging demo](media/demo_partial_stage.gif)
 
-
 Git Worklists supports staging individual lines directly from the editor or diff view.
 
 1. Open a file diff or source file
 2. Select the lines you want to stage
-3. Right-click → **GW: Stage Selected Lines**
+3. Right-click -> **GW: Stage Selected Lines**
 
 Only the selected changes are staged. The rest of the file remains unstaged.
 
@@ -260,7 +259,7 @@ Per-stash context actions:
 
 - **Apply Stash** restore changes without removing stash; files are returned to their originating changelist
 - **Pop Stash** restore changes and remove stash; files are returned to their originating changelist
-- **Delete Stash** – drop stash with confirmation
+- **Delete Stash** drop stash with confirmation
 - Refresh support
 
 ---
