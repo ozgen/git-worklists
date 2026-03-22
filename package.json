@@ -3,7 +3,7 @@
   "displayName": "Git Worklists",
   "description": "IntelliJ-style changelists for VS Code. Organize changes into work units, stage selectively, and commit with full control.",
   "publisher": "ozgen",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.109.0"
