@@ -13,6 +13,15 @@ No changes yet.
 
 ---
 
+## [1.0.2] - 2026-03-22
+
+### Changed
+
+- README restructured as a concise overview with demos and key highlights; detailed feature specifications moved to a new `docs/MANUAL.md` reference document.
+- Updated marketplace keywords and description for better discoverability.
+
+---
+
 ## [1.0.1] - 2026-03-15
 
 ### Fixed
