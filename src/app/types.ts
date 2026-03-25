@@ -1,27 +1,33 @@
 import * as vscode from "vscode";
 import { GitCliClient } from "../adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
+import { VsCodeBookmarkEditor } from "../adapters/vscode/bookmarkEditor";
+import { ConventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
+import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
 import { VsCodeFsStat } from "../adapters/vscode/fsStat";
+import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
 import { VsCodePrompt } from "../adapters/vscode/prompt";
 import { VsCodeSettings } from "../adapters/vscode/settings";
+import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
+import { ClearAllBookmarks } from "../usecases/bookmark/clearAllBookmarks";
+import { ClearBookmark } from "../usecases/bookmark/clearBookmark";
+import { JumpToBookmark } from "../usecases/bookmark/jumpToBookmark";
+import { SetBookmark } from "../usecases/bookmark/setBookmark";
+import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { CreateChangelist } from "../usecases/createChangelist";
 import { DeleteChangelist } from "../usecases/deleteChangelist";
-import { RenameChangelist } from "../usecases/renameChangelist";
+import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
 import { LoadOrInitState } from "../usecases/loadOrInitState";
 import { MoveFilesToChangelist } from "../usecases/moveFilesToChangelist";
 import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
+import { RenameChangelist } from "../usecases/renameChangelist";
+import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
+import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
 import { CommitViewProvider } from "../views/commitViewProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
 import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
-import { ConventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
-import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
-import { PendingStageOnSave } from "../adapters/vscode/pendingStageOnSave";
-import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
-import { CloseDiffTabs } from "../usecases/closeDiffTabs";
-import { HandleNewFilesCreated } from "../usecases/handleNewFilesCreated";
-import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
-import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
+import { BookmarkDecorationProvider } from "../views/bookmark/bookmarkDecorationProvider";
 
 export type GroupArg = {
   list: { id: string; name: string; files: string[] };
@@ -40,6 +46,8 @@ export type Deps = {
   settings: VsCodeSettings;
   prompt: VsCodePrompt;
   pendingStageOnSave: PendingStageOnSave;
+  bookmarkEditor: VsCodeBookmarkEditor;
+  bookmarkDeco:BookmarkDecorationProvider;
 
   createChangelist: CreateChangelist;
   renameChangelist: RenameChangelist;
@@ -49,6 +57,11 @@ export type Deps = {
   loadOrInit: LoadOrInitState;
   reconcile: ReconcileWithGitStatus;
   restageAlreadyStaged: RestageAlreadyStaged;
+
+  setBookmark: SetBookmark;
+  jumpToBookmark: JumpToBookmark;
+  clearBookmark: ClearBookmark;
+  clearAllBookmarks: ClearAllBookmarks;
 
   treeProvider: ChangelistTreeProvider;
   treeView: vscode.TreeView<any>;

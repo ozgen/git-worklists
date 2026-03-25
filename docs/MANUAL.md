@@ -137,7 +137,7 @@ Stage individual lines directly from the editor or diff view.
 
 1. Open a file diff or source file
 2. Select the lines you want to stage
-3. Right-click → Stage Selected Lines
+3. Right-click -> Stage Selected Lines
 
 Only the selected changes are staged.
 
@@ -282,6 +282,115 @@ All operations use repo-relative paths.
 
 ---
 
+## Bookmarks
+
+Quick navigation across files using numbered bookmarks (1–9), similar to IntelliJ.
+
+### Core Behavior
+
+* Supports **9 bookmark slots (1–9)**
+
+* Each slot holds **one location**
+
+* A bookmark stores:
+
+  * file (repo-relative)
+  * line
+  * column
+
+* Bookmarks are **persisted per repository**
+
+* Switching repository switches bookmark set automatically
+
+---
+
+### Setting Bookmarks
+
+You can set bookmarks in multiple ways:
+
+* **Keyboard**
+
+  * `Ctrl + Shift + 1–9` or `Cmd + Shift + 1–9` -> Set bookmark
+* **Editor right-click**
+
+  * `GW: Set Bookmark…`
+  * `GW: Clear Bookmark…`
+  * `GW: Clear All Bookmark`
+If a slot is already used:
+
+* A confirmation dialog is shown
+* You can **replace or cancel**
+
+---
+
+### Jumping to Bookmarks
+
+* `Ctrl + 1–9` or `Cmd + 1–9` -> Jump to bookmark
+
+Behavior:
+
+* Opens the file if not open
+* Moves cursor to saved position
+* Reveals location in editor
+
+---
+
+### Clearing Bookmarks
+
+* Clear single bookmark:
+
+  * Command: `Clear Bookmark`
+  * Slot-specific commands available
+
+* Clear all bookmarks:
+
+  * View title action
+  * Context menu
+  * Confirmation required
+
+---
+
+### Visual Indicators
+
+* Bookmarks are shown in the **editor gutter**
+
+* Each slot has its own icon (1–9)
+
+* Decorations include:
+
+  * gutter icon
+  * subtle line highlight
+
+* Decorations update automatically when:
+
+  * bookmark is set
+  * bookmark is cleared
+  * editor becomes visible
+
+---
+
+### Behavior Notes
+
+* Works on **any file inside the repository**
+
+  * not limited to changed files
+* Bookmarks outside repo are ignored
+* Line numbers are safely clamped if file changes
+* Decorations are editor-only (not shown in tree view)
+
+---
+
+### Keybindings
+
+Default:
+
+* `Ctrl + Shift + 1–9` or `Cmd + Shift + 1–9` -> Set bookmark
+* `Ctrl + 1–9` or `Ctrl + 1–9` -> Jump to bookmark
+
+Users can override keybindings via VS Code settings.
+
+---
+
 ## Usage
 
 ### Changelists & Commits
@@ -298,7 +407,7 @@ All operations use repo-relative paths.
 
 ### Stashes
 
-1. Right-click a changelist → Stash changes
+1. Right-click a changelist -> Stash changes
 2. Enter optional message
 3. Open Stashes view
 4. Expand stash

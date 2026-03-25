@@ -9,8 +9,13 @@ import { GitShowContentProvider } from "../adapters/vscode/gitShowContentProvide
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { stageChangelistAll } from "../usecases/stageChangelistAll";
 import { unstageChangelistAll } from "../usecases/unstageChangelistAll";
-import { openPushPreviewPanel } from "../views/pushPreviewPanel";
 import { buildPatchForLineRange } from "../utils/patchBuilder";
+import { openPushPreviewPanel } from "../views/pushPreviewPanel";
+
+import {
+  isValidBookmarkSlot,
+  type BookmarkSlot,
+} from "../core/bookmark/bookmark";
 
 export function registerCommands(deps: Deps) {
   const { context } = deps;
@@ -183,6 +188,73 @@ export function registerCommands(deps: Deps) {
       placeHolder: "Move to changelist",
     });
     return picked ? { id: picked.id, name: picked.label } : undefined;
+  }
+
+  function toBookmarkSlot(value: number): BookmarkSlot {
+    if (!isValidBookmarkSlot(value)) {
+      throw new Error(`Invalid bookmark slot: ${value}`);
+    }
+    return value;
+  }
+
+  function getBookmarkTargetFromArg(arg: any) {
+    if (typeof arg?.repoRelativePath === "string") {
+      const rel = normalizeRepoRelPath(arg.repoRelativePath);
+      if (!rel) {
+        return undefined;
+      }
+
+      const editorTarget = getBookmarkTargetFromEditor();
+      if (
+        editorTarget &&
+        normalizeRepoRelPath(editorTarget.repoRelativePath) === rel
+      ) {
+        return editorTarget;
+      }
+
+      return {
+        repoRelativePath: rel,
+        line: 0,
+        column: 0,
+      };
+    }
+
+    const uri: vscode.Uri | undefined =
+      arg instanceof vscode.Uri
+        ? arg
+        : arg?.resourceUri instanceof vscode.Uri
+          ? arg.resourceUri
+          : undefined;
+
+    if (uri?.scheme === "file") {
+      const targetFromUri = deps.bookmarkEditor.getTargetFromFsPath(
+        deps.repoRoot,
+        uri.fsPath,
+        0,
+        0,
+      );
+
+      if (!targetFromUri) {
+        return undefined;
+      }
+
+      const editorTarget = getBookmarkTargetFromEditor();
+      if (
+        editorTarget &&
+        normalizeRepoRelPath(editorTarget.repoRelativePath) ===
+          normalizeRepoRelPath(targetFromUri.repoRelativePath)
+      ) {
+        return editorTarget;
+      }
+
+      return targetFromUri;
+    }
+
+    return undefined;
+  }
+
+  function getBookmarkTargetFromEditor() {
+    return deps.bookmarkEditor.getActiveEditorTarget(deps.repoRoot);
   }
 
   context.subscriptions.push(
@@ -793,5 +865,116 @@ export function registerCommands(deps: Deps) {
         );
       }
     }),
+  );
+
+  for (let i = 1; i <= 9; i += 1) {
+    const slot = toBookmarkSlot(i);
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        `gitWorklists.bookmark.set${i}`,
+        async () => {
+          try {
+            const target = getBookmarkTargetFromEditor();
+            if (!target) {
+              await deps.prompt.showWarning(
+                "No active editor bookmark target found.",
+              );
+              return;
+            }
+
+            await deps.setBookmark.run({
+              repoRoot: deps.repoRoot,
+              target,
+              slot,
+            });
+            await deps.bookmarkDeco.refreshVisibleEditors();
+          } catch (e: any) {
+            console.error(e);
+            vscode.window.showErrorMessage(String(e?.message ?? e));
+          }
+        },
+      ),
+
+      vscode.commands.registerCommand(
+        `gitWorklists.bookmark.jump${i}`,
+        async () => {
+          try {
+            await deps.jumpToBookmark.run(deps.repoRoot, slot);
+          } catch (e: any) {
+            console.error(e);
+            vscode.window.showErrorMessage(String(e?.message ?? e));
+          }
+        },
+      ),
+
+      vscode.commands.registerCommand(
+        `gitWorklists.bookmark.clear${i}`,
+        async () => {
+          try {
+            await deps.clearBookmark.run(deps.repoRoot, slot);
+          } catch (e: any) {
+            console.error(e);
+            vscode.window.showErrorMessage(String(e?.message ?? e));
+          }
+        },
+      ),
+    );
+  }
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitWorklists.bookmark.set",
+      async (node: any) => {
+        try {
+          const targetFromArg = getBookmarkTargetFromArg(node);
+          const target = targetFromArg ?? getBookmarkTargetFromEditor();
+
+          if (!target) {
+            await deps.prompt.showWarning(
+              "Could not resolve a bookmark target.",
+            );
+            return;
+          }
+
+          await deps.setBookmark.run({
+            repoRoot: deps.repoRoot,
+            target,
+          });
+
+          if (targetFromArg) {
+            await deps.bookmarkEditor.openTarget(deps.repoRoot, target);
+          }
+
+          await deps.bookmarkDeco.refreshVisibleEditors();
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand("gitWorklists.bookmark.clear", async () => {
+      try {
+        await deps.clearBookmark.run(deps.repoRoot);
+        await deps.bookmarkDeco.refreshVisibleEditors();
+      } catch (e: any) {
+        console.error(e);
+        vscode.window.showErrorMessage(String(e?.message ?? e));
+      }
+    }),
+
+    vscode.commands.registerCommand(
+      "gitWorklists.bookmark.clearAll",
+      async () => {
+        try {
+          await deps.clearAllBookmarks.run(deps.repoRoot);
+          await deps.bookmarkDeco.refreshVisibleEditors();
+        } catch (e: any) {
+          console.error(e);
+          vscode.window.showErrorMessage(String(e?.message ?? e));
+        }
+      },
+    ),
   );
 }

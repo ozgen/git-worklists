@@ -48,13 +48,14 @@ export class WorklistDecorationProvider
       return;
     }
 
-    const stageState = this.fileStageStates.get(rel) ?? "none";
+    const normalizedRel = normalizeRepoRelPath(rel);
+    const stageState = this.fileStageStates.get(normalizedRel) ?? "none";
 
     // Priority: Unversioned > Default > Custom
     const unversioned = state.lists.find(
       (l) => l.id === SystemChangelist.Unversioned,
     );
-    if (unversioned?.files.includes(rel)) {
+    if (unversioned?.files.includes(normalizedRel)) {
       return new vscode.FileDecoration(
         "U",
         "Unversioned",
@@ -65,7 +66,7 @@ export class WorklistDecorationProvider
     const defaultList = state.lists.find(
       (l) => l.id === SystemChangelist.Default,
     );
-    if (defaultList?.files.includes(rel)) {
+    if (defaultList?.files.includes(normalizedRel)) {
       return decorationForList("D", "Default", stageState);
     }
 
@@ -73,7 +74,7 @@ export class WorklistDecorationProvider
       (l) =>
         l.id !== SystemChangelist.Unversioned &&
         l.id !== SystemChangelist.Default &&
-        l.files.includes(rel),
+        l.files.includes(normalizedRel),
     );
 
     if (customList) {

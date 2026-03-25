@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { GitCliClient } from "../adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
+import { VsCodeBookmarkEditor } from "../adapters/vscode/bookmarkEditor";
 import { conventionalCommitsAdapter } from "../adapters/vscode/conventionalCommitsAdapter";
 import { DiffTabTracker } from "../adapters/vscode/diffTabTracker";
 import { findWorkspaceRepoRoots } from "../adapters/vscode/findWorkspaceRepoRoots";
@@ -13,6 +14,10 @@ import {
 } from "../adapters/vscode/repoWatchers";
 import { VsCodeSettings } from "../adapters/vscode/settings";
 import { RefreshCoordinator } from "../core/refresh/refreshCoordinator";
+import { ClearAllBookmarks } from "../usecases/bookmark/clearAllBookmarks";
+import { ClearBookmark } from "../usecases/bookmark/clearBookmark";
+import { JumpToBookmark } from "../usecases/bookmark/jumpToBookmark";
+import { SetBookmark } from "../usecases/bookmark/setBookmark";
 import { CloseDiffTabs } from "../usecases/closeDiffTabs";
 import { CreateChangelist } from "../usecases/createChangelist";
 import { DeleteChangelist } from "../usecases/deleteChangelist";
@@ -28,6 +33,7 @@ import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
 import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 import { Deps } from "./types";
+import { BookmarkDecorationProvider } from "../views/bookmark/bookmarkDecorationProvider";
 
 function sortRepoRoots(repoRoots: string[]): string[] {
   return [...new Set(repoRoots)].sort((a, b) => a.localeCompare(b));
@@ -66,6 +72,14 @@ export async function createDeps(
   const fsStat = new VsCodeFsStat();
   const settings = new VsCodeSettings();
   const prompt = new VsCodePrompt();
+  const bookmarkEditor = new VsCodeBookmarkEditor();
+  const bookmarkDeco = new BookmarkDecorationProvider(store, context);
+  bookmarkDeco.setRepoRoot(repoRoot);
+
+  const setBookmark = new SetBookmark(store, prompt);
+  const jumpToBookmark = new JumpToBookmark(store, bookmarkEditor, prompt);
+  const clearBookmark = new ClearBookmark(store, prompt);
+  const clearAllBookmarks = new ClearAllBookmarks(store, prompt);
 
   const diffTabTracker = new DiffTabTracker();
   const closeDiffTabs = new CloseDiffTabs(diffTabTracker);
@@ -102,8 +116,19 @@ export async function createDeps(
     await loadOrInit.run(deps.repoRoot);
     await reconcile.run(deps.repoRoot);
 
+    const fileStageStates = await git.getFileStageStates(deps.repoRoot);
+    treeProvider.setFileStageStates(fileStageStates);
+    deco.setFileStageStates(fileStageStates);
+
     treeProvider.refresh();
     deco.refreshAll();
+
+    if (deps.commitView) {
+      deps.commitView.updateState({
+        stagedCount: fileStageStates.size,
+        lastError: undefined,
+      });
+    }
 
     const state = await store.load(deps.repoRoot);
     const totalFiles =
@@ -153,6 +178,9 @@ export async function createDeps(
     fsStat,
     settings,
     prompt,
+    pendingStageOnSave,
+    bookmarkEditor,
+    bookmarkDeco,
     createChangelist,
     renameChangelist,
     restoreFilesToChangelist,
@@ -161,6 +189,10 @@ export async function createDeps(
     loadOrInit,
     reconcile,
     restageAlreadyStaged,
+    setBookmark,
+    jumpToBookmark,
+    clearBookmark,
+    clearAllBookmarks,
     treeProvider,
     treeView,
     deco,
@@ -170,7 +202,6 @@ export async function createDeps(
     closeDiffTabs,
     coordinator,
     newFileHandler,
-    pendingStageOnSave,
     conventionalCommits: conventionalCommitsAdapter,
 
     async listRepoRoots(): Promise<string[]> {

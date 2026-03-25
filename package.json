@@ -47,7 +47,15 @@
     "diff preview",
     "conventional commits",
     "commit message",
-    "semantic commits"
+    "semantic commits",
+    "bookmark",
+    "bookmarks",
+    "editor bookmarks",
+    "code navigation",
+    "jump to bookmark",
+    "quick navigation",
+    "intellij bookmark",
+    "intellij bookmarks"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -225,6 +233,129 @@
         "command": "gitWorklists.stageSelectedLines",
         "title": "GW: Stage Selected Lines",
         "category": "Git Worklists"
+      },
+      {
+        "command": "gitWorklists.bookmark.set",
+        "title": "GW:Set Bookmark…",
+        "icon": "$(bookmark)"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear",
+        "title": "GW: Clear Bookmark...",
+        "icon": "$(bookmark-slash)"
+      },
+      {
+        "command": "gitWorklists.bookmark.clearAll",
+        "title": "GW: Clear All Bookmarks",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "gitWorklists.bookmark.set1",
+        "title": "Set Bookmark 1"
+      },
+      {
+        "command": "gitWorklists.bookmark.set2",
+        "title": "Set Bookmark 2"
+      },
+      {
+        "command": "gitWorklists.bookmark.set3",
+        "title": "Set Bookmark 3"
+      },
+      {
+        "command": "gitWorklists.bookmark.set4",
+        "title": "Set Bookmark 4"
+      },
+      {
+        "command": "gitWorklists.bookmark.set5",
+        "title": "Set Bookmark 5"
+      },
+      {
+        "command": "gitWorklists.bookmark.set6",
+        "title": "Set Bookmark 6"
+      },
+      {
+        "command": "gitWorklists.bookmark.set7",
+        "title": "Set Bookmark 7"
+      },
+      {
+        "command": "gitWorklists.bookmark.set8",
+        "title": "Set Bookmark 8"
+      },
+      {
+        "command": "gitWorklists.bookmark.set9",
+        "title": "Set Bookmark 9"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump1",
+        "title": "Jump to Bookmark 1"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump2",
+        "title": "Jump to Bookmark 2"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump3",
+        "title": "Jump to Bookmark 3"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump4",
+        "title": "Jump to Bookmark 4"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump5",
+        "title": "Jump to Bookmark 5"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump6",
+        "title": "Jump to Bookmark 6"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump7",
+        "title": "Jump to Bookmark 7"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump8",
+        "title": "Jump to Bookmark 8"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump9",
+        "title": "Jump to Bookmark 9"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear1",
+        "title": "Clear Bookmark 1"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear2",
+        "title": "Clear Bookmark 2"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear3",
+        "title": "Clear Bookmark 3"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear4",
+        "title": "Clear Bookmark 4"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear5",
+        "title": "Clear Bookmark 5"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear6",
+        "title": "Clear Bookmark 6"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear7",
+        "title": "Clear Bookmark 7"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear8",
+        "title": "Clear Bookmark 8"
+      },
+      {
+        "command": "gitWorklists.bookmark.clear9",
+        "title": "Clear Bookmark 9"
       }
     ],
     "menus": {
@@ -248,6 +379,11 @@
           "command": "gitWorklists.stash.refresh",
           "when": "view == gitWorklists.stashes",
           "group": "navigation@1"
+        },
+        {
+          "command": "gitWorklists.bookmark.clearAll",
+          "when": "view == gitWorklists.changelists",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -352,9 +488,134 @@
           "command": "gitWorklists.stageSelectedLines",
           "when": "editorHasSelection && !editorReadonly",
           "group": "gitWorklists@1"
+        },
+        {
+          "command": "gitWorklists.bookmark.set",
+          "when": "!editorReadonly",
+          "group": "gitWorklists@2"
+        },
+        {
+          "command": "gitWorklists.bookmark.clear",
+          "when": "!editorReadonly",
+          "group": "gitWorklists@3"
+        },
+        {
+          "command": "gitWorklists.bookmark.clearAll",
+          "when": "!editorReadonly",
+          "group": "gitWorklists@4"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "gitWorklists.bookmark.set1",
+        "key": "ctrl+shift+1",
+        "mac": "cmd+shift+1",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump1",
+        "key": "ctrl+1",
+        "mac": "cmd+1",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set2",
+        "key": "ctrl+shift+2",
+        "mac": "cmd+shift+2",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump2",
+        "key": "ctrl+2",
+        "mac": "cmd+2",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set3",
+        "key": "ctrl+shift+3",
+        "mac": "cmd+shift+3",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump3",
+        "key": "ctrl+3",
+        "mac": "cmd+3",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set4",
+        "key": "ctrl+shift+4",
+        "mac": "cmd+shift+4",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump4",
+        "key": "ctrl+4",
+        "mac": "cmd+4",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set5",
+        "key": "ctrl+shift+5",
+        "mac": "cmd+shift+5",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump5",
+        "key": "ctrl+5",
+        "mac": "cmd+5",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set6",
+        "key": "ctrl+shift+6",
+        "mac": "cmd+shift+6",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump6",
+        "key": "ctrl+6",
+        "mac": "cmd+6",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set7",
+        "key": "ctrl+shift+7",
+        "mac": "cmd+shift+7",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump7",
+        "key": "ctrl+7",
+        "mac": "cmd+7",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set8",
+        "key": "ctrl+shift+8",
+        "mac": "cmd+shift+8",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump8",
+        "key": "ctrl+8",
+        "mac": "cmd+8",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gitWorklists.bookmark.set9",
+        "key": "ctrl+shift+9",
+        "mac": "cmd+shift+9",
+        "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "command": "gitWorklists.bookmark.jump9",
+        "key": "ctrl+9",
+        "mac": "cmd+9",
+        "when": "editorTextFocus"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

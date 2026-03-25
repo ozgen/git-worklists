@@ -10,6 +10,7 @@ import { registerRefresh } from "./registration/registerRefresh";
 import { registerRepoStatusBar } from "./registration/registerRepoStatusBar";
 import { registerStash } from "./registration/registerStash";
 import { registerViews } from "./registration/registerViews";
+import { registerBookmarkDecorations } from "./registration/registerBookmarkDecorations";
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -34,6 +35,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerStash(deps);
   registerEvents(deps);
   registerRepoStatusBar(deps);
+  registerBookmarkDecorations(deps);
 }
 
 export function deactivate() {}
