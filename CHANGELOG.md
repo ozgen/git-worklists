@@ -13,6 +13,50 @@ No changes yet.
 
 ---
 
+## [1.1.0] - 2026-03-25
+
+### Added
+
+- **Editor Bookmarks (1–9)**
+  - Set bookmarks using `Ctrl + Shift + 1–9`
+  - Jump to bookmarks using `Ctrl + 1–9`
+  - Bookmarks store file, line, and column position
+  - Per-repository persistence (switching repo switches bookmark set)
+
+- **Bookmark UI Integration**
+  - Gutter decorations with numbered icons (1–9)
+  - Subtle line highlight for bookmarked locations
+  - Hover tooltip indicating bookmark slot
+
+- **Bookmark Commands & Actions**
+  - Set bookmark from editor and changelist context menu
+  - Clear single bookmark
+  - Clear all bookmarks with confirmation
+  - Slot-specific commands for set / jump / clear
+
+- **Context Menu Support**
+  - Right-click -> Set Bookmark
+  - Right-click -> Clear Bookmark
+  - View title -> Clear All Bookmarks
+
+- **Overwrite Confirmation**
+  - Confirmation dialog when replacing an existing bookmark slot
+
+### Changed
+
+- Bookmark decorations now refresh automatically when:
+  - setting a bookmark
+  - clearing a bookmark
+  - switching editors
+
+### Fixed
+
+- Bookmark positioning now correctly respects cursor location when set via context menu
+- Bookmark decorations now refresh immediately without requiring window reload
+- Fixed stale changelist file decorations after bulk operations by ensuring stage-state refresh stays synchronized with the decoration provider.
+
+---
+
 ## [1.0.2] - 2026-03-22
 
 ### Changed

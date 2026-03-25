@@ -18,6 +18,7 @@ It provides explicit control over:
 - commits and amend
 - push workflows
 - stash management
+- **editor navigation via bookmarks**
 
 All through a predictable UI built directly on top of the Git CLI.
 
@@ -91,6 +92,14 @@ Inspect and manage stashed changes with file-level previews.
 
 ---
 
+### Bookmarks and Navigation
+
+Set bookmarks and jump quickly between important locations in your code.
+
+![Bookmark demo](media/demo_bmrk.gif)
+
+---
+
 ## Key Features
 
 - IntelliJ-style changelists
@@ -100,6 +109,7 @@ Inspect and manage stashed changes with file-level previews.
 - Built-in stash management
 - Drag and drop organization
 - Explicit Git workflow with no hidden behavior
+- Editor bookmarks (1–9) with instant navigation
 
 ---
 
@@ -129,6 +139,13 @@ Inspect and manage stashed changes with file-level previews.
 - Create stash per changelist
 - Inspect stash contents
 - Apply, pop, and delete stashes
+
+### Bookmarks
+
+- Set bookmarks (1–9) from editor or context menu
+- Jump instantly between locations
+- Gutter decorations with slot indicators
+- Per-repository persistence
 
 ---
 
