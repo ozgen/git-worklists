@@ -25,24 +25,32 @@ export function registerRefresh(deps: Deps) {
         title: "Git Worklists: syncing with Git…",
       },
       async () => {
+        await deps.loadOrInit.run(deps.repoRoot);
         await deps.reconcile.run(deps.repoRoot);
 
-        const fileStageStates = await deps.git.getFileStageStates(deps.repoRoot);
+        const state = (await deps.store.load(deps.repoRoot)) as
+          | PersistedState
+          | undefined;
+        const fileStageStates = await deps.git.getFileStageStates(
+          deps.repoRoot,
+        );
+
         deps.treeProvider.setFileStageStates(fileStageStates);
-        deps.deco.setFileStageStates(fileStageStates);
+        deps.deco.updateSnapshot({
+          state,
+          fileStageStates,
+        });
 
         deps.treeProvider.refresh();
-        deps.deco.refreshAll();
 
-        deps.commitView.updateState({
-          stagedCount: fileStageStates.size,
+        deps.commitView?.updateState({
+          stagedCount: [...fileStageStates.values()].filter(
+            (s) => s === "all" || s === "partial",
+          ).length,
           lastError: undefined,
         });
 
-        const state = await deps.store.load(deps.repoRoot);
-        const count = computeTotalWorklistCount(
-          state as PersistedState | undefined,
-        );
+        const count = computeTotalWorklistCount(state);
 
         deps.treeView.badge =
           count > 0

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeMock = vi.hoisted(() => {
   class ThemeColor {
@@ -32,18 +32,20 @@ const vscodeMock = vi.hoisted(() => {
 vi.mock("vscode", () => vscodeMock);
 
 import * as vscode from "vscode";
-import { WorklistDecorationProvider } from "../../../views/worklistDecorationProvider";
 import {
   WorkspaceStateStore,
   type PersistedState,
 } from "../../../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../../../core/changelist/systemChangelist";
+import { WorklistDecorationProvider } from "../../../views/worklistDecorationProvider";
 
 class MemMemento {
   private data = new Map<string, any>();
+
   get<T>(key: string): T | undefined {
     return this.data.get(key);
   }
+
   async update(key: string, value: any): Promise<void> {
     this.data.set(key, value);
   }
@@ -59,7 +61,6 @@ describe("WorklistDecorationProvider", () => {
   let provider: WorklistDecorationProvider;
 
   const repoRoot = "/repo";
-  const keyRepo = repoRoot;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,23 +75,54 @@ describe("WorklistDecorationProvider", () => {
     expect(ee.fire).toHaveBeenCalledWith(undefined);
   });
 
-  it("refreshAll fires change", () => {
+  it("fires change when updateSnapshot is called", () => {
     const ee = (provider as any)._onDidChange;
     ee.fire.mockClear();
 
-    provider.refreshAll();
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+      ]),
+      fileStageStates: new Map(),
+    });
+
     expect(ee.fire).toHaveBeenCalledWith(undefined);
   });
 
   it("returns undefined if repoRoot not set", async () => {
     const p = new WorklistDecorationProvider(store);
+    p.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: ["a.txt"],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+      ]),
+      fileStageStates: new Map(),
+    });
+
     const dec = await p.provideFileDecoration(
       vscode.Uri.file("/repo/a.txt") as any,
     );
     expect(dec).toBeUndefined();
   });
 
-  it("returns undefined if state missing", async () => {
+  it("returns undefined if snapshot state is missing", async () => {
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/a.txt") as any,
     );
@@ -98,17 +130,21 @@ describe("WorklistDecorationProvider", () => {
   });
 
   it("returns undefined if uri is outside repo", async () => {
-    await store.save(
-      keyRepo,
-      state([
+    provider.updateSnapshot({
+      state: state([
         {
           id: SystemChangelist.Unversioned,
           name: "Unversioned",
           files: ["a.txt"],
         },
-        { id: SystemChangelist.Default, name: "Changes", files: ["b.txt"] },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["b.txt"],
+        },
       ]),
-    );
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/other/a.txt") as any,
@@ -117,18 +153,26 @@ describe("WorklistDecorationProvider", () => {
   });
 
   it("unversioned has priority and returns U decoration", async () => {
-    await store.save(
-      keyRepo,
-      state([
+    provider.updateSnapshot({
+      state: state([
         {
           id: SystemChangelist.Unversioned,
           name: "Unversioned",
           files: ["a.txt"],
         },
-        { id: SystemChangelist.Default, name: "Changes", files: ["a.txt"] },
-        { id: "cl_1", name: "Hotfix", files: ["a.txt"] },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["a.txt"],
+        },
+        {
+          id: "cl_1",
+          name: "Hotfix",
+          files: ["a.txt"],
+        },
       ]),
-    );
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/a.txt") as any,
@@ -137,19 +181,77 @@ describe("WorklistDecorationProvider", () => {
     expect(dec).toBeDefined();
     expect(dec?.badge).toBe("U");
     expect(dec?.tooltip).toBe("Unversioned");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.untrackedResourceForeground",
-    });
+    expect(dec?.color).toBeUndefined();
   });
 
-  it("default returns D decoration with orange color when stageState is none", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: ["b.txt"] },
+  it("unversioned includes staged suffix when stageState is all", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: ["a.txt"],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
       ]),
+      fileStageStates: new Map([["a.txt", "all"]]),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/a.txt") as any,
     );
+
+    expect(dec?.badge).toBe("U");
+    expect(dec?.tooltip).toBe("Unversioned • Staged");
+    expect(dec?.color).toBeUndefined();
+  });
+
+  it("unversioned includes partially staged suffix when stageState is partial", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: ["a.txt"],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+      ]),
+      fileStageStates: new Map([["a.txt", "partial"]]),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/a.txt") as any,
+    );
+
+    expect(dec?.badge).toBe("U");
+    expect(dec?.tooltip).toBe("Unversioned • Partially staged");
+    expect(dec?.color).toBeUndefined();
+  });
+
+  it("default returns D decoration when stageState is none", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["b.txt"],
+        },
+      ]),
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/b.txt") as any,
@@ -157,62 +259,82 @@ describe("WorklistDecorationProvider", () => {
 
     expect(dec?.badge).toBe("D");
     expect(dec?.tooltip).toBe("In Changes");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.modifiedResourceForeground",
-    });
+    expect(dec?.color).toBeUndefined();
   });
 
-  it("default changelist file shows green and 'Partially Staged' when stageState is partial", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: ["b.txt"] },
+  it("default changelist file shows staged suffix when stageState is partial", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["b.txt"],
+        },
       ]),
-    );
-    provider.setFileStageStates(new Map([["b.txt", "partial"]]));
+      fileStageStates: new Map([["b.txt", "partial"]]),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/b.txt") as any,
     );
 
     expect(dec?.badge).toBe("D");
-    expect(dec?.tooltip).toBe("Partially Staged");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.stagedModifiedResourceForeground",
-    });
+    expect(dec?.tooltip).toBe("In Changes • Partially staged");
+    expect(dec?.color).toBeUndefined();
   });
 
-  it("default changelist file shows green and 'Staged' when stageState is all", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: ["b.txt"] },
+  it("default changelist file shows staged suffix when stageState is all", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["b.txt"],
+        },
       ]),
-    );
-    provider.setFileStageStates(new Map([["b.txt", "all"]]));
+      fileStageStates: new Map([["b.txt", "all"]]),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/b.txt") as any,
     );
 
     expect(dec?.badge).toBe("D");
-    expect(dec?.tooltip).toBe("Staged");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.stagedModifiedResourceForeground",
-    });
+    expect(dec?.tooltip).toBe("In Changes • Staged");
+    expect(dec?.color).toBeUndefined();
   });
 
-  it("custom returns first-letter badge and tooltip with modified color when stageState is none", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "refactor", files: ["c.txt"] },
+  it("custom returns first-letter badge and tooltip when stageState is none", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "refactor",
+          files: ["c.txt"],
+        },
       ]),
-    );
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/c.txt") as any,
@@ -220,37 +342,123 @@ describe("WorklistDecorationProvider", () => {
 
     expect(dec?.badge).toBe("R");
     expect(dec?.tooltip).toBe("In refactor");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.modifiedResourceForeground",
-    });
+    expect(dec?.color).toBeUndefined();
   });
 
-  it("custom badge falls back to L for empty/invalid names", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "   ", files: ["d.txt"] },
+  it("custom badge falls back to L for empty names", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "   ",
+          files: ["d.txt"],
+        },
       ]),
-    );
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/d.txt") as any,
     );
+
     expect(dec?.badge).toBe("L");
     expect(dec?.tooltip).toBe("In    ");
+    expect(dec?.color).toBeUndefined();
+  });
+
+  it("custom changelist file shows staged suffix when stageState is all", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "refactor",
+          files: ["c.txt"],
+        },
+      ]),
+      fileStageStates: new Map([["c.txt", "all"]]),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/c.txt") as any,
+    );
+
+    expect(dec?.badge).toBe("R");
+    expect(dec?.tooltip).toBe("In refactor • Staged");
+    expect(dec?.color).toBeUndefined();
+  });
+
+  it("custom changelist file shows partially staged suffix when stageState is partial", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "refactor",
+          files: ["c.txt"],
+        },
+      ]),
+      fileStageStates: new Map([["c.txt", "partial"]]),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/c.txt") as any,
+    );
+
+    expect(dec?.badge).toBe("R");
+    expect(dec?.tooltip).toBe("In refactor • Partially staged");
+    expect(dec?.color).toBeUndefined();
   });
 
   it("returns undefined if file not in any list", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "X", files: ["x.txt"] },
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "X",
+          files: ["x.txt"],
+        },
       ]),
-    );
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
       vscode.Uri.file("/repo/nope.txt") as any,
@@ -258,46 +466,41 @@ describe("WorklistDecorationProvider", () => {
     expect(dec).toBeUndefined();
   });
 
-  it("custom returns first-letter badge and tooltip with modified color when stageState is none", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "refactor", files: ["c.txt"] },
-      ]),
-    );
+  it("ignores invalid snapshot state", async () => {
+    provider.updateSnapshot({
+      state: { version: 999 },
+      fileStageStates: new Map(),
+    });
 
     const dec = await provider.provideFileDecoration(
-      vscode.Uri.file("/repo/c.txt") as any,
+      vscode.Uri.file("/repo/a.txt") as any,
     );
 
-    expect(dec?.badge).toBe("R");
-    expect(dec?.tooltip).toBe("In refactor");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.modifiedResourceForeground",
-    });
+    expect(dec).toBeUndefined();
   });
 
-  it("custom changelist file shows green and 'Staged in <name>' when stageState is all", async () => {
-    await store.save(
-      keyRepo,
-      state([
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "refactor", files: ["c.txt"] },
+  it("normalizes stage-state paths from snapshot", async () => {
+    provider.updateSnapshot({
+      state: state([
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["dir/file.txt"],
+        },
       ]),
-    );
-    provider.setFileStageStates(new Map([["c.txt", "all"]]));
+      fileStageStates: new Map([["dir\\file.txt", "all"]]),
+    });
 
     const dec = await provider.provideFileDecoration(
-      vscode.Uri.file("/repo/c.txt") as any,
+      vscode.Uri.file("/repo/dir/file.txt") as any,
     );
 
-    expect(dec?.badge).toBe("R");
-    expect(dec?.tooltip).toBe("Staged in refactor");
-    expect(dec?.color).toMatchObject({
-      id: "gitDecoration.stagedModifiedResourceForeground",
-    });
+    expect(dec?.badge).toBe("D");
+    expect(dec?.tooltip).toBe("In Changes • Staged");
   });
 });
