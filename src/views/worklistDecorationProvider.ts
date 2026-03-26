@@ -4,6 +4,17 @@ import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
 import { normalizeRepoRelPath } from "../utils/paths";
 
+type PersistedChangelist = {
+  id: string;
+  name: string;
+  files: string[];
+};
+
+type PersistedStateV1 = {
+  version: 1;
+  lists: PersistedChangelist[];
+};
+
 export class WorklistDecorationProvider
   implements vscode.FileDecorationProvider
 {
@@ -14,32 +25,39 @@ export class WorklistDecorationProvider
 
   private repoRootFsPath?: string;
   private fileStageStates = new Map<string, FileStageState>();
+  private state?: PersistedStateV1;
 
   constructor(private readonly store: WorkspaceStateStore) {}
-
-  setFileStageStates(states: Map<string, FileStageState>) {
-    this.fileStageStates = states;
-    this._onDidChange.fire(undefined);
-  }
 
   setRepoRoot(repoRootFsPath: string) {
     this.repoRootFsPath = repoRootFsPath;
     this._onDidChange.fire(undefined);
   }
 
-  refreshAll() {
+  updateSnapshot(args: {
+    state: unknown;
+    fileStageStates: Map<string, FileStageState>;
+  }) {
+    const normalized = new Map<string, FileStageState>();
+    for (const [p, s] of args.fileStageStates) {
+      normalized.set(normalizeRepoRelPath(p), s);
+    }
+
+    this.fileStageStates = normalized;
+    this.state =
+      args.state &&
+      typeof args.state === "object" &&
+      (args.state as PersistedStateV1).version === 1
+        ? (args.state as PersistedStateV1)
+        : undefined;
+
     this._onDidChange.fire(undefined);
   }
 
-  async provideFileDecoration(
+  provideFileDecoration(
     uri: vscode.Uri,
-  ): Promise<vscode.FileDecoration | undefined> {
-    if (!this.repoRootFsPath) {
-      return;
-    }
-
-    const state = await this.store.load(this.repoRootFsPath);
-    if (!state || state.version !== 1) {
+  ): vscode.ProviderResult<vscode.FileDecoration | undefined> {
+    if (!this.repoRootFsPath || !this.state) {
       return;
     }
 
@@ -50,27 +68,29 @@ export class WorklistDecorationProvider
 
     const normalizedRel = normalizeRepoRelPath(rel);
     const stageState = this.fileStageStates.get(normalizedRel) ?? "none";
+    const lists = this.state.lists;
 
-    // Priority: Unversioned > Default > Custom
-    const unversioned = state.lists.find(
+    const unversioned = lists.find(
       (l) => l.id === SystemChangelist.Unversioned,
     );
     if (unversioned?.files.includes(normalizedRel)) {
       return new vscode.FileDecoration(
         "U",
-        "Unversioned",
-        new vscode.ThemeColor("gitDecoration.untrackedResourceForeground"),
+        stageState === "all"
+          ? "Unversioned • Staged"
+          : stageState === "partial"
+            ? "Unversioned • Partially staged"
+            : "Unversioned",
+        undefined,
       );
     }
 
-    const defaultList = state.lists.find(
-      (l) => l.id === SystemChangelist.Default,
-    );
+    const defaultList = lists.find((l) => l.id === SystemChangelist.Default);
     if (defaultList?.files.includes(normalizedRel)) {
       return decorationForList("D", "Default", stageState);
     }
 
-    const customList = state.lists.find(
+    const customList = lists.find(
       (l) =>
         l.id !== SystemChangelist.Unversioned &&
         l.id !== SystemChangelist.Default &&
@@ -78,8 +98,11 @@ export class WorklistDecorationProvider
     );
 
     if (customList) {
-      const badge = badgeFromName(customList.name);
-      return decorationForList(badge, customList.name, stageState);
+      return decorationForList(
+        badgeFromName(customList.name),
+        customList.name,
+        stageState,
+      );
     }
 
     return;
@@ -91,29 +114,16 @@ function decorationForList(
   listName: string,
   stageState: FileStageState,
 ): vscode.FileDecoration {
-  if (stageState === "all") {
-    return new vscode.FileDecoration(
-      badge,
-      listName === "Default" ? "Staged" : `Staged in ${listName}`,
-      new vscode.ThemeColor("gitDecoration.stagedModifiedResourceForeground"),
-    );
-  }
+  const base = listName === "Default" ? "In Changes" : `In ${listName}`;
 
-  if (stageState === "partial") {
-    return new vscode.FileDecoration(
-      badge,
-      listName === "Default"
-        ? "Partially Staged"
-        : `Partially Staged in ${listName}`,
-      new vscode.ThemeColor("gitDecoration.stagedModifiedResourceForeground"),
-    );
-  }
+  const suffix =
+    stageState === "all"
+      ? " • Staged"
+      : stageState === "partial"
+        ? " • Partially staged"
+        : "";
 
-  return new vscode.FileDecoration(
-    badge,
-    listName === "Default" ? "In Changes" : `In ${listName}`,
-    new vscode.ThemeColor("gitDecoration.modifiedResourceForeground"),
-  );
+  return new vscode.FileDecoration(badge, `${base}${suffix}`, undefined);
 }
 
 function toRepoRelPath(repoRootFsPath: string, uri: vscode.Uri): string {

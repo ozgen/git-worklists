@@ -28,12 +28,12 @@ import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
 import { RenameChangelist } from "../usecases/renameChangelist";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
+import { BookmarkDecorationProvider } from "../views/bookmark/bookmarkDecorationProvider";
 import { ChangelistDragDrop } from "../views/changelistDragDrop";
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
 import { WorklistDecorationProvider } from "../views/worklistDecorationProvider";
 import { Deps } from "./types";
-import { BookmarkDecorationProvider } from "../views/bookmark/bookmarkDecorationProvider";
 
 function sortRepoRoots(repoRoots: string[]): string[] {
   return [...new Set(repoRoots)].sort((a, b) => a.localeCompare(b));
@@ -116,21 +116,28 @@ export async function createDeps(
     await loadOrInit.run(deps.repoRoot);
     await reconcile.run(deps.repoRoot);
 
+    const state = await store.load(deps.repoRoot);
     const fileStageStates = await git.getFileStageStates(deps.repoRoot);
+
     treeProvider.setFileStageStates(fileStageStates);
-    deco.setFileStageStates(fileStageStates);
+    deco.updateSnapshot({
+      state,
+      fileStageStates,
+    });
 
     treeProvider.refresh();
-    deco.refreshAll();
 
     if (deps.commitView) {
+      const stagedCount = [...fileStageStates.values()].filter(
+        (s) => s === "all" || s === "partial",
+      ).length;
+
       deps.commitView.updateState({
-        stagedCount: fileStageStates.size,
+        stagedCount,
         lastError: undefined,
       });
     }
 
-    const state = await store.load(deps.repoRoot);
     const totalFiles =
       state?.version === 1
         ? state.lists.reduce((sum, l) => sum + l.files.length, 0)

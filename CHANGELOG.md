@@ -13,6 +13,42 @@ No changes yet.
 
 ---
 
+## [1.2.0] - 2026-03-26
+
+### Added
+
+- **Improved Changelist Indicators**
+  - Clear staged and partially staged status shown in changelist tree view
+  - Consistent badge display for files across all changelists
+  - Enhanced tooltips including staging information
+
+### Changed
+
+- **Stable File Decorations**
+  - Explorer file decorations are now stable and no longer change color during updates
+  - Changelist membership is now visually separated from Git staging state
+  - Simplified decoration logic to avoid conflicts with built-in Git visuals
+
+- **Refresh & State Handling**
+  - Introduced snapshot-based updates for decoration provider
+  - Reduced redundant refresh cycles for smoother UI behavior
+  - Improved synchronization between Git state and changelist state
+
+### Fixed
+
+- **Explorer Flickering**
+  - Fixed blinking file colors (e.g. red/blue/green transitions) when staging files
+  - Eliminated inconsistent decoration updates during rapid state changes
+
+- **Decoration Consistency**
+  - Fixed stale or incorrect file colors after staging and untracking operations
+  - Fixed race conditions caused by async state loading in decoration provider
+
+- **Commit View Accuracy**
+  - Fixed incorrect staged file count calculation
+
+---
+
 ## [1.1.0] - 2026-03-25
 
 ### Added
