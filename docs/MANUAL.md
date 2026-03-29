@@ -288,19 +288,18 @@ Quick navigation across files using numbered bookmarks (1–9), similar to Intel
 
 ### Core Behavior
 
-* Supports **9 bookmark slots (1–9)**
+- Supports **9 bookmark slots (1–9)**
 
-* Each slot holds **one location**
+- Each slot holds **one location**
 
-* A bookmark stores:
+- A bookmark stores:
+  - file (repo-relative)
+  - line
+  - column
 
-  * file (repo-relative)
-  * line
-  * column
+- Bookmarks are **persisted per repository**
 
-* Bookmarks are **persisted per repository**
-
-* Switching repository switches bookmark set automatically
+- Switching repository switches bookmark set automatically
 
 ---
 
@@ -308,75 +307,70 @@ Quick navigation across files using numbered bookmarks (1–9), similar to Intel
 
 You can set bookmarks in multiple ways:
 
-* **Keyboard**
+- **Keyboard**
+  - `Ctrl + Shift + 1–9` -> Set bookmark
 
-  * `Ctrl + Shift + 1–9` or `Cmd + Shift + 1–9` -> Set bookmark
-* **Editor right-click**
+- **Editor right-click**
+  - `GW: Set Bookmark…`
+  - `GW: Clear Bookmark…`
+  - `GW: Clear All Bookmark`
+    If a slot is already used:
 
-  * `GW: Set Bookmark…`
-  * `GW: Clear Bookmark…`
-  * `GW: Clear All Bookmark`
-If a slot is already used:
-
-* A confirmation dialog is shown
-* You can **replace or cancel**
+- A confirmation dialog is shown
+- You can **replace or cancel**
 
 ---
 
 ### Jumping to Bookmarks
 
-* `Ctrl + 1–9` or `Cmd + 1–9` -> Jump to bookmark
+- `Ctrl + 1–9` -> Jump to bookmark
 
 Behavior:
 
-* Opens the file if not open
-* Moves cursor to saved position
-* Reveals location in editor
+- Opens the file if not open
+- Moves cursor to saved position
+- Reveals location in editor
 
 ---
 
 ### Clearing Bookmarks
 
-* Clear single bookmark:
+- Clear single bookmark:
+  - Command: `Clear Bookmark`
+  - Slot-specific commands available
 
-  * Command: `Clear Bookmark`
-  * Slot-specific commands available
-
-* Clear all bookmarks:
-
-  * View title action
-  * Context menu
-  * Confirmation required
+- Clear all bookmarks:
+  - View title action
+  - Context menu
+  - Confirmation required
 
 ---
 
 ### Visual Indicators
 
-* Bookmarks are shown in the **editor gutter**
+- Bookmarks are shown in the **editor gutter**
 
-* Each slot has its own icon (1–9)
+- Each slot has its own icon (1–9)
 
-* Decorations include:
+- Decorations include:
+  - gutter icon
+  - subtle line highlight
 
-  * gutter icon
-  * subtle line highlight
-
-* Decorations update automatically when:
-
-  * bookmark is set
-  * bookmark is cleared
-  * editor becomes visible
+- Decorations update automatically when:
+  - bookmark is set
+  - bookmark is cleared
+  - editor becomes visible
 
 ---
 
 ### Behavior Notes
 
-* Works on **any file inside the repository**
+- Works on **any file inside the repository**
+  - not limited to changed files
 
-  * not limited to changed files
-* Bookmarks outside repo are ignored
-* Line numbers are safely clamped if file changes
-* Decorations are editor-only (not shown in tree view)
+- Bookmarks outside repo are ignored
+- Line numbers are safely clamped if file changes
+- Decorations are editor-only (not shown in tree view)
 
 ---
 
@@ -384,8 +378,8 @@ Behavior:
 
 Default:
 
-* `Ctrl + Shift + 1–9` or `Cmd + Shift + 1–9` -> Set bookmark
-* `Ctrl + 1–9` or `Ctrl + 1–9` -> Jump to bookmark
+- `Ctrl + Shift + 1–9` -> Set bookmark
+- `Ctrl + 1–9` -> Jump to bookmark
 
 Users can override keybindings via VS Code settings.
 

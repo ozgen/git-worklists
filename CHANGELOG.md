@@ -13,6 +13,14 @@ No changes yet.
 
 ---
 
+## [1.2.1] - 2026-03-29
+
+### Changed
+
+- Updated macOS bookmark keyboard shortcuts in Git Worklists
+
+---
+
 ## [1.2.0] - 2026-03-26
 
 ### Added
