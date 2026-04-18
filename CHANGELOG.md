@@ -13,6 +13,16 @@ No changes yet.
 
 ---
 
+## [1.2.2] - 2026-04-18
+
+### Changed
+
+- Updated development dependencies (TypeScript, ESLint, VS Code test tooling, and typings)
+
+### Security
+
+- Reduced vulnerabilities in dev dependencies (test-only)
+
 ## [1.2.1] - 2026-03-29
 
 ### Changed
