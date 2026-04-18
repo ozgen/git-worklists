@@ -17,11 +17,14 @@ No changes yet.
 
 ### Changed
 
-- Updated development dependencies (TypeScript, ESLint, VS Code test tooling, and typings)
+- Updated development tooling and test dependencies
+- Raised the minimum supported VS Code version to `1.110.0`
+- Updated extension packaging to use `@vscode/vsce`
 
 ### Security
 
-- Reduced vulnerabilities in dev dependencies (test-only)
+- Reduced vulnerabilities in development dependencies
+- Remaining audit warnings are limited to test tooling and do not affect the packaged extension runtime
 
 ## [1.2.1] - 2026-03-29
 
