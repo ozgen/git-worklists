@@ -635,14 +635,14 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.5.2",
-    "@types/vscode": "^1.110.0",
-    "@vitest/coverage-v8": "^4.1.2",
-    "@vscode/test-cli": "^0.0.11",
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.116.0",
+    "@vitest/coverage-v8": "^4.1.4",
+    "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
-    "eslint": "^10.2.0",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.0",
+    "eslint": "^10.2.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^4.0.18"
   }
 }
