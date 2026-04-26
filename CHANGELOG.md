@@ -13,6 +13,23 @@ No changes yet.
 
 ---
 
+## [1.2.3] - 2026-04-26
+
+### Changed
+
+- Updated development dependencies and TypeScript tooling
+- Updated VS Code extension type definitions from `1.110.0` to `1.116.0`
+- Updated test tooling, including Vitest, coverage support, and VS Code test CLI
+- Updated ESLint and TypeScript ESLint packages
+- Updated Node.js type definitions
+
+### Maintenance
+
+- Applied Dependabot development dependency updates
+- No runtime extension behavior changes included in this release
+
+---
+
 ## [1.2.2] - 2026-04-18
 
 ### Changed
