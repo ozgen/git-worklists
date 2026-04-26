@@ -3,7 +3,7 @@
   "displayName": "Git Worklists",
   "description": "IntelliJ-style changelists, diff, bookmarks, and stash for VS Code. Organize changes, review diffs, and stage changes with precision using partial staging.",
   "publisher": "ozgen",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.116.0"
