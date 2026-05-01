@@ -13,6 +13,21 @@ No changes yet.
 
 ---
 
+[1.2.4] - 2026-05-01
+
+### Changed
+
+- Updated development dependencies:
+- @types/vscode from 1.116.0 -> 1.118.0
+- @vitest/coverage-v8 from 4.1.4 -> 4.1.5
+- vitest from 4.1.4 -> 4.1.5
+- typescript-eslint from 8.58.2 -> 8.59.1
+
+### Maintenance
+
+- Applied Dependabot updates for development tooling
+- No runtime or user-facing changes in this release
+
 ## [1.2.3] - 2026-04-26
 
 ### Changed
