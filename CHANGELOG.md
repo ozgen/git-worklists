@@ -28,6 +28,8 @@ No changes yet.
 - Applied Dependabot updates for development tooling
 - No runtime or user-facing changes in this release
 
+---
+
 ## [1.2.3] - 2026-04-26
 
 ### Changed
