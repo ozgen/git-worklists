@@ -13,6 +13,22 @@ No changes yet.
 
 ---
 
+## [1.2.5] - 2026-05-17
+
+### Changed
+
+- Updated development dependencies:
+  - @types/node from 25.6.0 -> 25.6.2
+  - eslint from 10.2.1 -> 10.3.0
+  - typescript-eslint from 8.59.1 -> 8.59.2
+
+### Maintenance
+
+- Applied Dependabot updates for development tooling
+- No runtime or user-facing changes in this release
+
+---
+
 [1.2.4] - 2026-05-01
 
 ### Changed
