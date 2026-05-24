@@ -161,7 +161,7 @@ See the manual: [docs/MANUAL.md](docs/MANUAL.md)
 
 - Git installed and available in PATH
 - Workspace opened inside a Git repository
-- VS Code **v1.118.0** or newer
+- VS Code **1.120.0** or newer
 
 ---
 
