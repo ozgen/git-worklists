@@ -190,8 +190,9 @@ export interface GitClient {
   // ---- Discard ----
 
   /**
-   * Discards both staged and working-tree changes for the given paths.
-   * Runs `git restore --staged --worktree -- <paths>`.
+   * Discards changes for the given paths.
+   * Tracked paths: `git restore --staged --worktree -- <paths>`.
+   * Untracked paths (not known to git): `git clean -f -- <paths>`.
    */
   discardFiles(
     repoRootFsPath: string,

@@ -1,3 +1,4 @@
+import * as path from "path";
 import { GitClient } from "../adapters/git/gitClient";
 import {
   PersistedState,
@@ -37,6 +38,7 @@ export class ReconcileWithGitStatus {
   constructor(
     private readonly git: GitClient,
     private readonly store: WorkspaceStateStore,
+    private readonly existsOnDisk: (absPath: string) => Promise<boolean> = async () => true,
   ) {}
 
   /**
@@ -63,10 +65,14 @@ export class ReconcileWithGitStatus {
 
     const status = await this.git.getStatusPorcelainZ(repoRoot);
 
-    // Untracked paths
-    const untracked = new Set<string>(
-      (await this.git.getUntrackedPaths(repoRoot)).map(norm),
-    );
+    // Untracked paths — filter to those that actually exist on disk to avoid stale git cache
+    const untrackedRaw = (await this.git.getUntrackedPaths(repoRoot)).map(norm);
+    const liveUntracked = new Set<string>();
+    for (const f of untrackedRaw) {
+      if (await this.existsOnDisk(path.join(repoRoot, f))) {
+        liveUntracked.add(f);
+      }
+    }
 
     const changed = new Set<string>();
     const renamedFrom = new Map<string, string>(); // oldPath -> newPath
@@ -81,7 +87,7 @@ export class ReconcileWithGitStatus {
       }
     }
 
-    const inStatus = new Set<string>([...untracked, ...changed]);
+    const inStatus = new Set<string>([...liveUntracked, ...changed]);
 
     const fileOwner = new Map<string, string>();
     for (const list of fixed.lists) {
@@ -117,9 +123,13 @@ export class ReconcileWithGitStatus {
       }
     };
 
-    // Rule 1: untracked ALWAYS -> Unversioned
+    // Rule 1: untracked -> Unversioned, unless already placed by a rename event
     const unv = mustGet(SystemChangelist.Unversioned);
-    for (const f of untracked) {
+    for (const f of liveUntracked) {
+      const owner = fileOwner.get(f);
+      if (owner && owner !== SystemChangelist.Unversioned) {
+        continue;
+      }
       removeEverywhere(f);
       unv.files.push(f);
     }

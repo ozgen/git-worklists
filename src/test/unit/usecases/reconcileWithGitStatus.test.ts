@@ -120,13 +120,12 @@ describe("ReconcileWithGitStatus", () => {
     expect(x.files).not.toContain("stale-x.txt");
   });
 
-  it("forces untracked files into Unversioned (removes from everywhere else)", async () => {
+  it("moves untracked files with no existing owner to Unversioned", async () => {
     const initial: PersistedState = {
       version: 1,
       lists: [
         { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: ["u.txt"] },
-        { id: "cl_x", name: "X", files: ["u.txt"] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
       ],
     };
 
@@ -139,11 +138,32 @@ describe("ReconcileWithGitStatus", () => {
     const saved = store.getState()!;
     const u = getList(saved, SystemChangelist.Unversioned);
     const d = getList(saved, SystemChangelist.Default);
-    const x = getList(saved, "cl_x");
 
-    expect(u.files).toEqual(["u.txt"]);
+    expect(u.files).toContain("u.txt");
     expect(d.files).not.toContain("u.txt");
-    expect(x.files).not.toContain("u.txt");
+  });
+
+  it("leaves an untracked file in its existing non-Unversioned list", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["u.txt"] },
+      ],
+    };
+
+    const git = makeGit([], ["u.txt"]);
+    const store = makeStore(initial);
+
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    const d = getList(saved, SystemChangelist.Default);
+
+    expect(d.files).toContain("u.txt");
+    expect(u.files).not.toContain("u.txt");
   });
 
   it("keeps tracked changes in their existing owner list (unless owner is Unversioned)", async () => {
@@ -266,6 +286,97 @@ describe("ReconcileWithGitStatus", () => {
 
     expect(d.files).toContain("new.ts");
     expect(d.files).not.toContain("old.ts");
+  });
+
+  it("does not move an untracked file to Unversioned when it already has a non-Unversioned owner", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "cl_x", name: "Feature", files: ["new.ts"] },
+      ],
+    };
+
+    const git = makeGit([], ["new.ts"]);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const x = getList(saved, "cl_x");
+    const u = getList(saved, SystemChangelist.Unversioned);
+
+    expect(x.files).toContain("new.ts");
+    expect(u.files).not.toContain("new.ts");
+  });
+
+  it("removes a stale untracked path that does not exist on disk", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["stale.txt"] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    // git ls-files says stale.txt is untracked (stale cache), but it's not on disk
+    const git = makeGit([], ["stale.txt"]);
+    const store = makeStore(initial);
+    const existsOnDisk = vi.fn(async () => false);
+
+    const uc = new ReconcileWithGitStatus(git, store as any, existsOnDisk);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    expect(u.files).not.toContain("stale.txt");
+  });
+
+  it("keeps a tracked deleted file (D status) even when it is not on disk", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["gone.txt"] },
+      ],
+    };
+
+    // git reports gone.txt as worktree-deleted; file does not exist on disk
+    const git = makeGit([{ path: "gone.txt", x: " ", y: "D" }], []);
+    const store = makeStore(initial);
+    const existsOnDisk = vi.fn(async () => false);
+
+    const uc = new ReconcileWithGitStatus(git, store as any, existsOnDisk);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const d = getList(saved, SystemChangelist.Default);
+    expect(d.files).toContain("gone.txt");
+  });
+
+  it("untracked new renamed path stays in its non-Unversioned list when it exists on disk", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "cl_x", name: "Feature", files: ["new.ts"] },
+      ],
+    };
+
+    const git = makeGit([], ["new.ts"]);
+    const store = makeStore(initial);
+    const existsOnDisk = vi.fn(async () => true);
+
+    const uc = new ReconcileWithGitStatus(git, store as any, existsOnDisk);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const x = getList(saved, "cl_x");
+    const u = getList(saved, SystemChangelist.Unversioned);
+    expect(x.files).toContain("new.ts");
+    expect(u.files).not.toContain("new.ts");
   });
 
   it("normalizes slashes in oldPath when matching rename", async () => {

@@ -151,7 +151,7 @@ describe("GitCliClient (mocked git)", () => {
     const porcelain =
       " M file1.txt\0" +
       "A  staged.ts\0" +
-      "R  old.txt\0new.txt\0" +
+      "R  new.txt\0old.txt\0" +
       "?? untracked.md\0";
 
     mockExecFileWithRouter((args) => {
@@ -437,7 +437,7 @@ describe("GitCliClient (mocked git)", () => {
   });
 
   it("getStatusPorcelainZ handles copy (C) like rename (takes second path)", async () => {
-    const porcelain = "C  old.txt\0new.txt\0";
+    const porcelain = "C  new.txt\0old.txt\0";
     mockExecFileWithRouter((args) => {
       if (args.join(" ") === "status --porcelain=v1 -z") {
         return { stdout: porcelain };
@@ -1162,6 +1162,20 @@ describe("GitCliClient — getStagedPaths", () => {
     const res = await git.getStagedPaths("/repo");
     expect([...res]).toEqual(["a/b/c.txt"]);
   });
+
+  it("includes both new and old path for a staged rename", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "R  new.ts\0old.ts\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getStagedPaths("/repo");
+    expect(res.has("new.ts")).toBe(true);
+    expect(res.has("old.ts")).toBe(true);
+  });
 });
 
 describe("GitCliClient — getUntrackedPaths", () => {
@@ -1485,8 +1499,11 @@ describe("GitCliClient — discardFiles", () => {
     expect(calls.length).toBe(0);
   });
 
-  it("runs git restore --staged --worktree -- <paths>", async () => {
+  it("runs git restore for tracked paths", async () => {
     const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "ls-files") {
+        return { stdout: "a.txt\nb/c.ts\n" };
+      }
       if (args[0] === "restore") {
         return { stdout: "" };
       }
@@ -1496,7 +1513,8 @@ describe("GitCliClient — discardFiles", () => {
     const git = new GitCliClient();
     await git.discardFiles("/repo", ["a.txt", "b/c.ts"]);
 
-    expect(calls[0].args).toEqual([
+    expect(calls[0].args).toEqual(["ls-files", "--", "a.txt", "b/c.ts"]);
+    expect(calls[1].args).toEqual([
       "restore",
       "--staged",
       "--worktree",
@@ -1504,7 +1522,52 @@ describe("GitCliClient — discardFiles", () => {
       "a.txt",
       "b/c.ts",
     ]);
-    expect(calls[0].cwd).toBe("/repo");
+    expect(calls[1].cwd).toBe("/repo");
+  });
+
+  it("runs git clean for untracked paths", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "ls-files") {
+        return { stdout: "" };
+      }
+      if (args[0] === "clean") {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await git.discardFiles("/repo", ["new.txt"]);
+
+    expect(calls[0].args).toEqual(["ls-files", "--", "new.txt"]);
+    expect(calls[1].args).toEqual(["clean", "-f", "--", "new.txt"]);
+  });
+
+  it("splits mixed tracked and untracked paths", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      if (args[0] === "ls-files") {
+        return { stdout: "tracked.txt\n" };
+      }
+      if (args[0] === "restore" || args[0] === "clean") {
+        return { stdout: "" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    await git.discardFiles("/repo", ["tracked.txt", "untracked.txt"]);
+
+    const restoreCall = calls.find((c) => c.args[0] === "restore");
+    const cleanCall = calls.find((c) => c.args[0] === "clean");
+
+    expect(restoreCall?.args).toEqual([
+      "restore",
+      "--staged",
+      "--worktree",
+      "--",
+      "tracked.txt",
+    ]);
+    expect(cleanCall?.args).toEqual(["clean", "-f", "--", "untracked.txt"]);
   });
 });
 
@@ -1624,6 +1687,20 @@ describe("GitCliClient — getFileStageStates", () => {
     const git = new GitCliClient();
     const res = await git.getFileStageStates("/repo");
     expect(res.has("dir/sub/file.txt")).toBe(true);
+  });
+
+  it("records stage state for both new and old path of a staged rename", async () => {
+    mockExecFileWithRouter((args) => {
+      if (args.join(" ") === "status --porcelain=v1 -z") {
+        return { stdout: "R  new.ts\0old.ts\0" };
+      }
+      return new Error("unexpected command");
+    });
+
+    const git = new GitCliClient();
+    const res = await git.getFileStageStates("/repo");
+    expect(res.get("new.ts")).toBe("all");
+    expect(res.get("old.ts")).toBe("all");
   });
 });
 

@@ -133,8 +133,8 @@ export class GitCliClient implements GitClient {
       if (x === "R" || x === "C") {
         const path2 = parts[i++] ?? "";
         if (path2) {
-          oldPath = path1.trim();
-          finalPath = path2;
+          finalPath = path1.trim();
+          oldPath = path2.trim();
         }
       }
 
@@ -197,47 +197,33 @@ export class GitCliClient implements GitClient {
   }
 
   async getStagedPaths(repoRootFsPath: string): Promise<Set<string>> {
-    const out = await execGit(
-      ["status", "--porcelain=v1", "-z"],
-      repoRootFsPath,
-    );
-
+    const entries = await this.getStatusPorcelainZ(repoRootFsPath);
     const staged = new Set<string>();
-    const entries = out.split("\0").filter(Boolean);
-
     for (const e of entries) {
-      const xy = e.slice(0, 2);
-      const p = e.slice(3);
-      if (!p) {
-        continue;
-      }
-      const x = xy[0]; // index status
-      if (x !== " " && x !== "?") {
-        staged.add(normalizeRepoRelPath(p));
+      if (e.x !== " " && e.x !== "?") {
+        staged.add(normalizeRepoRelPath(e.path));
+        if (e.oldPath) {
+          staged.add(normalizeRepoRelPath(e.oldPath));
+        }
       }
     }
-
     return staged;
   }
 
   async getFileStageStates(
     repoRootFsPath: string,
   ): Promise<Map<string, FileStageState>> {
-    const out = await execGit(
-      ["status", "--porcelain=v1", "-z"],
-      repoRootFsPath,
-    );
-
+    const entries = await this.getStatusPorcelainZ(repoRootFsPath);
     const states = new Map<string, FileStageState>();
-    for (const e of out.split("\0").filter(Boolean)) {
-      const x = e[0];
-      const y = e[1];
-      const p = e.slice(3);
-      if (!p || x === " " || x === "?") {
+    for (const e of entries) {
+      if (e.x === " " || e.x === "?") {
         continue;
       }
-      const state: FileStageState = y !== " " && y !== "?" ? "partial" : "all";
-      states.set(normalizeRepoRelPath(p), state);
+      const state: FileStageState = e.y !== " " && e.y !== "?" ? "partial" : "all";
+      states.set(normalizeRepoRelPath(e.path), state);
+      if (e.oldPath) {
+        states.set(normalizeRepoRelPath(e.oldPath), state);
+      }
     }
     return states;
   }
@@ -541,10 +527,30 @@ export class GitCliClient implements GitClient {
     if (repoRelativePaths.length === 0) {
       return;
     }
-    await execGit(
-      ["restore", "--staged", "--worktree", "--", ...repoRelativePaths],
+
+    const lsOut = await execGit(
+      ["ls-files", "--", ...repoRelativePaths],
       repoRootFsPath,
     );
+    const known = new Set(
+      lsOut
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+
+    const tracked = repoRelativePaths.filter((p) => known.has(p));
+    const untracked = repoRelativePaths.filter((p) => !known.has(p));
+
+    if (tracked.length > 0) {
+      await execGit(
+        ["restore", "--staged", "--worktree", "--", ...tracked],
+        repoRootFsPath,
+      );
+    }
+    if (untracked.length > 0) {
+      await execGit(["clean", "-f", "--", ...untracked], repoRootFsPath);
+    }
   }
 
   // ---- Stash ----
