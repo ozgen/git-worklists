@@ -169,4 +169,64 @@ describe("AutoRefreshController", () => {
       expect(w.watcher.dispose).toHaveBeenCalledTimes(1);
     }
   });
+
+  it("calls onRename with repo-relative pairs before onSignal", async () => {
+    const { vs, fire } = makeVscodeStub();
+    const onSignal = vi.fn();
+    const onRename = vi.fn(async () => {});
+
+    const c = new AutoRefreshController(
+      vs,
+      () => "/repo",
+      () => "/repo/.git",
+      onSignal,
+      onRename,
+    );
+    c.start();
+
+    fire.renameFiles({
+      files: [
+        {
+          oldUri: { fsPath: "/repo/src/a.ts" },
+          newUri: { fsPath: "/repo/src/b.ts" },
+        },
+      ],
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onRename).toHaveBeenCalledWith([
+      { oldRelPath: "src/a.ts", newRelPath: "src/b.ts" },
+    ]);
+    expect(onSignal).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call onRename when renamed files are outside the repo", async () => {
+    const { vs, fire } = makeVscodeStub();
+    const onSignal = vi.fn();
+    const onRename = vi.fn(async () => {});
+
+    const c = new AutoRefreshController(
+      vs,
+      () => "/repo",
+      () => "/repo/.git",
+      onSignal,
+      onRename,
+    );
+    c.start();
+
+    fire.renameFiles({
+      files: [
+        {
+          oldUri: { fsPath: "/other/a.ts" },
+          newUri: { fsPath: "/other/b.ts" },
+        },
+      ],
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onRename).not.toHaveBeenCalled();
+    expect(onSignal).not.toHaveBeenCalled();
+  });
 });

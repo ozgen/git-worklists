@@ -1,6 +1,8 @@
 import * as path from "path";
 import type { DisposableLike, UriLike, VscodeFacade } from "./vscodeFacade";
 
+export type RenamedRepoPair = { oldRelPath: string; newRelPath: string };
+
 export class AutoRefreshController implements DisposableLike {
   private disposables: DisposableLike[] = [];
 
@@ -9,6 +11,7 @@ export class AutoRefreshController implements DisposableLike {
     private readonly getRepoRoot: () => string,
     private readonly getGitDir: () => string,
     private readonly onSignal: () => void,
+    private readonly onRename?: (pairs: RenamedRepoPair[]) => Promise<void>,
   ) {}
 
   start(): void {
@@ -19,6 +22,14 @@ export class AutoRefreshController implements DisposableLike {
       const fsPath = uri.fsPath;
       const rel = path.relative(this.getRepoRoot(), fsPath);
       return !!rel && !rel.startsWith("..") && !path.isAbsolute(rel);
+    };
+
+    const toRelPath = (uri: UriLike): string => {
+      const rel = path.relative(this.getRepoRoot(), uri.fsPath);
+      if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
+        return "";
+      }
+      return rel.replace(/\\/g, "/");
     };
 
     this.disposables.push(
@@ -33,8 +44,27 @@ export class AutoRefreshController implements DisposableLike {
         }
       }),
       this.vs.workspace.onDidRenameFiles((e) => {
-        if (e.files.some((f) => isInRepo(f.newUri) || isInRepo(f.oldUri))) {
-          this.onSignal();
+        const relevant = e.files.filter(
+          (f) => isInRepo(f.newUri) || isInRepo(f.oldUri),
+        );
+        if (relevant.length === 0) {
+          return;
+        }
+
+        const pairs = relevant
+          .map((f) => ({
+            oldRelPath: toRelPath(f.oldUri),
+            newRelPath: toRelPath(f.newUri),
+          }))
+          .filter(
+            (p): p is RenamedRepoPair => !!p.oldRelPath && !!p.newRelPath,
+          );
+
+        const proceed = () => this.onSignal();
+        if (this.onRename && pairs.length > 0) {
+          this.onRename(pairs).catch(() => {}).then(proceed);
+        } else {
+          proceed();
         }
       }),
       this.vs.workspace.onDidSaveTextDocument((d) => {

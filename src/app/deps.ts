@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { access } from "fs/promises";
 import { GitCliClient } from "../adapters/git/gitCliClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { VsCodeBookmarkEditor } from "../adapters/vscode/bookmarkEditor";
@@ -110,7 +111,10 @@ export async function createDeps(
   });
 
   const loadOrInit = new LoadOrInitState(git, store);
-  const reconcile = new ReconcileWithGitStatus(git, store);
+  const existsOnDisk = async (abs: string) => {
+    try { await access(abs); return true; } catch { return false; }
+  };
+  const reconcile = new ReconcileWithGitStatus(git, store, existsOnDisk);
 
   const coordinator = new RefreshCoordinator(async () => {
     await loadOrInit.run(deps.repoRoot);

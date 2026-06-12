@@ -578,6 +578,27 @@ export function registerCommands(deps: Deps) {
           repoRel,
         );
         if (!existsInHead) {
+          const status = await deps.git.getStatusPorcelainZ(deps.repoRoot);
+          const entry = status.find(
+            (e) => normalizeRepoRelPath(e.path) === repoRel,
+          );
+          if (
+            entry?.oldPath &&
+            (entry.x === "R" || entry.x === "C") &&
+            (await deps.git.fileExistsAtRef(deps.repoRoot, ref, entry.oldPath))
+          ) {
+            const leftUri = vscode.Uri.parse(
+              `${GitShowContentProvider.scheme}:/${encodeURIComponent(ref)}/${encodeURIComponent(entry.oldPath)}`,
+            );
+            await vscode.commands.executeCommand(
+              "vscode.diff",
+              leftUri,
+              uri,
+              `${repoRel} (${ref}:${entry.oldPath} ↔ Working Tree)`,
+            );
+            deps.diffTabTracker.track(uri);
+            return;
+          }
           await vscode.commands.executeCommand("vscode.open", uri);
           return;
         }
