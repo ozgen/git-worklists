@@ -44,6 +44,7 @@ export class AutoRefreshController implements DisposableLike {
         }
       }),
       this.vs.workspace.onDidRenameFiles((e) => {
+       
         const relevant = e.files.filter(
           (f) => isInRepo(f.newUri) || isInRepo(f.oldUri),
         );
@@ -60,12 +61,13 @@ export class AutoRefreshController implements DisposableLike {
             (p): p is RenamedRepoPair => !!p.oldRelPath && !!p.newRelPath,
           );
 
-        const proceed = () => this.onSignal();
-        if (this.onRename && pairs.length > 0) {
-          this.onRename(pairs).catch(() => {}).then(proceed);
-        } else {
-          proceed();
-        }
+
+        void (async () => {
+          if (this.onRename && pairs.length > 0) {
+            await this.onRename(pairs);
+          }
+          this.onSignal();
+        })();
       }),
       this.vs.workspace.onDidSaveTextDocument((d) => {
         if (isInRepo(d.uri)) {

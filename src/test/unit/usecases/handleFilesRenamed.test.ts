@@ -142,32 +142,36 @@ describe("HandleFilesRenamed", () => {
     expect(d.files).not.toContain("src\\old.ts");
   });
 
-  it("does not call stageMany when oldPath is not staged", async () => {
+  it("does not call removeFromIndex or stageMany when oldPath is not staged", async () => {
     const store = makeStore({
       version: 1,
       lists: [{ id: SystemChangelist.Default, name: "Changes", files: ["a.ts"] }],
     });
     const git = {
       getStagedPaths: vi.fn(async () => new Set<string>()),
+      removeFromIndex: vi.fn(async () => {}),
       stageMany: vi.fn(async () => {}),
     };
     const uc = new HandleFilesRenamed(store as any, () => "/repo", git as any);
     await uc.run([{ oldRelPath: "a.ts", newRelPath: "b.ts" }]);
+    expect(git.removeFromIndex).not.toHaveBeenCalled();
     expect(git.stageMany).not.toHaveBeenCalled();
   });
 
-  it("calls stageMany with [oldPath, newPath] when oldPath was staged", async () => {
+  it("calls removeFromIndex then stageMany with newPath when oldPath was staged", async () => {
     const store = makeStore({
       version: 1,
       lists: [{ id: SystemChangelist.Default, name: "Changes", files: ["a.ts"] }],
     });
     const git = {
       getStagedPaths: vi.fn(async () => new Set(["a.ts"])),
+      removeFromIndex: vi.fn(async () => {}),
       stageMany: vi.fn(async () => {}),
     };
     const uc = new HandleFilesRenamed(store as any, () => "/repo", git as any);
     await uc.run([{ oldRelPath: "a.ts", newRelPath: "b.ts" }]);
-    expect(git.stageMany).toHaveBeenCalledWith("/repo", ["a.ts", "b.ts"]);
+    expect(git.removeFromIndex).toHaveBeenCalledWith("/repo", ["a.ts"]);
+    expect(git.stageMany).toHaveBeenCalledWith("/repo", ["b.ts"]);
   });
 
   it("stages only the pairs whose oldPath was staged when there are multiple renames", async () => {
@@ -177,6 +181,7 @@ describe("HandleFilesRenamed", () => {
     });
     const git = {
       getStagedPaths: vi.fn(async () => new Set(["staged.ts"])),
+      removeFromIndex: vi.fn(async () => {}),
       stageMany: vi.fn(async () => {}),
     };
     const uc = new HandleFilesRenamed(store as any, () => "/repo", git as any);
@@ -184,8 +189,90 @@ describe("HandleFilesRenamed", () => {
       { oldRelPath: "staged.ts", newRelPath: "staged-new.ts" },
       { oldRelPath: "unstaged.ts", newRelPath: "unstaged-new.ts" },
     ]);
+    expect(git.removeFromIndex).toHaveBeenCalledTimes(1);
+    expect(git.removeFromIndex).toHaveBeenCalledWith("/repo", ["staged.ts"]);
     expect(git.stageMany).toHaveBeenCalledTimes(1);
-    expect(git.stageMany).toHaveBeenCalledWith("/repo", ["staged.ts", "staged-new.ts"]);
+    expect(git.stageMany).toHaveBeenCalledWith("/repo", ["staged-new.ts"]);
+  });
+
+  it("staged file in custom changelist renamed to new path stays in same custom changelist", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "cl_test", name: "test", files: ["test2.txt"] },
+      ],
+    });
+    const git = {
+      getStagedPaths: vi.fn(async () => new Set(["test2.txt"])),
+      removeFromIndex: vi.fn(async () => {}),
+      stageMany: vi.fn(async () => {}),
+    };
+    const uc = new HandleFilesRenamed(store as any, () => "/repo", git as any);
+    await uc.run([{ oldRelPath: "test2.txt", newRelPath: "test3.txt" }]);
+
+    const saved = store.getState()!;
+    const cl = getList(saved, "cl_test");
+    expect(cl.files).toEqual(["test3.txt"]);
+    expect(cl.files).not.toContain("test2.txt");
+    expect(git.removeFromIndex).toHaveBeenCalledWith("/repo", ["test2.txt"]);
+    expect(git.stageMany).toHaveBeenCalledWith("/repo", ["test3.txt"]);
+  });
+
+  it("Unversioned file rename keeps only newPath in Unversioned", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["old.txt"] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    });
+    const uc = new HandleFilesRenamed(store as any, () => "/repo");
+    await uc.run([{ oldRelPath: "old.txt", newRelPath: "new.txt" }]);
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    expect(u.files).toEqual(["new.txt"]);
+    expect(u.files).not.toContain("old.txt");
+  });
+
+  it("new path is removed from other lists when oldPath owner is a different list", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["new.txt"] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["old.txt"] },
+      ],
+    });
+    const uc = new HandleFilesRenamed(store as any, () => "/repo");
+    await uc.run([{ oldRelPath: "old.txt", newRelPath: "new.txt" }]);
+
+    const saved = store.getState()!;
+    const d = getList(saved, SystemChangelist.Default);
+    const u = getList(saved, SystemChangelist.Unversioned);
+    expect(d.files).toEqual(["new.txt"]);
+    expect(u.files).not.toContain("new.txt");
+  });
+
+  it("old path is removed from all lists after rename", async () => {
+    const store = makeStore({
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["a.ts"] },
+        { id: "cl_x", name: "Feature", files: ["b.ts"] },
+      ],
+    });
+    const uc = new HandleFilesRenamed(store as any, () => "/repo");
+    await uc.run([{ oldRelPath: "a.ts", newRelPath: "a-renamed.ts" }]);
+
+    const saved = store.getState()!;
+    for (const list of saved.lists) {
+      expect(list.files).not.toContain("a.ts");
+    }
+    const d = getList(saved, SystemChangelist.Default);
+    expect(d.files).toContain("a-renamed.ts");
   });
 
   it("does not save when nothing matched", async () => {

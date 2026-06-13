@@ -170,10 +170,14 @@ describe("AutoRefreshController", () => {
     }
   });
 
-  it("calls onRename with repo-relative pairs before onSignal", async () => {
+  it("calls onRename with repo-relative pairs then calls onSignal after it resolves", async () => {
     const { vs, fire } = makeVscodeStub();
-    const onSignal = vi.fn();
-    const onRename = vi.fn(async () => {});
+    const callOrder: string[] = [];
+    const onSignal = vi.fn(() => callOrder.push("signal"));
+    const onRename = vi.fn(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+      callOrder.push("rename");
+    });
 
     const c = new AutoRefreshController(
       vs,
@@ -193,12 +197,13 @@ describe("AutoRefreshController", () => {
       ],
     });
 
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 10));
 
     expect(onRename).toHaveBeenCalledWith([
       { oldRelPath: "src/a.ts", newRelPath: "src/b.ts" },
     ]);
     expect(onSignal).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(["rename", "signal"]);
   });
 
   it("does not call onRename when renamed files are outside the repo", async () => {
