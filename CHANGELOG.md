@@ -13,6 +13,31 @@ No changes yet.
 
 ---
 
+## [1.2.7] - 2026-06-13
+
+### Fixed
+
+- Fixed rename handling so renamed files stay in the correct worklist.
+- Fixed renamed files being shown as deleted and unversioned entries.
+- Fixed staging state handling for renamed files.
+- Fixed discard handling for untracked files.
+
+### Changed
+
+- Updated development dependencies:
+  - @types/node from 25.8.0 -> 25.9.1
+  - @vitest/coverage-v8 from 4.1.6 -> 4.1.8
+  - eslint from 10.4.0 -> 10.4.1
+  - typescript-eslint from 8.59.3 -> 8.60.1
+  - vitest from 4.1.6 -> 4.1.8
+
+### Maintenance
+
+- Applied Dependabot updates for development tooling.
+- Updated linting and test tooling.
+
+---
+
 ## [1.2.6] - 2026-05-24
 
 ### Changed
