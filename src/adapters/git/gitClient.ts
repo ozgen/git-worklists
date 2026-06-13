@@ -79,6 +79,9 @@ export interface GitClient {
 
   stageMany(repoRootFsPath: string, repoRelativePaths: string[]): Promise<void>;
 
+  /** Removes paths from the git index via `git rm --cached --ignore-unmatch`. Works even when files are absent from disk or HEAD. */
+  removeFromIndex(repoRootFsPath: string, repoRelativePaths: string[]): Promise<void>;
+
   unstageMany(
     repoRootFsPath: string,
     repoRelativePaths: string[],

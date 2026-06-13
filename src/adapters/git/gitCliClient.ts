@@ -182,6 +182,17 @@ export class GitCliClient implements GitClient {
     await execGit(["add", "--", ...repoRelativePaths], repoRootFsPath);
   }
 
+  async removeFromIndex(
+    repoRootFsPath: string,
+    repoRelativePaths: string[],
+  ): Promise<void> {
+    if (repoRelativePaths.length === 0) {return;}
+    await execGit(
+      ["rm", "--cached", "--ignore-unmatch", "--", ...repoRelativePaths],
+      repoRootFsPath,
+    );
+  }
+
   async unstageMany(
     repoRootFsPath: string,
     repoRelativePaths: string[],

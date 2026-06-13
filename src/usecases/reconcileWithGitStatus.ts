@@ -38,7 +38,9 @@ export class ReconcileWithGitStatus {
   constructor(
     private readonly git: GitClient,
     private readonly store: WorkspaceStateStore,
-    private readonly existsOnDisk: (absPath: string) => Promise<boolean> = async () => true,
+    private readonly existsOnDisk: (
+      absPath: string,
+    ) => Promise<boolean> = async () => true,
   ) {}
 
   /**
@@ -123,6 +125,13 @@ export class ReconcileWithGitStatus {
       }
     };
 
+    const statusByPath = new Map(status.map((e) => [norm(e.path), e]));
+
+    const isDeletedStatus = (p: string): boolean => {
+      const e = statusByPath.get(p);
+      return e?.x === "D" || e?.y === "D";
+    };
+
     // Rule 1: untracked -> Unversioned, unless already placed by a rename event
     const unv = mustGet(SystemChangelist.Unversioned);
     for (const f of liveUntracked) {
@@ -137,9 +146,14 @@ export class ReconcileWithGitStatus {
     // Rule 2: tracked changes -> keep existing owner if not Unversioned, else Default
     const def = mustGet(SystemChangelist.Default);
     for (const f of changed) {
+      const owner = fileOwner.get(f);
+
+      if (!owner && isDeletedStatus(f)) {
+        continue;
+      }
+
       removeEverywhere(f);
 
-      const owner = fileOwner.get(f);
       if (owner && owner !== SystemChangelist.Unversioned) {
         mustGet(owner).files.push(f);
       } else {
