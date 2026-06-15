@@ -635,14 +635,14 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.3",
     "@types/vscode": "^1.120.0",
     "@vitest/coverage-v8": "^4.1.8",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2",
-    "eslint": "^10.4.1",
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1",
+    "typescript-eslint": "^8.61.0",
     "vitest": "^4.0.18"
   }
 }
