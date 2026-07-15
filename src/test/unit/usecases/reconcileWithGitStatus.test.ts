@@ -143,27 +143,35 @@ describe("ReconcileWithGitStatus", () => {
     expect(d.files).not.toContain("u.txt");
   });
 
-  it("leaves an untracked file in its existing non-Unversioned list", async () => {
+  it("moves an untracked file from Default back to Unversioned", async () => {
     const initial: PersistedState = {
       version: 1,
       lists: [
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: ["u.txt"] },
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: ["u.txt"],
+        },
       ],
     };
-
+  
     const git = makeGit([], ["u.txt"]);
     const store = makeStore(initial);
-
+  
     const uc = new ReconcileWithGitStatus(git, store as any);
     await uc.run("/repo");
-
+  
     const saved = store.getState()!;
-    const u = getList(saved, SystemChangelist.Unversioned);
-    const d = getList(saved, SystemChangelist.Default);
-
-    expect(d.files).toContain("u.txt");
-    expect(u.files).not.toContain("u.txt");
+    const unversioned = getList(saved, SystemChangelist.Unversioned);
+    const changes = getList(saved, SystemChangelist.Default);
+  
+    expect(unversioned.files).toContain("u.txt");
+    expect(changes.files).not.toContain("u.txt");
   });
 
   it("keeps tracked changes in their existing owner list (unless owner is Unversioned)", async () => {
@@ -288,27 +296,40 @@ describe("ReconcileWithGitStatus", () => {
     expect(d.files).not.toContain("old.ts");
   });
 
-  it("does not move an untracked file to Unversioned when it already has a non-Unversioned owner", async () => {
+  it("moves an untracked file from a custom changelist to Unversioned", async () => {
     const initial: PersistedState = {
       version: 1,
       lists: [
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "Feature", files: ["new.ts"] },
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "Feature",
+          files: ["new.ts"],
+        },
       ],
     };
-
+  
     const git = makeGit([], ["new.ts"]);
     const store = makeStore(initial);
+  
     const uc = new ReconcileWithGitStatus(git, store as any);
     await uc.run("/repo");
-
+  
     const saved = store.getState()!;
-    const x = getList(saved, "cl_x");
-    const u = getList(saved, SystemChangelist.Unversioned);
-
-    expect(x.files).toContain("new.ts");
-    expect(u.files).not.toContain("new.ts");
+    const custom = getList(saved, "cl_x");
+    const unversioned = getList(saved, SystemChangelist.Unversioned);
+  
+    expect(custom.files).not.toContain("new.ts");
+    expect(unversioned.files).toContain("new.ts");
   });
 
   it("removes a stale untracked path that does not exist on disk", async () => {
@@ -355,28 +376,40 @@ describe("ReconcileWithGitStatus", () => {
     expect(d.files).toContain("gone.txt");
   });
 
-  it("untracked new renamed path stays in its non-Unversioned list when it exists on disk", async () => {
+  it("moves an untracked file from a custom changelist to Unversioned", async () => {
     const initial: PersistedState = {
       version: 1,
       lists: [
-        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
-        { id: SystemChangelist.Default, name: "Changes", files: [] },
-        { id: "cl_x", name: "Feature", files: ["new.ts"] },
+        {
+          id: SystemChangelist.Unversioned,
+          name: "Unversioned",
+          files: [],
+        },
+        {
+          id: SystemChangelist.Default,
+          name: "Changes",
+          files: [],
+        },
+        {
+          id: "cl_x",
+          name: "Feature",
+          files: ["new.ts"],
+        },
       ],
     };
-
+  
     const git = makeGit([], ["new.ts"]);
     const store = makeStore(initial);
-    const existsOnDisk = vi.fn(async () => true);
-
-    const uc = new ReconcileWithGitStatus(git, store as any, existsOnDisk);
+  
+    const uc = new ReconcileWithGitStatus(git, store as any);
     await uc.run("/repo");
-
+  
     const saved = store.getState()!;
-    const x = getList(saved, "cl_x");
-    const u = getList(saved, SystemChangelist.Unversioned);
-    expect(x.files).toContain("new.ts");
-    expect(u.files).not.toContain("new.ts");
+    const custom = getList(saved, "cl_x");
+    const unversioned = getList(saved, SystemChangelist.Unversioned);
+  
+    expect(custom.files).not.toContain("new.ts");
+    expect(unversioned.files).toContain("new.ts");
   });
 
   it("normalizes slashes in oldPath when matching rename", async () => {

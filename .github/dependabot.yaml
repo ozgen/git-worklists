@@ -16,8 +16,14 @@ updates:
     groups:
       dev-deps:
         dependency-type: "development"
+        exclude-patterns:
+          - "typescript"
       prod-deps:
         dependency-type: "production"
+    ignore:
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
 
   # GitHub Actions versions (checkout/setup-node/etc.)
   - package-ecosystem: "github-actions"

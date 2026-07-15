@@ -13,6 +13,38 @@ No changes yet.
 
 ---
 
+## [1.2.8] - 2026-07-15
+
+### Fixed
+
+* Fixed newly created files remaining in the **Changes** changelist after they were unstaged.
+* Unstaging a newly added file now correctly moves it back to **Unversioned Files**.
+* Updated Git status reconciliation so currently untracked files are always assigned to the system **Unversioned** changelist.
+* Updated reconciliation tests to reflect the correct lifecycle of staged and unstaged new files.
+
+### Changed
+
+* Updated development dependencies:
+
+  * `@types/node` from `25.9.1` to `26.1.1`
+  * `@types/vscode` from `1.120.0` to `1.125.0`
+  * `@vitest/coverage-v8` from `4.1.8` to `4.1.10`
+  * `@vscode/test-cli` from `0.0.12` to `0.0.15`
+  * `@vscode/test-electron` from `2.5.2` to `3.0.0`
+  * `eslint` from `10.4.1` to `10.7.0`
+  * `typescript-eslint` from `8.60.1` to `8.63.0`
+  * `vitest` from `4.1.8` to `4.1.10`
+
+### Maintenance
+
+* Kept TypeScript on `6.0.3` because TypeScript ESLint `8.63.0` does not yet support TypeScript 7.
+* Explicitly enabled Node.js type definitions in the TypeScript configuration.
+* Updated the dependency lock file after resolving the Dependabot peer-dependency conflict.
+* Updated unit tests for untracked-file reconciliation behavior.
+* Applied compatible Dependabot updates for linting, testing, VS Code extension testing, and type definitions.
+
+---
+
 ## [1.2.7] - 2026-06-13
 
 ### Fixed

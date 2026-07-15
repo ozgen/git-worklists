@@ -132,13 +132,10 @@ export class ReconcileWithGitStatus {
       return e?.x === "D" || e?.y === "D";
     };
 
-    // Rule 1: untracked -> Unversioned, unless already placed by a rename event
+    // Rule 1: every currently untracked file belongs to Unversioned
     const unv = mustGet(SystemChangelist.Unversioned);
+    
     for (const f of liveUntracked) {
-      const owner = fileOwner.get(f);
-      if (owner && owner !== SystemChangelist.Unversioned) {
-        continue;
-      }
       removeEverywhere(f);
       unv.files.push(f);
     }
