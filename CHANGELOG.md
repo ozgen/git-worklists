@@ -27,7 +27,6 @@ No changes yet.
 - Fixed a related case where reloading the window while a rename was already staged could lose track of the rename entirely; it's now reconstructed from Git's own status.
 - Diffing a renamed-but-not-yet-staged file against its original content now works correctly.
 
-
 ---
 
 ## [1.2.8] - 2026-07-15
