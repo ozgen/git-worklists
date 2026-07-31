@@ -1,24 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { stageChangelistAll } from "../../../usecases/stageChangelistAll";
-import type { GitClient } from "../../../adapters/git/gitClient";
+import type { StagePaths } from "../../../usecases/stagePaths";
 
-function makeGit(): GitClient {
-  return {
-    getRepoRoot: vi.fn(),
-    tryGetRepoRoot: vi.fn(),
-    getStatusPorcelainZ: vi.fn(),
-    add: vi.fn(),
-    getGitDir: vi.fn(),
-    isIgnored: vi.fn(),
-    showFileAtRef: vi.fn(),
-    stashList: vi.fn(),
-    stashPushPaths: vi.fn(),
-    stashApply: vi.fn(),
-    stashPop: vi.fn(),
-    stashDrop: vi.fn(),
-
-    stageMany: vi.fn(async () => {}),
-  } as unknown as GitClient;
+function makeStagePaths(): StagePaths {
+  return { run: vi.fn(async () => {}) } as unknown as StagePaths;
 }
 
 describe("stageChangelistAll (unit)", () => {
@@ -26,33 +11,33 @@ describe("stageChangelistAll (unit)", () => {
     vi.clearAllMocks();
   });
 
-  it("delegates to git.stageMany(repoRootFsPath, repoRelativePaths)", async () => {
-    const git = makeGit();
+  it("delegates to stagePaths.run(repoRootFsPath, repoRelativePaths)", async () => {
+    const stagePaths = makeStagePaths();
 
     const repoRoot = "/repo";
     const paths = ["a.txt", "b/c.ts"];
 
-    await stageChangelistAll(git, repoRoot, paths);
+    await stageChangelistAll(stagePaths, repoRoot, paths);
 
-    expect(git.stageMany).toHaveBeenCalledTimes(1);
-    expect(git.stageMany).toHaveBeenCalledWith(repoRoot, paths);
+    expect(stagePaths.run).toHaveBeenCalledTimes(1);
+    expect(stagePaths.run).toHaveBeenCalledWith(repoRoot, paths);
   });
 
   it("passes through empty paths array (no filtering here)", async () => {
-    const git = makeGit();
+    const stagePaths = makeStagePaths();
 
-    await stageChangelistAll(git, "/repo", []);
+    await stageChangelistAll(stagePaths, "/repo", []);
 
-    expect(git.stageMany).toHaveBeenCalledTimes(1);
-    expect(git.stageMany).toHaveBeenCalledWith("/repo", []);
+    expect(stagePaths.run).toHaveBeenCalledTimes(1);
+    expect(stagePaths.run).toHaveBeenCalledWith("/repo", []);
   });
 
-  it("propagates errors from git.stageMany", async () => {
-    const git = makeGit();
-    (git.stageMany as any).mockRejectedValueOnce(new Error("boom"));
+  it("propagates errors from stagePaths.run", async () => {
+    const stagePaths = makeStagePaths();
+    (stagePaths.run as any).mockRejectedValueOnce(new Error("boom"));
 
-    await expect(stageChangelistAll(git, "/repo", ["a.txt"])).rejects.toThrow(
-      "boom",
-    );
+    await expect(
+      stageChangelistAll(stagePaths, "/repo", ["a.txt"]),
+    ).rejects.toThrow("boom");
   });
 });

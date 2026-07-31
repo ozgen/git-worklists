@@ -12,9 +12,9 @@ export function registerCheckboxes(deps: Deps) {
         if (kind === "file" && typeof item?.repoRelativePath === "string") {
           const p = normalizeRepoRelPath(item.repoRelativePath);
           if (item.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-            await deps.git.stageMany(deps.repoRoot, [p]);
+            await deps.stagePaths.run(deps.repoRoot, [p]);
           } else {
-            await deps.git.unstageMany(deps.repoRoot, [p]);
+            await deps.unstagePaths.run(deps.repoRoot, [p]);
           }
           continue;
         }
@@ -23,9 +23,9 @@ export function registerCheckboxes(deps: Deps) {
         if (kind === "group" && Array.isArray(item?.list?.files)) {
           const files: string[] = item.list.files;
           if (item.checkboxState === vscode.TreeItemCheckboxState.Checked) {
-            await deps.git.stageMany(deps.repoRoot, files);
+            await deps.stagePaths.run(deps.repoRoot, files);
           } else {
-            await deps.git.unstageMany(deps.repoRoot, files);
+            await deps.unstagePaths.run(deps.repoRoot, files);
           }
         }
       }

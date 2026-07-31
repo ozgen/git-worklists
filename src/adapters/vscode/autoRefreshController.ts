@@ -44,7 +44,6 @@ export class AutoRefreshController implements DisposableLike {
         }
       }),
       this.vs.workspace.onDidRenameFiles((e) => {
-       
         const relevant = e.files.filter(
           (f) => isInRepo(f.newUri) || isInRepo(f.oldUri),
         );
@@ -52,17 +51,23 @@ export class AutoRefreshController implements DisposableLike {
           return;
         }
 
-        const pairs = relevant
-          .map((f) => ({
-            oldRelPath: toRelPath(f.oldUri),
-            newRelPath: toRelPath(f.newUri),
-          }))
-          .filter(
-            (p): p is RenamedRepoPair => !!p.oldRelPath && !!p.newRelPath,
-          );
-
-
         void (async () => {
+          const fileOnly = [];
+          for (const f of relevant) {
+            if (!(await this.isDirectory(f.newUri))) {
+              fileOnly.push(f);
+            }
+          }
+
+          const pairs = fileOnly
+            .map((f) => ({
+              oldRelPath: toRelPath(f.oldUri),
+              newRelPath: toRelPath(f.newUri),
+            }))
+            .filter(
+              (p): p is RenamedRepoPair => !!p.oldRelPath && !!p.newRelPath,
+            );
+
           if (this.onRename && pairs.length > 0) {
             await this.onRename(pairs);
           }
@@ -75,6 +80,15 @@ export class AutoRefreshController implements DisposableLike {
         }
       }),
     );
+  }
+
+  private async isDirectory(uri: UriLike): Promise<boolean> {
+    try {
+      const stat = await this.vs.workspace.fs.stat(uri);
+      return (stat.type & 2) === 2;
+    } catch {
+      return false;
+    }
   }
 
   private watchGitFile(relativePath: string) {

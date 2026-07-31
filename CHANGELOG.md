@@ -13,35 +13,51 @@ No changes yet.
 
 ---
 
+## [1.3.0] - 2026-07-31
+
+### Added
+
+- Renamed tracked files now appear as a single `old → new` entry in the Tree View, with an **R** indicator, instead of showing only the new path.
+- Discarding a renamed file now reverts both sides: the original path is restored and the new path is removed, whether the rename is staged or unstaged.
+
+### Fixed
+
+- A renamed tracked file now keeps its changelist assignment (Default or a custom changelist) continuously — before staging, after staging, and after unstaging — instead of briefly showing under **Unversioned Files** until it was staged.
+- Fixed a case where the rename mapping used for staging could be dropped too early once Git reported the rename as a single staged `R` entry, which would have left an unstage only partially reverting the pair.
+- Fixed a related case where reloading the window while a rename was already staged could lose track of the rename entirely; it's now reconstructed from Git's own status.
+- Diffing a renamed-but-not-yet-staged file against its original content now works correctly.
+
+
+---
+
 ## [1.2.8] - 2026-07-15
 
 ### Fixed
 
-* Fixed newly created files remaining in the **Changes** changelist after they were unstaged.
-* Unstaging a newly added file now correctly moves it back to **Unversioned Files**.
-* Updated Git status reconciliation so currently untracked files are always assigned to the system **Unversioned** changelist.
-* Updated reconciliation tests to reflect the correct lifecycle of staged and unstaged new files.
+- Fixed newly created files remaining in the **Changes** changelist after they were unstaged.
+- Unstaging a newly added file now correctly moves it back to **Unversioned Files**.
+- Updated Git status reconciliation so currently untracked files are always assigned to the system **Unversioned** changelist.
+- Updated reconciliation tests to reflect the correct lifecycle of staged and unstaged new files.
 
 ### Changed
 
-* Updated development dependencies:
-
-  * `@types/node` from `25.9.1` to `26.1.1`
-  * `@types/vscode` from `1.120.0` to `1.125.0`
-  * `@vitest/coverage-v8` from `4.1.8` to `4.1.10`
-  * `@vscode/test-cli` from `0.0.12` to `0.0.15`
-  * `@vscode/test-electron` from `2.5.2` to `3.0.0`
-  * `eslint` from `10.4.1` to `10.7.0`
-  * `typescript-eslint` from `8.60.1` to `8.63.0`
-  * `vitest` from `4.1.8` to `4.1.10`
+- Updated development dependencies:
+  - `@types/node` from `25.9.1` to `26.1.1`
+  - `@types/vscode` from `1.120.0` to `1.125.0`
+  - `@vitest/coverage-v8` from `4.1.8` to `4.1.10`
+  - `@vscode/test-cli` from `0.0.12` to `0.0.15`
+  - `@vscode/test-electron` from `2.5.2` to `3.0.0`
+  - `eslint` from `10.4.1` to `10.7.0`
+  - `typescript-eslint` from `8.60.1` to `8.63.0`
+  - `vitest` from `4.1.8` to `4.1.10`
 
 ### Maintenance
 
-* Kept TypeScript on `6.0.3` because TypeScript ESLint `8.63.0` does not yet support TypeScript 7.
-* Explicitly enabled Node.js type definitions in the TypeScript configuration.
-* Updated the dependency lock file after resolving the Dependabot peer-dependency conflict.
-* Updated unit tests for untracked-file reconciliation behavior.
-* Applied compatible Dependabot updates for linting, testing, VS Code extension testing, and type definitions.
+- Kept TypeScript on `6.0.3` because TypeScript ESLint `8.63.0` does not yet support TypeScript 7.
+- Explicitly enabled Node.js type definitions in the TypeScript configuration.
+- Updated the dependency lock file after resolving the Dependabot peer-dependency conflict.
+- Updated unit tests for untracked-file reconciliation behavior.
+- Applied compatible Dependabot updates for linting, testing, VS Code extension testing, and type definitions.
 
 ---
 

@@ -10,6 +10,8 @@ type PersistedChangelist = {
   files: string[];
 };
 
+type PersistedRename = { oldPath: string; newPath: string };
+
 abstract class Node extends vscode.TreeItem {
   abstract readonly kind: "group" | "file";
 }
@@ -50,12 +52,29 @@ export class FileNode extends Node {
     public readonly repoRelativePath: string,
     public readonly stageState: FileStageState,
     public readonly workStatus: FileWorkStatus,
+    public readonly oldPath?: string,
   ) {
     const norm = normalizeRepoRelPath(repoRelativePath);
 
     const slash = norm.lastIndexOf("/");
-    const label = slash === -1 ? norm : norm.slice(slash + 1);
+    const basename = slash === -1 ? norm : norm.slice(slash + 1);
     const folder = slash === -1 ? "" : norm.slice(0, slash);
+
+    const normOld = oldPath ? normalizeRepoRelPath(oldPath) : undefined;
+    const oldSlash = normOld?.lastIndexOf("/") ?? -1;
+    const oldFolder = normOld ? (oldSlash === -1 ? "" : normOld.slice(0, oldSlash)) : undefined;
+    const sameFolder = normOld !== undefined && oldFolder === folder;
+
+    let label = basename;
+    let description = folder;
+    let tooltip = norm;
+
+    if (normOld) {
+      const oldBasename = oldSlash === -1 ? normOld : normOld.slice(oldSlash + 1);
+      label = sameFolder ? `${oldBasename} → ${basename}` : `${normOld} → ${norm}`;
+      description = sameFolder && folder ? `${folder}  R` : "R";
+      tooltip = `${normOld} → ${norm}`;
+    }
 
     super(label, vscode.TreeItemCollapsibleState.None);
 
@@ -66,13 +85,13 @@ export class FileNode extends Node {
 
     this.iconPath = new vscode.ThemeIcon(fileIcon(stageState));
 
-    this.description = folder;
-    this.tooltip = norm;
+    this.description = description;
+    this.tooltip = tooltip;
 
     this.command = {
       command: "gitWorklists.openDiff",
       title: "Open Diff",
-      arguments: [abs],
+      arguments: [abs, oldPath],
     };
   }
 }
@@ -118,6 +137,10 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
     }
 
     const lists = state.lists as PersistedChangelist[];
+    const renames = (state as { renames?: PersistedRename[] }).renames ?? [];
+    const oldPathByNewPath = new Map(
+      renames.map((r) => [normalizeRepoRelPath(r.newPath), normalizeRepoRelPath(r.oldPath)] as const),
+    );
 
     if (!element) {
       const systemIds = new Set<string>([
@@ -168,7 +191,13 @@ export class ChangelistTreeProvider implements vscode.TreeDataProvider<Node> {
             ? "unversioned"
             : "tracked";
 
-        return new FileNode(repoRoot, norm, stageState, workStatus);
+        return new FileNode(
+          repoRoot,
+          norm,
+          stageState,
+          workStatus,
+          oldPathByNewPath.get(norm),
+        );
       });
     }
 

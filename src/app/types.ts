@@ -23,6 +23,10 @@ import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
 import { RenameChangelist } from "../usecases/renameChangelist";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
+import { StagePaths } from "../usecases/stagePaths";
+import { UnstagePaths } from "../usecases/unstagePaths";
+import { RevertPaths } from "../usecases/revertPaths";
+import { RenameMapping } from "../core/rename/renameMapping";
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
 import { CommitViewProvider } from "../views/commitViewProvider";
 import { StashesTreeProvider } from "../views/stash/stashesTreeProvider";
@@ -57,6 +61,10 @@ export type Deps = {
   loadOrInit: LoadOrInitState;
   reconcile: ReconcileWithGitStatus;
   restageAlreadyStaged: RestageAlreadyStaged;
+  renameMapping: RenameMapping;
+  stagePaths: StagePaths;
+  unstagePaths: UnstagePaths;
+  revertPaths: RevertPaths;
 
   setBookmark: SetBookmark;
   jumpToBookmark: JumpToBookmark;

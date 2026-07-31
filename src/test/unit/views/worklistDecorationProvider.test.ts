@@ -503,4 +503,65 @@ describe("WorklistDecorationProvider", () => {
     expect(dec?.badge).toBe("D");
     expect(dec?.tooltip).toBe("In Changes • Staged");
   });
+
+  it("badge gets an R prefix for a rename destination in Default", async () => {
+    provider.updateSnapshot({
+      state: {
+        version: 1,
+        lists: [
+          { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+          { id: SystemChangelist.Default, name: "Changes", files: ["new.ts"] },
+        ],
+        renames: [{ oldPath: "old.ts", newPath: "new.ts" }],
+      } as any,
+      fileStageStates: new Map(),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/new.ts") as any,
+    );
+
+    expect(dec?.badge).toBe("RD");
+    expect(dec?.tooltip).toBe("In Changes");
+  });
+
+  it("badge gets an R prefix for a rename destination in Unversioned", async () => {
+    provider.updateSnapshot({
+      state: {
+        version: 1,
+        lists: [
+          { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["new.ts"] },
+          { id: SystemChangelist.Default, name: "Changes", files: [] },
+        ],
+        renames: [{ oldPath: "old.ts", newPath: "new.ts" }],
+      } as any,
+      fileStageStates: new Map(),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/new.ts") as any,
+    );
+
+    expect(dec?.badge).toBe("RU");
+  });
+
+  it("does not add an R prefix for a plain file not in renames", async () => {
+    provider.updateSnapshot({
+      state: {
+        version: 1,
+        lists: [
+          { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+          { id: SystemChangelist.Default, name: "Changes", files: ["plain.ts"] },
+        ],
+        renames: [{ oldPath: "old.ts", newPath: "other.ts" }],
+      } as any,
+      fileStageStates: new Map(),
+    });
+
+    const dec = await provider.provideFileDecoration(
+      vscode.Uri.file("/repo/plain.ts") as any,
+    );
+
+    expect(dec?.badge).toBe("D");
+  });
 });

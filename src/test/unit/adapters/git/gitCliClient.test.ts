@@ -1839,3 +1839,146 @@ describe("GitCliClient — push looksLikeNoUpstream patterns", () => {
     );
   });
 });
+
+describe("GitCliClient.stageRename", () => {
+  it("stages both paths via a single scoped `git add -A` call", async () => {
+    const { calls } = mockExecFileWithRouter(() => ({ stdout: "" }));
+
+    const git = new GitCliClient();
+    await git.stageRename("/repo", "old.ts", "new.ts");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].args).toEqual(["add", "-A", "--", "old.ts", "new.ts"]);
+  });
+
+  it("passes a path with a space as its own argv element", async () => {
+    const { calls } = mockExecFileWithRouter(() => ({ stdout: "" }));
+
+    const git = new GitCliClient();
+    await git.stageRename("/repo", "old file.ts", "new file.ts");
+
+    expect(calls[0].args).toEqual([
+      "add",
+      "-A",
+      "--",
+      "old file.ts",
+      "new file.ts",
+    ]);
+  });
+});
+
+describe("GitCliClient.revertRename", () => {
+  it("resurrects oldPath from HEAD then restores a staged newPath", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "cat-file -e HEAD:old.ts") {
+        return { stdout: "" };
+      }
+      if (cmd.startsWith("restore --source=HEAD")) {
+        return { stdout: "" };
+      }
+      if (cmd === "ls-files -- new.ts") {
+        return { stdout: "new.ts\n" };
+      }
+      if (cmd === "restore --staged --worktree -- new.ts") {
+        return { stdout: "" };
+      }
+      return new Error(`unexpected command: ${cmd}`);
+    });
+
+    const git = new GitCliClient();
+    await git.revertRename("/repo", "old.ts", "new.ts");
+
+    expect(calls.map((c) => c.args)).toEqual([
+      ["cat-file", "-e", "HEAD:old.ts"],
+      ["restore", "--source=HEAD", "--staged", "--worktree", "--", "old.ts"],
+      ["ls-files", "--", "new.ts"],
+      ["restore", "--staged", "--worktree", "--", "new.ts"],
+    ]);
+  });
+
+  it("cleans an untracked newPath after resurrecting oldPath", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "cat-file -e HEAD:old.ts") {
+        return { stdout: "" };
+      }
+      if (cmd.startsWith("restore --source=HEAD")) {
+        return { stdout: "" };
+      }
+      if (cmd === "ls-files -- new.ts") {
+        return { stdout: "" };
+      }
+      if (cmd === "clean -f -n -- new.ts") {
+        return { stdout: "Would remove new.ts\n" };
+      }
+      if (cmd === "clean -f -- new.ts") {
+        return { stdout: "" };
+      }
+      return new Error(`unexpected command: ${cmd}`);
+    });
+
+    const git = new GitCliClient();
+    await git.revertRename("/repo", "old.ts", "new.ts");
+
+    expect(calls.map((c) => c.args)).toEqual([
+      ["cat-file", "-e", "HEAD:old.ts"],
+      ["restore", "--source=HEAD", "--staged", "--worktree", "--", "old.ts"],
+      ["ls-files", "--", "new.ts"],
+      ["clean", "-f", "-n", "--", "new.ts"],
+      ["clean", "-f", "--", "new.ts"],
+    ]);
+  });
+
+  it("skips restoring oldPath when it never existed at HEAD", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "cat-file -e HEAD:old.ts") {
+        return new Error("fatal: Not a valid object name");
+      }
+      if (cmd === "ls-files -- new.ts") {
+        return { stdout: "" };
+      }
+      if (cmd === "clean -f -n -- new.ts") {
+        return { stdout: "Would remove new.ts\n" };
+      }
+      if (cmd === "clean -f -- new.ts") {
+        return { stdout: "" };
+      }
+      return new Error(`unexpected command: ${cmd}`);
+    });
+
+    const git = new GitCliClient();
+    await git.revertRename("/repo", "old.ts", "new.ts");
+
+    expect(calls.some((c) => c.args[0] === "restore" && c.args.includes("old.ts"))).toBe(
+      false,
+    );
+  });
+
+  it("never hands a directory to `git clean`", async () => {
+    const { calls } = mockExecFileWithRouter((args) => {
+      const cmd = args.join(" ");
+      if (cmd === "cat-file -e HEAD:old.ts") {
+        return { stdout: "" };
+      }
+      if (cmd.startsWith("restore --source=HEAD")) {
+        return { stdout: "" };
+      }
+      if (cmd === "ls-files -- newFolder") {
+        return { stdout: "" };
+      }
+      if (cmd === "clean -f -n -- newFolder") {
+        return { stdout: "Would remove newFolder/\n" };
+      }
+      return new Error(`unexpected command: ${cmd}`);
+    });
+
+    const git = new GitCliClient();
+    await git.revertRename("/repo", "old.ts", "newFolder");
+
+    expect(calls.some((c) => c.args[0] === "clean" && !c.args.includes("-n"))).toBe(
+      false,
+    );
+  });
+});

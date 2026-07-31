@@ -9,9 +9,12 @@ export type PersistedChangelist = {
   files: string[];
 };
 
+export type PersistedRename = { oldPath: string; newPath: string };
+
 export type PersistedState = {
   version: 1;
   lists: PersistedChangelist[];
+  renames?: PersistedRename[];
 };
 
 type PersistedSelectionState = {
