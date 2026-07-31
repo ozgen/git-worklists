@@ -45,7 +45,10 @@ function makeWatcher() {
   return { watcher, onDidChange, onDidCreate, onDidDelete };
 }
 
-function makeVscodeStub() {
+const FILE_TYPE = 1;
+const DIRECTORY_TYPE = 2;
+
+function makeVscodeStub(directoryPaths: string[] = []) {
   const createFiles = makeEvent<{ readonly files: readonly UriLike[] }>();
   const deleteFiles = makeEvent<{ readonly files: readonly UriLike[] }>();
   const renameFiles = makeEvent<{
@@ -74,6 +77,11 @@ function makeVscodeStub() {
       watchers.push(w);
       return w.watcher;
     }),
+    fs: {
+      stat: vi.fn(async (uri: UriLike) => ({
+        type: directoryPaths.includes(uri.fsPath) ? DIRECTORY_TYPE : FILE_TYPE,
+      })),
+    },
     onDidCreateFiles: createFiles.event,
     onDidDeleteFiles: deleteFiles.event,
     onDidRenameFiles: renameFiles.event,
@@ -128,7 +136,7 @@ describe("AutoRefreshController", () => {
     expect(onSignal).toHaveBeenCalledTimes(3);
   });
 
-  it("signals only for workspace events inside repoRoot", () => {
+  it("signals only for workspace events inside repoRoot", async () => {
     const { vs, fire } = makeVscodeStub();
     const onSignal = vi.fn();
 
@@ -154,6 +162,7 @@ describe("AutoRefreshController", () => {
         },
       ],
     });
+    await new Promise((r) => setTimeout(r, 0));
     expect(onSignal).toHaveBeenCalledTimes(3);
   });
 
@@ -233,5 +242,64 @@ describe("AutoRefreshController", () => {
 
     expect(onRename).not.toHaveBeenCalled();
     expect(onSignal).not.toHaveBeenCalled();
+  });
+
+  it("drops a directory rename pair instead of passing it to onRename", async () => {
+    const { vs, fire } = makeVscodeStub(["/repo/newFolder"]);
+    const onSignal = vi.fn();
+    const onRename = vi.fn(async () => {});
+
+    const c = new AutoRefreshController(
+      vs,
+      () => "/repo",
+      () => "/repo/.git",
+      onSignal,
+      onRename,
+    );
+    c.start();
+
+    fire.renameFiles({
+      files: [
+        {
+          oldUri: { fsPath: "/repo/oldFolder" },
+          newUri: { fsPath: "/repo/newFolder" },
+        },
+      ],
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onRename).not.toHaveBeenCalled();
+    expect(onSignal).toHaveBeenCalledTimes(1);
+  });
+
+  it("still passes a plain file rename through onRename", async () => {
+    const { vs, fire } = makeVscodeStub();
+    const onSignal = vi.fn();
+    const onRename = vi.fn(async () => {});
+
+    const c = new AutoRefreshController(
+      vs,
+      () => "/repo",
+      () => "/repo/.git",
+      onSignal,
+      onRename,
+    );
+    c.start();
+
+    fire.renameFiles({
+      files: [
+        {
+          oldUri: { fsPath: "/repo/old.txt" },
+          newUri: { fsPath: "/repo/new.txt" },
+        },
+      ],
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onRename).toHaveBeenCalledWith([
+      { oldRelPath: "old.txt", newRelPath: "new.txt" },
+    ]);
   });
 });

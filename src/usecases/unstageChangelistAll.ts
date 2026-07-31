@@ -1,9 +1,9 @@
-import { GitClient } from "../adapters/git/gitClient";
+import { UnstagePaths } from "./unstagePaths";
 
 export async function unstageChangelistAll(
-  git: GitClient,
+  unstagePaths: UnstagePaths,
   repoRootFsPath: string,
   repoRelativePaths: string[],
 ): Promise<void> {
-  await git.unstageMany(repoRootFsPath, repoRelativePaths);
+  await unstagePaths.run(repoRootFsPath, repoRelativePaths);
 }

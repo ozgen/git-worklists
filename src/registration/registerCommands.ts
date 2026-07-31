@@ -40,7 +40,7 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
-          await deps.git.stageMany(deps.repoRoot, [rel]);
+          await deps.stagePaths.run(deps.repoRoot, [rel]);
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -70,7 +70,7 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
-          await deps.git.unstageMany(deps.repoRoot, [rel]);
+          await deps.unstagePaths.run(deps.repoRoot, [rel]);
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -97,9 +97,9 @@ export function registerCommands(deps: Deps) {
           const allStaged = normalized.every((p) => staged.has(p));
 
           if (!allStaged) {
-            await deps.git.stageMany(deps.repoRoot, normalized);
+            await deps.stagePaths.run(deps.repoRoot, normalized);
           } else {
-            await deps.git.unstageMany(deps.repoRoot, normalized);
+            await deps.unstagePaths.run(deps.repoRoot, normalized);
           }
 
           await deps.coordinator.requestNow();
@@ -133,7 +133,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await deps.git.stageMany(deps.repoRoot, [normalizeRepoRelPath(rel)]);
+        await deps.stagePaths.run(deps.repoRoot, [normalizeRepoRelPath(rel)]);
         await deps.coordinator.requestNow();
         await vscode.commands.executeCommand("gitWorklists.openDiff", uri);
       },
@@ -147,7 +147,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await deps.git.unstageMany(deps.repoRoot, [normalizeRepoRelPath(rel)]);
+        await deps.unstagePaths.run(deps.repoRoot, [normalizeRepoRelPath(rel)]);
         await deps.coordinator.requestNow();
         await vscode.commands.executeCommand("gitWorklists.openDiff", uri);
       },
@@ -389,7 +389,10 @@ export function registerCommands(deps: Deps) {
             | "unversioned"
             | "tracked"
             | undefined;
-          const isNew = await deps.git.isNewFileInRepo(deps.repoRoot, rel);
+          const oldPath =
+            typeof node?.oldPath === "string"
+              ? normalizeRepoRelPath(node.oldPath)
+              : undefined;
 
           if (status === "unversioned") {
             const ok = await vscode.window.showWarningMessage(
@@ -409,6 +412,26 @@ export function registerCommands(deps: Deps) {
             return;
           }
 
+          if (oldPath) {
+            const ok = await vscode.window.showWarningMessage(
+              "Discard this rename?",
+              {
+                modal: true,
+                detail: `${oldPath} will be restored\n${rel} will be removed`,
+              },
+              "Discard",
+            );
+            if (ok !== "Discard") {
+              return;
+            }
+
+            await deps.revertPaths.run(deps.repoRoot, [rel]);
+            await deps.coordinator.requestNow();
+            return;
+          }
+
+          const isNew = await deps.git.isNewFileInRepo(deps.repoRoot, rel);
+
           if (isNew) {
             const ok = await vscode.window.showWarningMessage(
               "Discard will delete this newly added file. Continue?",
@@ -419,12 +442,12 @@ export function registerCommands(deps: Deps) {
               return;
             }
 
-            await deps.git.discardFiles(deps.repoRoot, [rel]);
+            await deps.revertPaths.run(deps.repoRoot, [rel]);
             await deps.coordinator.requestNow();
             return;
           }
 
-          await deps.git.discardFiles(deps.repoRoot, [rel]);
+          await deps.revertPaths.run(deps.repoRoot, [rel]);
           await deps.coordinator.requestNow();
         } catch (e) {
           console.error(e);
@@ -461,8 +484,13 @@ export function registerCommands(deps: Deps) {
 
           const newlyAdded: string[] = [];
           const normalTracked: string[] = [];
+          const renamed: string[] = [];
 
           for (const rel of tracked) {
+            if (deps.renameMapping.resolveOldPath(deps.repoRoot, rel)) {
+              renamed.push(rel);
+              continue;
+            }
             const isNew = await deps.git.isNewFileInRepo(deps.repoRoot, rel);
             if (isNew) {
               newlyAdded.push(rel);
@@ -503,6 +531,22 @@ export function registerCommands(deps: Deps) {
             }
           }
 
+          if (renamed.length > 0) {
+            const ok = await vscode.window.showWarningMessage(
+              `Discard ${renamed.length} rename(s)? The original path(s) will be restored.`,
+              {
+                modal: true,
+                detail:
+                  renamed.slice(0, 10).join("\n") +
+                  (renamed.length > 10 ? "\n…" : ""),
+              },
+              "Discard",
+            );
+            if (ok !== "Discard") {
+              return;
+            }
+          }
+
           if (normalTracked.length > 0) {
             const ok = await vscode.window.showWarningMessage(
               `Discard changes in ${normalTracked.length} file(s)?`,
@@ -537,9 +581,9 @@ export function registerCommands(deps: Deps) {
                 );
               }
 
-              const toRestore = [...newlyAdded, ...normalTracked];
+              const toRestore = [...renamed, ...newlyAdded, ...normalTracked];
               if (toRestore.length > 0) {
-                await deps.git.discardFiles(deps.repoRoot, toRestore);
+                await deps.revertPaths.run(deps.repoRoot, toRestore);
               }
 
               await deps.coordinator.requestNow();
@@ -558,7 +602,7 @@ export function registerCommands(deps: Deps) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "gitWorklists.openDiff",
-      async (uri: vscode.Uri) => {
+      async (uri: vscode.Uri, knownOldPath?: string) => {
         if (!uri) {
           return;
         }
@@ -572,6 +616,26 @@ export function registerCommands(deps: Deps) {
         const repoRel = normalizeRepoRelPath(rel);
         const ref = "HEAD";
 
+        // A node-supplied oldPath (from RenameMapping/persisted renames)
+        // covers the unstaged case too, where status never reports an R —
+        // prefer it over re-deriving from status.
+        if (
+          knownOldPath &&
+          (await deps.git.fileExistsAtRef(deps.repoRoot, ref, knownOldPath))
+        ) {
+          const leftUri = vscode.Uri.parse(
+            `${GitShowContentProvider.scheme}:/${encodeURIComponent(ref)}/${encodeURIComponent(knownOldPath)}`,
+          );
+          await vscode.commands.executeCommand(
+            "vscode.diff",
+            leftUri,
+            uri,
+            `${repoRel} (${ref}:${knownOldPath} ↔ Working Tree)`,
+          );
+          deps.diffTabTracker.track(uri);
+          return;
+        }
+
         const existsInHead = await deps.git.fileExistsAtRef(
           deps.repoRoot,
           ref,
@@ -584,7 +648,7 @@ export function registerCommands(deps: Deps) {
           );
           if (
             entry?.oldPath &&
-            (entry.x === "R" || entry.x === "C") &&
+            entry.x === "R" &&
             (await deps.git.fileExistsAtRef(deps.repoRoot, ref, entry.oldPath))
           ) {
             const leftUri = vscode.Uri.parse(
@@ -702,7 +766,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await stageChangelistAll(deps.git, deps.repoRoot, group.list.files);
+        await stageChangelistAll(deps.stagePaths, deps.repoRoot, group.list.files);
         await vscode.commands.executeCommand("gitWorklists.refresh");
       },
     ),
@@ -723,7 +787,7 @@ export function registerCommands(deps: Deps) {
           return;
         }
 
-        await unstageChangelistAll(deps.git, deps.repoRoot, group.list.files);
+        await unstageChangelistAll(deps.unstagePaths, deps.repoRoot, group.list.files);
         await vscode.commands.executeCommand("gitWorklists.refresh");
       },
     ),

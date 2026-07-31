@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { AutoRefreshController } from "../adapters/vscode/autoRefreshController";
 import { Deps } from "../app/types";
 import { HandleFilesRenamed } from "../usecases/handleFilesRenamed";
+import { recordFileRename } from "../usecases/recordFileRename";
 
 export function registerAutoRefresh(
   deps: Deps,
@@ -14,7 +15,10 @@ export function registerAutoRefresh(
     () => deps.repoRoot,
     () => deps.gitDir,
     doRefresh,
-    (pairs) => renameHandler.run(pairs),
+    (pairs) => {
+      recordFileRename(deps.renameMapping, deps.repoRoot, pairs);
+      return renameHandler.run(pairs);
+    },
   );
 
   auto.start();

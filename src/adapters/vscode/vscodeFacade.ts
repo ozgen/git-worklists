@@ -16,6 +16,8 @@ export type FileSystemWatcherLike = DisposableLike & {
 export type WorkspaceLike = {
   createFileSystemWatcher(pattern: RelativePatternLike): FileSystemWatcherLike;
 
+  fs: { stat(uri: UriLike): PromiseLike<{ type: number }> };
+
   onDidCreateFiles: EventLike<{ readonly files: readonly UriLike[] }>;
   onDidDeleteFiles: EventLike<{ readonly files: readonly UriLike[] }>;
   onDidRenameFiles: EventLike<{

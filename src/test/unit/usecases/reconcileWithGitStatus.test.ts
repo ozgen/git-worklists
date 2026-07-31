@@ -4,6 +4,7 @@ import { ReconcileWithGitStatus } from "../../../usecases/reconcileWithGitStatus
 import type { PersistedState } from "../../../adapters/storage/workspaceStateStore";
 import type { GitClient } from "../../../adapters/git/gitClient";
 import { SystemChangelist } from "../../../core/changelist/systemChangelist";
+import { RenameMapping } from "../../../core/rename/renameMapping";
 
 function makeStore(initial?: PersistedState) {
   let state = initial;
@@ -437,5 +438,280 @@ describe("ReconcileWithGitStatus", () => {
     expect(x.files).toContain("src/new.ts");
     expect(x.files).not.toContain("src/old.ts");
     expect(x.files).not.toContain("src\\old.ts");
+  });
+});
+
+describe("ReconcileWithGitStatus — after a rename has been staged", () => {
+  it("moves the newly-staged path from Unversioned to Default", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: ["test-rn-1.txt"] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    const git = makeGit(
+      [
+        { path: "test.txt", x: "D", y: " " },
+        { path: "test-rn-1.txt", x: "A", y: " " },
+      ],
+      [],
+    );
+
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    const d = getList(saved, SystemChangelist.Default);
+
+    expect(u.files).not.toContain("test-rn-1.txt");
+    expect(d.files).toContain("test-rn-1.txt");
+  });
+});
+
+describe("ReconcileWithGitStatus — rename mapping pruning", () => {
+  it("prunes a mapping entry once its oldPath no longer has a D status", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    // old.ts no longer appears at all — as if the rename was committed.
+    const git = makeGit([], []);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "new.ts")).toBeUndefined();
+  });
+
+  it("keeps a mapping entry while its oldPath still has a D status", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    const git = makeGit([{ path: "old.ts", x: " ", y: "D" }], []);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "new.ts")).toBe("old.ts");
+  });
+});
+
+describe("ReconcileWithGitStatus — rename target placement must not bounce to Unversioned", () => {
+  it("keeps a rename destination already placed in Default by HandleFilesRenamed", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["new.ts"] },
+      ],
+    };
+
+    const git = makeGit([{ path: "old.ts", x: " ", y: "D" }], ["new.ts"]);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    const d = getList(saved, SystemChangelist.Default);
+
+    expect(d.files).toContain("new.ts");
+    expect(u.files).not.toContain("new.ts");
+  });
+
+  it("keeps a rename destination already placed in a custom changelist by HandleFilesRenamed", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "feature-a", name: "Feature A", files: ["new.ts"] },
+      ],
+    };
+
+    const git = makeGit([{ path: "old.ts", x: " ", y: "D" }], ["new.ts"]);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    const f = getList(saved, "feature-a");
+
+    expect(f.files).toContain("new.ts");
+    expect(u.files).not.toContain("new.ts");
+  });
+
+  it("still falls through to Unversioned when the rename was never placed anywhere", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    const git = makeGit([{ path: "old.ts", x: " ", y: "D" }], ["new.ts"]);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+
+    expect(u.files).toContain("new.ts");
+  });
+});
+
+describe("ReconcileWithGitStatus — mapping survives an explicit staged rename entry", () => {
+  it("does not prune the mapping when status reports only a single R entry", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["new.ts"] },
+      ],
+    };
+
+    const git = makeGit([{ path: "new.ts", x: "R", y: " ", oldPath: "old.ts" }], []);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "new.ts")).toBe("old.ts");
+  });
+});
+
+describe("ReconcileWithGitStatus — canonical rename-mapping synchronization", () => {
+  it("hydrates RenameMapping from persisted renames before pruning, so an unstaged rename survives a reload", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["new.ts"] },
+      ],
+      renames: [{ oldPath: "old.ts", newPath: "new.ts" }],
+    };
+
+    // Fresh RenameMapping, as if the extension just reloaded. No R status
+    // exists — an unstaged rename has no Git-level signal to rebuild from.
+    const mapping = new RenameMapping();
+    const git = makeGit([{ path: "old.ts", x: " ", y: "D" }], ["new.ts"]);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "new.ts")).toBe("old.ts");
+
+    const saved = store.getState()!;
+    expect(saved.renames).toEqual([{ oldPath: "old.ts", newPath: "new.ts" }]);
+
+    const d = getList(saved, SystemChangelist.Default);
+    expect(d.files).toContain("new.ts");
+  });
+
+  it("reconstructs a rename from an explicit R status when RenameMapping is empty", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    const mapping = new RenameMapping();
+    const git = makeGit([{ path: "new.ts", x: "R", y: " ", oldPath: "old.ts" }], []);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "new.ts")).toBe("old.ts");
+    expect(store.getState()!.renames).toEqual([
+      { oldPath: "old.ts", newPath: "new.ts" },
+    ]);
+  });
+
+  it("does not treat a copy (C) status as a rename", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: ["original.ts", "copy.ts"] },
+      ],
+    };
+
+    const mapping = new RenameMapping();
+    const git = makeGit(
+      [
+        { path: "copy.ts", x: "C", y: " ", oldPath: "original.ts" },
+        { path: "original.ts", x: " ", y: "M" },
+      ],
+      [],
+    );
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "copy.ts")).toBeUndefined();
+    expect(store.getState()!.renames ?? []).toEqual([]);
+
+    // Both sides remain their own independent entries — original.ts is not
+    // discarded as if it were the "old side" of a rename.
+    const d = getList(store.getState()!, SystemChangelist.Default);
+    expect(d.files).toContain("original.ts");
+    expect(d.files).toContain("copy.ts");
+  });
+
+  it("prunes the persisted renames entry once nothing references it anymore", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+      renames: [{ oldPath: "old.ts", newPath: "new.ts" }],
+    };
+
+    // Nothing in status mentions old.ts or new.ts at all — as if the rename
+    // was committed (or reverted) since the last reconcile pass.
+    const mapping = new RenameMapping();
+    const git = makeGit([], []);
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    expect(mapping.resolveOldPath("/repo", "new.ts")).toBeUndefined();
+    expect(store.getState()!.renames).toEqual([]);
   });
 });

@@ -1,9 +1,9 @@
-import { GitClient } from "../adapters/git/gitClient";
+import { StagePaths } from "./stagePaths";
 
 export async function stageChangelistAll(
-  git: GitClient,
+  stagePaths: StagePaths,
   repoRootFsPath: string,
   repoRelativePaths: string[],
 ): Promise<void> {
-  await git.stageMany(repoRootFsPath, repoRelativePaths);
+  await stagePaths.run(repoRootFsPath, repoRelativePaths);
 }

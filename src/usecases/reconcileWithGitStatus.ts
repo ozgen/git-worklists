@@ -5,6 +5,7 @@ import {
   WorkspaceStateStore,
 } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
+import { RenameMapping } from "../core/rename/renameMapping";
 
 function norm(p: string): string {
   return p.replace(/\\/g, "/");
@@ -41,6 +42,7 @@ export class ReconcileWithGitStatus {
     private readonly existsOnDisk: (
       absPath: string,
     ) => Promise<boolean> = async () => true,
+    private readonly renameMapping: RenameMapping = new RenameMapping(),
   ) {}
 
   /**
@@ -65,6 +67,12 @@ export class ReconcileWithGitStatus {
 
     const fixed = ensureSystemLists(state);
 
+    for (const { oldPath, newPath } of fixed.renames ?? []) {
+      if (this.renameMapping.resolveOldPath(repoRoot, newPath) === undefined) {
+        this.renameMapping.record(repoRoot, oldPath, newPath);
+      }
+    }
+
     const status = await this.git.getStatusPorcelainZ(repoRoot);
 
     // Untracked paths — filter to those that actually exist on disk to avoid stale git cache
@@ -84,8 +92,13 @@ export class ReconcileWithGitStatus {
         continue;
       }
       changed.add(p);
-      if ((e.x === "R" || e.x === "C") && e.oldPath) {
+      // A copy (C) leaves oldPath as a live, independent tracked file — only
+      // an explicit R is actually a rename.
+      if (e.x === "R" && e.oldPath) {
         renamedFrom.set(norm(e.oldPath), p);
+        if (this.renameMapping.resolveOldPath(repoRoot, p) === undefined) {
+          this.renameMapping.record(repoRoot, norm(e.oldPath), p);
+        }
       }
     }
 
@@ -132,10 +145,31 @@ export class ReconcileWithGitStatus {
       return e?.x === "D" || e?.y === "D";
     };
 
+    const hasExplicitRenameFrom = (oldPath: string): boolean =>
+      status.some((e) => e.x === "R" && e.oldPath && norm(e.oldPath) === oldPath);
+
+    this.renameMapping.pruneRepo(
+      repoRoot,
+      (oldPath) => isDeletedStatus(oldPath) || hasExplicitRenameFrom(oldPath),
+    );
+
+    const isPlacedRenameTarget = (f: string): boolean => {
+      const oldPath = this.renameMapping.resolveOldPath(repoRoot, f);
+      if (!oldPath) {
+        return false;
+      }
+      return nextLists.some(
+        (l) => l.id !== SystemChangelist.Unversioned && l.files.includes(f),
+      );
+    };
+
     // Rule 1: every currently untracked file belongs to Unversioned
     const unv = mustGet(SystemChangelist.Unversioned);
-    
+
     for (const f of liveUntracked) {
+      if (isPlacedRenameTarget(f)) {
+        continue;
+      }
       removeEverywhere(f);
       unv.files.push(f);
     }
@@ -163,7 +197,10 @@ export class ReconcileWithGitStatus {
       l.files = Array.from(new Set(l.files.map(norm))).sort();
     }
 
-    // Save updated lists
-    await this.store.save(repoRoot, { ...fixed, lists: nextLists });
+    await this.store.save(repoRoot, {
+      ...fixed,
+      lists: nextLists,
+      renames: this.renameMapping.entries(repoRoot),
+    });
   }
 }

@@ -87,6 +87,13 @@ export interface GitClient {
     repoRelativePaths: string[],
   ): Promise<void>;
 
+  /** Stages a rename pair atomically via `git add -A -- oldPath newPath`. */
+  stageRename(
+    repoRootFsPath: string,
+    oldPath: string,
+    newPath: string,
+  ): Promise<void>;
+
   /**
    * Returns staged paths as a normalized Set<string>.
    * Derived from `git status --porcelain=v1 -z`.
@@ -200,6 +207,17 @@ export interface GitClient {
   discardFiles(
     repoRootFsPath: string,
     repoRelativePaths: string[],
+  ): Promise<void>;
+
+  /**
+   * Reverts a rename pair: resurrects oldPath from HEAD (content included,
+   * not just path existence) and removes newPath, whichever index/worktree
+   * state each currently happens to be in.
+   */
+  revertRename(
+    repoRootFsPath: string,
+    oldPath: string,
+    newPath: string,
   ): Promise<void>;
 
   // ---- Stash ----

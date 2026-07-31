@@ -329,3 +329,123 @@ describe("ChangelistTreeProvider (unit)", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("ChangelistTreeProvider — rename node rendering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders a same-folder rename as 'old → new' with the shared folder and R in description", async () => {
+    const state = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Default, name: "Changes", files: ["src/new.ts"] },
+      ],
+      renames: [{ oldPath: "src/old.ts", newPath: "src/new.ts" }],
+    };
+
+    const store = makeStore(state as any);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map());
+
+    const root = await tp.getChildren(undefined as any);
+    const files = await tp.getChildren(root[0] as any);
+    const node = files[0] as any;
+
+    expect(node.label).toBe("old.ts → new.ts");
+    expect(node.description).toBe("src  R");
+    expect(node.oldPath).toBe("src/old.ts");
+  });
+
+  it("renders a cross-folder rename with full paths in the label", async () => {
+    const state = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Default, name: "Changes", files: ["lib/new.ts"] },
+      ],
+      renames: [{ oldPath: "src/old.ts", newPath: "lib/new.ts" }],
+    };
+
+    const store = makeStore(state as any);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map());
+
+    const root = await tp.getChildren(undefined as any);
+    const files = await tp.getChildren(root[0] as any);
+    const node = files[0] as any;
+
+    expect(node.label).toBe("src/old.ts → lib/new.ts");
+    expect(node.description).toBe("R");
+  });
+
+  it("passes oldPath as the openDiff command's second argument for a rename", async () => {
+    const state = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Default, name: "Changes", files: ["new.ts"] },
+      ],
+      renames: [{ oldPath: "old.ts", newPath: "new.ts" }],
+    };
+
+    const store = makeStore(state as any);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map());
+
+    const root = await tp.getChildren(undefined as any);
+    const files = await tp.getChildren(root[0] as any);
+    const node = files[0] as any;
+
+    expect(node.command.arguments[0].fsPath).toBe("/repo/new.ts");
+    expect(node.command.arguments[1]).toBe("old.ts");
+  });
+
+  it("leaves a plain file (no matching renames entry) unaffected", async () => {
+    const state = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Default, name: "Changes", files: ["plain.ts"] },
+      ],
+      renames: [{ oldPath: "old.ts", newPath: "unrelated.ts" }],
+    };
+
+    const store = makeStore(state as any);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map());
+
+    const root = await tp.getChildren(undefined as any);
+    const files = await tp.getChildren(root[0] as any);
+    const node = files[0] as any;
+
+    expect(node.label).toBe("plain.ts");
+    expect(node.oldPath).toBeUndefined();
+    expect(node.command.arguments[0].fsPath).toBe("/repo/plain.ts");
+    expect(node.command.arguments[1]).toBeUndefined();
+  });
+
+  it("keeps ownership placement unaffected by a rename entry (custom changelist)", async () => {
+    const state = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+        { id: "cl_x", name: "Feature", files: ["renamed.ts"] },
+      ],
+      renames: [{ oldPath: "old.ts", newPath: "renamed.ts" }],
+    };
+
+    const store = makeStore(state as any);
+    const tp = new ChangelistTreeProvider(store as any);
+    tp.setRepoRoot("/repo");
+    tp.setFileStageStates(new Map());
+
+    const root = await tp.getChildren(undefined as any);
+    const featureGroup = root.find((n: any) => n.list?.id === "cl_x") as any;
+    const files = await tp.getChildren(featureGroup);
+
+    expect(files).toHaveLength(1);
+    expect((files[0] as any).oldPath).toBe("old.ts");
+  });
+});

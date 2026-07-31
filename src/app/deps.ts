@@ -29,6 +29,10 @@ import { ReconcileWithGitStatus } from "../usecases/reconcileWithGitStatus";
 import { RenameChangelist } from "../usecases/renameChangelist";
 import { RestageAlreadyStaged } from "../usecases/restageAlreadyStaged";
 import { RestoreFilesToChangelist } from "../usecases/stash/restoreFilesToChangelist";
+import { StagePaths } from "../usecases/stagePaths";
+import { UnstagePaths } from "../usecases/unstagePaths";
+import { RevertPaths } from "../usecases/revertPaths";
+import { RenameMapping } from "../core/rename/renameMapping";
 import { BookmarkDecorationProvider } from "../views/bookmark/bookmarkDecorationProvider";
 import { ChangelistDragDrop } from "../views/changelistDragDrop";
 import { ChangelistTreeProvider } from "../views/changelistTreeProvider";
@@ -114,7 +118,11 @@ export async function createDeps(
   const existsOnDisk = async (abs: string) => {
     try { await access(abs); return true; } catch { return false; }
   };
-  const reconcile = new ReconcileWithGitStatus(git, store, existsOnDisk);
+  const renameMapping = new RenameMapping();
+  const reconcile = new ReconcileWithGitStatus(git, store, existsOnDisk, renameMapping);
+  const stagePaths = new StagePaths(git, renameMapping);
+  const unstagePaths = new UnstagePaths(git, renameMapping);
+  const revertPaths = new RevertPaths(git, renameMapping);
 
   const coordinator = new RefreshCoordinator(async () => {
     await loadOrInit.run(deps.repoRoot);
@@ -200,6 +208,10 @@ export async function createDeps(
     loadOrInit,
     reconcile,
     restageAlreadyStaged,
+    renameMapping,
+    stagePaths,
+    unstagePaths,
+    revertPaths,
     setBookmark,
     jumpToBookmark,
     clearBookmark,
@@ -239,6 +251,7 @@ export async function createDeps(
         debounceMs: 800,
       });
 
+      renameMapping.pruneRepo(deps.repoRoot, () => false);
       deps.repoRoot = normalized;
       deps.gitDir = nextGitDir;
 

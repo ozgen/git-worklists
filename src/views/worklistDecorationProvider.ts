@@ -10,9 +10,12 @@ type PersistedChangelist = {
   files: string[];
 };
 
+type PersistedRename = { oldPath: string; newPath: string };
+
 type PersistedStateV1 = {
   version: 1;
   lists: PersistedChangelist[];
+  renames?: PersistedRename[];
 };
 
 export class WorklistDecorationProvider
@@ -69,25 +72,30 @@ export class WorklistDecorationProvider
     const normalizedRel = normalizeRepoRelPath(rel);
     const stageState = this.fileStageStates.get(normalizedRel) ?? "none";
     const lists = this.state.lists;
+    const isRenameDestination = (this.state.renames ?? []).some(
+      (r) => normalizeRepoRelPath(r.newPath) === normalizedRel,
+    );
 
     const unversioned = lists.find(
       (l) => l.id === SystemChangelist.Unversioned,
     );
     if (unversioned?.files.includes(normalizedRel)) {
-      return new vscode.FileDecoration(
-        "U",
+      const suffix =
         stageState === "all"
-          ? "Unversioned • Staged"
+          ? " • Staged"
           : stageState === "partial"
-            ? "Unversioned • Partially staged"
-            : "Unversioned",
+            ? " • Partially staged"
+            : "";
+      return new vscode.FileDecoration(
+        isRenameDestination ? "RU" : "U",
+        `Unversioned${suffix}`,
         undefined,
       );
     }
 
     const defaultList = lists.find((l) => l.id === SystemChangelist.Default);
     if (defaultList?.files.includes(normalizedRel)) {
-      return decorationForList("D", "Default", stageState);
+      return decorationForList("D", "Default", stageState, isRenameDestination);
     }
 
     const customList = lists.find(
@@ -102,6 +110,7 @@ export class WorklistDecorationProvider
         badgeFromName(customList.name),
         customList.name,
         stageState,
+        isRenameDestination,
       );
     }
 
@@ -113,6 +122,7 @@ function decorationForList(
   badge: string,
   listName: string,
   stageState: FileStageState,
+  isRenameDestination: boolean,
 ): vscode.FileDecoration {
   const base = listName === "Default" ? "In Changes" : `In ${listName}`;
 
@@ -123,7 +133,11 @@ function decorationForList(
         ? " • Partially staged"
         : "";
 
-  return new vscode.FileDecoration(badge, `${base}${suffix}`, undefined);
+  return new vscode.FileDecoration(
+    isRenameDestination ? `R${badge}` : badge,
+    `${base}${suffix}`,
+    undefined,
+  );
 }
 
 function toRepoRelPath(repoRootFsPath: string, uri: vscode.Uri): string {

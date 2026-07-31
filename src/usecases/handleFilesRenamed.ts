@@ -1,13 +1,13 @@
 import type { GitClient } from "../adapters/git/gitClient";
 import type { ChangelistStore } from "./changelistStore";
 import { normalizeRepoRelPath } from "../utils/paths";
+import { replacePathInChangelists } from "../core/changelist/replacePathInChangelists";
 
 export type RenamedFilePair = { oldRelPath: string; newRelPath: string };
 
 type ActivePair = {
   normOld: string;
   normNew: string;
-  ownerListId: string;
 };
 
 export class HandleFilesRenamed {
@@ -44,29 +44,10 @@ export class HandleFilesRenamed {
       }
     }
 
-    const allOldPaths = new Set(activePairs.map((p) => p.normOld));
-    const allNewPaths = new Set(activePairs.map((p) => p.normNew));
-    const newToOwner = new Map(
-      activePairs.map((p) => [p.normNew, p.ownerListId] as const),
-    );
-
-    const updatedLists = state.lists.map((list) => {
-      const cleaned = list.files
-        .map(normalizeRepoRelPath)
-        .filter((f) => !allOldPaths.has(f) && !allNewPaths.has(f));
-
-      const additions: string[] = [];
-      for (const [normNew, ownerId] of newToOwner) {
-        if (ownerId === list.id) {
-          additions.push(normNew);
-        }
-      }
-
-      return {
-        ...list,
-        files: [...new Set([...cleaned, ...additions])].sort(),
-      };
-    });
+    let updatedLists = state.lists;
+    for (const { normOld, normNew } of activePairs) {
+      updatedLists = replacePathInChangelists(updatedLists, normOld, normNew);
+    }
 
     await this.store.save(repoRoot, {
       ...state,
@@ -85,16 +66,12 @@ function findActivePairs(
     const normOld = normalizeRepoRelPath(oldRelPath);
     const normNew = normalizeRepoRelPath(newRelPath);
 
-    const owner = lists.find((list) =>
+    const hasOwner = lists.some((list) =>
       list.files.some((file) => normalizeRepoRelPath(file) === normOld),
     );
 
-    if (owner) {
-      result.push({
-        normOld,
-        normNew,
-        ownerListId: owner.id,
-      });
+    if (hasOwner) {
+      result.push({ normOld, normNew });
     }
   }
 

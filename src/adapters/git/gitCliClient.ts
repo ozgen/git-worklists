@@ -207,6 +207,14 @@ export class GitCliClient implements GitClient {
     );
   }
 
+  async stageRename(
+    repoRootFsPath: string,
+    oldPath: string,
+    newPath: string,
+  ): Promise<void> {
+    await execGit(["add", "-A", "--", oldPath, newPath], repoRootFsPath);
+  }
+
   async getStagedPaths(repoRootFsPath: string): Promise<Set<string>> {
     const entries = await this.getStatusPorcelainZ(repoRootFsPath);
     const staged = new Set<string>();
@@ -561,6 +569,38 @@ export class GitCliClient implements GitClient {
     }
     if (untracked.length > 0) {
       await execGit(["clean", "-f", "--", ...untracked], repoRootFsPath);
+    }
+  }
+
+  async revertRename(
+    repoRootFsPath: string,
+    oldPath: string,
+    newPath: string,
+  ): Promise<void> {
+    if (await this.fileExistsAtRef(repoRootFsPath, "HEAD", oldPath)) {
+      
+      await execGit(
+        ["restore", "--source=HEAD", "--staged", "--worktree", "--", oldPath],
+        repoRootFsPath,
+      );
+    }
+
+    const known = (
+      await execGit(["ls-files", "--", newPath], repoRootFsPath)
+    ).trim();
+    if (known) {
+      await execGit(["restore", "--staged", "--worktree", "--", newPath], repoRootFsPath);
+      return;
+    }
+
+    // `git clean -f` on a directory pathspec deletes the whole directory
+    // even without `-d` — dry-run first and skip if the target is one
+    // (reported with a trailing "/").
+    const dryRun = (
+      await execGit(["clean", "-f", "-n", "--", newPath], repoRootFsPath)
+    ).trim();
+    if (dryRun && !dryRun.endsWith("/")) {
+      await execGit(["clean", "-f", "--", newPath], repoRootFsPath);
     }
   }
 
