@@ -13,6 +13,27 @@ No changes yet.
 
 ---
 
+## [1.3.1] - 2026-09-14
+
+### Fixed
+
+- A tracked file that had no pending changes and is then deleted now stays visible in its changelist with a **D** (deleted) status, instead of silently disappearing from the Tree View.
+
+### Changed
+
+- Updated development dependencies:
+  - `@types/node` from `26.1.1` to `26.2.0`
+  - `@types/vscode` from `1.125.0` to `1.134.0`
+  - `@vitest/coverage-v8` from `4.1.10` to `4.1.11`
+  - `eslint` from `10.8.0` to `10.8.1`
+  - `typescript-eslint` from `8.65.0` to `8.67.0`
+
+### Maintenance
+
+- Fixed the integration test runner to resolve the correct VS Code executable on macOS.
+
+---
+
 ## [1.3.0] - 2026-07-31
 
 ### Added
