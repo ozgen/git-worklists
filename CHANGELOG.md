@@ -22,11 +22,11 @@ No changes yet.
 ### Changed
 
 - Updated development dependencies:
-  - `@types/node` from `26.1.1` to `26.2.0`
-  - `@types/vscode` from `1.125.0` to `1.134.0`
-  - `@vitest/coverage-v8` from `4.1.10` to `4.1.11`
+  - `@types/node` from `26.1.1` to `26.5.1`
+  - `@types/vscode` from `1.125.0` to `1.137.0`
+  - `@vitest/coverage-v8` from `4.1.10` to `5.0.0`
   - `eslint` from `10.8.0` to `10.8.1`
-  - `typescript-eslint` from `8.65.0` to `8.67.0`
+  - `typescript-eslint` from `8.65.0` to `8.70.0`
 
 ### Maintenance
 
