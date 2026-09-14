@@ -1,5 +1,6 @@
+import * as fs from "fs";
 import * as path from "path";
-import { runTests } from "@vscode/test-electron";
+import { downloadAndUnzipVSCode, runTests } from "@vscode/test-electron";
 
 async function main() {
   try {
@@ -11,7 +12,21 @@ async function main() {
       "src/test/fixtures/repo",
     );
 
+    let vscodeExecutablePath = await downloadAndUnzipVSCode();
+
+    if (process.platform === "darwin" && !fs.existsSync(vscodeExecutablePath)) {
+      const codeExecutablePath = vscodeExecutablePath.replace(
+        /\/Electron$/,
+        "/Code",
+      );
+
+      if (fs.existsSync(codeExecutablePath)) {
+        vscodeExecutablePath = codeExecutablePath;
+      }
+    }
+
     await runTests({
+      vscodeExecutablePath,
       extensionDevelopmentPath,
       extensionTestsPath,
       launchArgs: [workspacePath, "--disable-extensions"],
