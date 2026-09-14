@@ -355,6 +355,47 @@ describe("ReconcileWithGitStatus", () => {
     expect(u.files).not.toContain("stale.txt");
   });
 
+  it("keeps a previously-clean tracked file that was deleted (unstaged D, no prior owner)", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    // test.txt was clean (no prior changelist entry) and is now deleted, unstaged.
+    const git = makeGit([{ path: "test.txt", x: " ", y: "D" }], []);
+    const store = makeStore(initial);
+
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const d = getList(saved, SystemChangelist.Default);
+    expect(d.files).toContain("test.txt");
+  });
+
+  it("keeps a previously-clean tracked file that was deleted (staged D, no prior owner)", async () => {
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    const git = makeGit([{ path: "test.txt", x: "D", y: " " }], []);
+    const store = makeStore(initial);
+
+    const uc = new ReconcileWithGitStatus(git, store as any);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const d = getList(saved, SystemChangelist.Default);
+    expect(d.files).toContain("test.txt");
+  });
+
   it("keeps a tracked deleted file (D status) even when it is not on disk", async () => {
     const initial: PersistedState = {
       version: 1,
@@ -565,6 +606,40 @@ describe("ReconcileWithGitStatus — rename target placement must not bounce to 
 
     expect(f.files).toContain("new.ts");
     expect(u.files).not.toContain("new.ts");
+  });
+
+  it("keeps an unrelated ownerless deletion visible alongside a known rename", async () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "a.txt", "b.txt");
+
+    const initial: PersistedState = {
+      version: 1,
+      lists: [
+        { id: SystemChangelist.Unversioned, name: "Unversioned", files: [] },
+        { id: SystemChangelist.Default, name: "Changes", files: [] },
+      ],
+    };
+
+    // a.txt -> b.txt is a known rename (split as D + ??).
+    // c.txt is an unrelated tracked file that was deleted directly.
+    const git = makeGit(
+      [
+        { path: "a.txt", x: " ", y: "D" },
+        { path: "c.txt", x: " ", y: "D" },
+      ],
+      ["b.txt"],
+    );
+    const store = makeStore(initial);
+    const uc = new ReconcileWithGitStatus(git, store as any, undefined, mapping);
+    await uc.run("/repo");
+
+    const saved = store.getState()!;
+    const u = getList(saved, SystemChangelist.Unversioned);
+    const d = getList(saved, SystemChangelist.Default);
+
+    expect(u.files).toContain("b.txt");
+    expect(d.files).not.toContain("a.txt");
+    expect(d.files).toContain("c.txt");
   });
 
   it("still falls through to Unversioned when the rename was never placed anywhere", async () => {
