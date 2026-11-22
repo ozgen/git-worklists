@@ -13,6 +13,25 @@ No changes yet.
 
 ---
 
+## [1.3.2] - 2026-11-22
+
+### Changed
+
+- Raised the minimum supported VS Code version from `1.137.0` to `1.138.0`.
+- Updated development dependencies:
+  - `@types/node` from `26.5.1` to `26.6.2`
+  - `@types/vscode` from `1.137.0` to `1.138.0`
+  - `@vitest/coverage-v8` from `5.0.0` to `5.0.1`
+  - `eslint` from `10.10.0` to `10.11.0`
+  - `typescript-eslint` from `8.70.0` to `8.70.1`
+  - `vitest` from `5.0.0` to `5.0.1`
+
+### Maintenance
+
+- No runtime extension behavior changes in this release.
+
+---
+
 ## [1.3.1] - 2026-09-14
 
 ### Fixed
