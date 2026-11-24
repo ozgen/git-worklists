@@ -13,6 +13,21 @@ No changes yet.
 
 ---
 
+## [1.3.3] - 2026-11-24
+
+### Fixed
+
+- Fixed single-file staging and unstaging on Windows when Git and VS Code use different drive-letter casing ([#69](https://github.com/ozgen/git-worklists/issues/69)).
+- Fixed missing worklist file decorations on Windows caused by the same drive-letter mismatch.
+- Fixed external file changes being ignored by the repository watcher on Windows when drive-letter casing differs.
+- Restored the square icon for unstaged files and groups by using the valid `primitive-square` icon ID.
+
+### Maintenance
+
+- Added regression tests for Windows path handling in staging commands, file decorations, and repository watcher events.
+
+---
+
 ## [1.3.0] - 2026-07-31
 
 ### Added
