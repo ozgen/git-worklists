@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const vscodeMock = vi.hoisted(() => {
   class ThemeColor {
@@ -69,6 +69,28 @@ describe("WorklistDecorationProvider", () => {
     provider = new WorklistDecorationProvider(store);
     provider.setRepoRoot(repoRoot);
   });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([SystemChangelist.Default, SystemChangelist.Unversioned])(
+    "decorates a Windows file with different drive casing in %s",
+    async (id) => {
+      vi.stubGlobal("process", { ...process, platform: "win32" });
+      provider.setRepoRoot("C:/Users/Test/repo");
+      provider.updateSnapshot({
+        state: state([{ id, name: "Changes", files: ["src/App.ts"] }]),
+        fileStageStates: new Map([["src/App.ts", "all"]]),
+      });
+
+      const dec = await provider.provideFileDecoration(
+        vscode.Uri.file("c:\\Users\\Test\\repo\\src\\App.ts"),
+      );
+      expect(dec?.badge).toBe(id === SystemChangelist.Default ? "D" : "U");
+      expect(dec?.tooltip).toContain("Staged");
+    },
+  );
 
   it("fires change when setRepoRoot is called", () => {
     const ee = (provider as any)._onDidChange;

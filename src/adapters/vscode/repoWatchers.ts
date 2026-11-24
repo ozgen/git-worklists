@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import {
+  normalizeFsPathForComparison,
+  normalizeRepoRelPath,
+} from "../../utils/paths";
 
 export type RepoWatchers = {
   dispose(): void;
@@ -31,14 +35,15 @@ export function createRepoWatchers(opts: {
     }, debounceMs);
   };
 
-  const norm = (p: string) => p.replace(/\\/g, "/");
+  const root = normalizeFsPathForComparison(opts.repoRoot);
 
   // Keep this list small and practical.
   const shouldIgnoreWorktree = (uri: vscode.Uri) => {
-    const p = norm(uri.fsPath);
+    const p = normalizeRepoRelPath(uri.fsPath);
+    const comparablePath = normalizeFsPathForComparison(p);
 
     // ignore outside repo (paranoia)
-    if (!norm(p).startsWith(norm(opts.repoRoot))) {
+    if (!comparablePath.startsWith(root)) {
       return true;
     }
 

@@ -89,6 +89,47 @@ describe("createRepoWatchers", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["fireCreate", "fireChange", "fireDelete"] as const)(
+    "refreshes for a Windows %s event with different drive casing",
+    (event) => {
+      vi.stubGlobal("process", { ...process, platform: "win32" });
+      const triggerRefresh = vi.fn();
+      createRepoWatchers({
+        repoRoot: "C:/Users/Test/repo/",
+        gitDir: "C:/Users/Test/repo/.git",
+        triggerRefresh,
+        debounceMs: 50,
+      });
+
+      getBucket()[0][event]("c:\\Users\\Test\\repo\\src\\App.ts");
+      vi.advanceTimersByTime(50);
+      expect(triggerRefresh).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    "D:\\repo\\App.ts",
+    "c:\\Repo\\App.ts",
+    "c:\\repo\\node_modules\\lib\\index.js",
+    "c:\\repo\\.git\\index",
+    "c:\\repo\\dist\\app.js",
+    "c:\\repo\\file.tmp",
+  ])("ignores excluded or outside Windows paths: %s", (fsPath) => {
+    vi.stubGlobal("process", { ...process, platform: "win32" });
+    const triggerRefresh = vi.fn();
+    createRepoWatchers({
+      repoRoot: "C:/repo",
+      gitDir: "C:/repo/.git",
+      triggerRefresh,
+      debounceMs: 50,
+    });
+
+    getBucket()[0].fireChange(fsPath);
+    vi.advanceTimersByTime(50);
+    expect(triggerRefresh).not.toHaveBeenCalled();
   });
 
   it("creates exactly two watchers (worktree + gitdir)", () => {
