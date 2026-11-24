@@ -124,7 +124,7 @@ describe("ChangelistTreeProvider (unit)", () => {
     expect((root[1] as any).contextValue).toBe("gitWorklists.group.system");
     expect((root[2] as any).contextValue).toBe("gitWorklists.group.custom");
 
-    expect(((root[0] as any).iconPath as any).id).toBe("square");
+    expect(((root[0] as any).iconPath as any).id).toBe("primitive-square");
 
     expect((root[0] as any).command).toBeUndefined();
   });
@@ -262,7 +262,7 @@ describe("ChangelistTreeProvider (unit)", () => {
 
     const fc = files[2] as any; // c.txt — none
     expect(fc.stageState).toBe("none");
-    expect((fc.iconPath as any).id).toBe("square");
+    expect((fc.iconPath as any).id).toBe("primitive-square");
     expect(fc.contextValue).toBe("gitWorklists.file.unstaged");
   });
 

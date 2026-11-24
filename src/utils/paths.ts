@@ -4,13 +4,21 @@ export function normalizeRepoRelPath(p: string): string {
   return p.replace(/\\/g, "/");
 }
 
+export function normalizeFsPathForComparison(p: string): string {
+  const normalized = normalizeRepoRelPath(p);
+  return process.platform === "win32"
+    ? normalized.replace(/^[A-Z]:/, (drive) => drive.toLowerCase())
+    : normalized;
+}
+
 export function toRepoRelPath(repoRoot: string, uri: vscode.Uri): string {
-  const root = repoRoot.replace(/\\/g, "/").replace(/\/+$/, "");
-  const full = uri.fsPath.replace(/\\/g, "/");
-  if (full === root) {
+  const root = normalizeFsPathForComparison(repoRoot).replace(/\/+$/, "");
+  const full = normalizeRepoRelPath(uri.fsPath);
+  const comparableFull = normalizeFsPathForComparison(full);
+  if (comparableFull === root) {
     return "";
   }
-  if (!full.startsWith(root + "/")) {
+  if (!comparableFull.startsWith(root + "/")) {
     return "";
   }
   return full.slice(root.length + 1);

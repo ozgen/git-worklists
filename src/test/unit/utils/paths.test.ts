@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { normalizeRepoRelPath, toRepoRelPath } from "../../../utils/paths";
 
 type UriLike = { fsPath: string };
@@ -14,6 +14,38 @@ describe("normalizeRepoRelPath", () => {
 });
 
 describe("toRepoRelPath", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["C:/Users/Test/repo", "c:\\Users\\Test\\repo\\src\\App.ts"],
+    ["c:\\Users\\Test\\repo\\", "C:/Users/Test/repo/src/App.ts"],
+    ["C:/", "c:\\src\\App.ts"],
+  ])("handles Windows drive-letter casing: %s", (repoRoot, fsPath) => {
+    vi.stubGlobal("process", { ...process, platform: "win32" });
+    expect(toRepoRelPath(repoRoot, { fsPath } as any)).toBe("src/App.ts");
+  });
+
+  it.each([
+    "c:\\repo",
+    "c:\\repo-other\\App.ts",
+    "D:\\repo\\App.ts",
+    "c:\\Repo\\App.ts",
+  ])("rejects Windows roots and paths outside the repository: %s", (fsPath) => {
+    vi.stubGlobal("process", { ...process, platform: "win32" });
+    expect(toRepoRelPath("C:/repo", { fsPath } as any)).toBe("");
+  });
+
+  it.each(["linux", "darwin"])(
+    "keeps comparisons case-sensitive on %s",
+    (platform) => {
+      vi.stubGlobal("process", { ...process, platform });
+      expect(toRepoRelPath("C:/repo", { fsPath: "c:/repo/App.ts" } as any)).toBe("");
+      expect(toRepoRelPath("/Repo", { fsPath: "/repo/App.ts" } as any)).toBe("");
+    },
+  );
+
   it("returns empty string when uri is exactly repoRoot", () => {
     const repoRoot = "/repo";
     const uri: UriLike = { fsPath: "/repo" };

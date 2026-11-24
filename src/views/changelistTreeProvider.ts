@@ -241,7 +241,7 @@ function fileIcon(state: FileStageState): string {
   if (state === "partial") {
     return "remove";
   }
-  return "square";
+  return "primitive-square";
 }
 
 function fileContextValue(state: FileStageState): string {
@@ -269,7 +269,7 @@ function groupIcon(state: GroupStageState): string {
     case "all":
       return "check";
     case "none":
-      return "square";
+      return "primitive-square";
     case "mixed":
       return "remove";
   }

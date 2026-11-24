@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { FileStageState } from "../adapters/git/gitClient";
 import { WorkspaceStateStore } from "../adapters/storage/workspaceStateStore";
 import { SystemChangelist } from "../core/changelist/systemChangelist";
-import { normalizeRepoRelPath } from "../utils/paths";
+import { normalizeRepoRelPath, toRepoRelPath } from "../utils/paths";
 
 type PersistedChangelist = {
   id: string;
@@ -138,20 +138,6 @@ function decorationForList(
     `${base}${suffix}`,
     undefined,
   );
-}
-
-function toRepoRelPath(repoRootFsPath: string, uri: vscode.Uri): string {
-  const root = normalizeRepoRelPath(repoRootFsPath).replace(/\/+$/, "");
-  const full = normalizeRepoRelPath(uri.fsPath);
-
-  if (full === root) {
-    return "";
-  }
-  if (!full.startsWith(root + "/")) {
-    return "";
-  }
-
-  return full.slice(root.length + 1);
 }
 
 function badgeFromName(name: string): string {
