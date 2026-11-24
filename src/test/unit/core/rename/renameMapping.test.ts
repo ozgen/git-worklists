@@ -78,4 +78,34 @@ describe("RenameMapping", () => {
       { oldPath: "old.ts", newPath: "new.ts" },
     ]);
   });
+
+  it("hasOldPath returns true for a recorded oldPath", () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    expect(mapping.hasOldPath("/repo", "old.ts")).toBe(true);
+  });
+
+  it("hasOldPath returns false for an unknown path", () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "old.ts", "new.ts");
+
+    expect(mapping.hasOldPath("/repo", "unknown.ts")).toBe(false);
+    expect(mapping.hasOldPath("/repo", "new.ts")).toBe(false);
+  });
+
+  it("hasOldPath is isolated per repository", () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo1", "old.ts", "new.ts");
+
+    expect(mapping.hasOldPath("/repo1", "old.ts")).toBe(true);
+    expect(mapping.hasOldPath("/repo2", "old.ts")).toBe(false);
+  });
+
+  it("hasOldPath normalizes backslashes", () => {
+    const mapping = new RenameMapping();
+    mapping.record("/repo", "src\\old.ts", "src/new.ts");
+
+    expect(mapping.hasOldPath("/repo", "src/old.ts")).toBe(true);
+  });
 });

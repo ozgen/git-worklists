@@ -153,6 +153,9 @@ export class ReconcileWithGitStatus {
       (oldPath) => isDeletedStatus(oldPath) || hasExplicitRenameFrom(oldPath),
     );
 
+    const isKnownRenameOldPath = (p: string): boolean =>
+      renamedFrom.has(p) || this.renameMapping.hasOldPath(repoRoot, p);
+
     const isPlacedRenameTarget = (f: string): boolean => {
       const oldPath = this.renameMapping.resolveOldPath(repoRoot, f);
       if (!oldPath) {
@@ -179,7 +182,7 @@ export class ReconcileWithGitStatus {
     for (const f of changed) {
       const owner = fileOwner.get(f);
 
-      if (!owner && isDeletedStatus(f)) {
+      if (!owner && isKnownRenameOldPath(f)) {
         continue;
       }
 

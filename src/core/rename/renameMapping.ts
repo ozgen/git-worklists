@@ -20,6 +20,20 @@ export class RenameMapping {
     return this.byRepo.get(repoRoot)?.get(norm(newPath));
   }
 
+  hasOldPath(repoRoot: string, oldPath: string): boolean {
+    const forRepo = this.byRepo.get(repoRoot);
+    if (!forRepo) {
+      return false;
+    }
+    const target = norm(oldPath);
+    for (const recordedOldPath of forRepo.values()) {
+      if (recordedOldPath === target) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   entries(repoRoot: string): RenamePair[] {
     const forRepo = this.byRepo.get(repoRoot);
     if (!forRepo) {
